@@ -1,10 +1,13 @@
 '''
+Created on Jun 7, 2016
+#@author: user
+'''
+'''
 Created on Jun 6, 2016
-
-@author: Saeran Vasanthakumar
+#author: Saeran Vasanthakumar
 '''
 from decimal import Decimal, getcontext
-from vector import Vector
+from koku_vector import Vector
 import sys
 
 ## Set the decimal precision to 30 places.

@@ -1,7 +1,6 @@
 '''
-Created on Jun 6, 2016
-
-@author: Saeran Vasanthakumar
+#Created on Jun 6, 2016
+#author: Saeran Vasanthakumar
 '''
 from math import acos,pi
 from decimal import Decimal, getcontext
@@ -30,6 +29,8 @@ class Vector(object):
             raise TypeError('The coordinates must be an iterable')
     def __str__(self):
         return 'Vector: {}'.format([round(float(c),4) for c in self.coord])
+    def helloworld(self):
+        print 'helloworld'
     def __eq__(self, v):
         return self.coord == v.coord
     def plus(self,v):

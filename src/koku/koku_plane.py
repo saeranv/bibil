@@ -1,10 +1,9 @@
 '''
 Created on Jun 6, 2016
-
-@author: Saeran Vasanthakumar
+#author: Saeran Vasanthakumar
 '''
 from decimal import Decimal, getcontext
-from vector import Vector
+from koku_vector import Vector
 
 getcontext().prec = 30
 
