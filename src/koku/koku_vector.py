@@ -4,7 +4,7 @@
 '''
 from math import acos,pi
 from decimal import Decimal, getcontext
-
+from scriptcontext import sticky
 ## Set the decimal precision to 30 places.
 getcontext().prec = 30
 
@@ -173,6 +173,8 @@ class MyDecimal(Decimal):
         return abs(self) < eps
 
 if True:
+    sticky['Vector'] = Vector
+    
     ### Vector Tests
     """
     ## cross product test
