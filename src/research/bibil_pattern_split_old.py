@@ -107,49 +107,55 @@ class Fabric_Tree(Tree):
         if self.data.label != None and label in self.data.label: 
             return self
 
-    def make_tree_3D(self,node_head,grid_type,div,axis="NS",random_tol=0,cut_width=0,div_depth=0,ratio=None):        
+    def make_tree_3D(self,grid_type,div,axis="NS",random_tol=0,cut_width=0,div_depth=0,ratio=None):        
         print "We are changing recursively!"
         axis_ = axis
-        if self.parent: 
-            pg,sib = self.parent.data,self.sib  
-        else: 
-            pg,sib = None,None
-        self.data.make_label(self,grid_type,div,div_depth,axis_)
-        self.data.make_grammar(self.data.label,random_tol,cut_width,ratio)
-        while self.depth <= 100 and self.data.label != None: 
-            loc,locr = self.data.make_shape(self.data.rule)
-            for i,child in enumerate(loc):
-                kill = False
-                try:
-                    child_shape = Shape_3D(child,self.data.shape.cplane)
-                except Exception,e: 
-                    print str(e)
-                    child_shape = Shape_3D(child,self.data.shape.cplane,reset=False)
-                    child_shape.bottom_crv = None
-                    child_shape.top_crv = None
-                    child_shape.cpt = None
-                    child_shape.ht = None
-                    child_shape.top_cpt = None
-                    child_shape.z_dist = None
-                    # primary edges
-                    bp = rs.BoundingBox(child,self.data.shape.cplane)
-                    ## check if 3d shape and if first 4 pts at bottom
-                    if bp[0][2] > bp[4][2]:
-                        bp_ = bp[4:] + bp[:4]
-                        bp = bp_
-                    child_shape.s_wt,child_shape.e_ht,child_shape.n_wt,child_shape.w_ht = bp[:2],bp[1:3],bp[2:4],[bp[3],bp[0]]
-                    child_shape.x_dist = float(rs.Distance(child_shape.s_wt[0],child_shape.s_wt[1]))
-                    child_shape.y_dist = float(rs.Distance(child_shape.e_ht[0],child_shape.e_ht[1]))
-                    if abs(child_shape.x_dist-0.) < 0.0001 or abs(child_shape.y_dist-0.) < 0.0001:
-                        #print 'degenerate child_shape (line or point)'
-                        kill = True
-                if not kill:
-                    child_grammar = Fabric_Grammar(locr[i],child_shape,0,axis=axis_)
-                    child_node = Fabric_Tree(child_grammar,parent=self,depth=self.depth+1)
-                    self.loc.append(child_node)
-            #for i,c in enumerate(self.loc):
-             if len(self.loc) > 0.:
-                self.loc[i].make_tree_3D(grid_type,div,axis_,random_tol,cut_width,div_depth+1,ratio)
+        if self.depth >=100: # base case 1
+            print 'node.depth > 60'
+        else:
+            if self.parent: pg,sib = self.parent.data,self.sib  
+            else: pg,sib = None,None
+            self.data.make_label(self,grid_type,div,div_depth,axis_)
+            #print 'label: ', self.data.label
+            if self.data.label == None: # base case 2
+                pass
+            else:
+                self.data.make_grammar(self.data.label,random_tol,cut_width,ratio)
+                loc,locr = self.data.make_shape(self.data.rule)
+                for i,child in enumerate(loc):
+                    kill = False
+                    try:
+                        child_shape = Shape_3D(child,self.data.shape.cplane)
+                    except Exception,e: 
+                        print str(e)
+                        child_shape = Shape_3D(child,self.data.shape.cplane,reset=False)
+                        child_shape.bottom_crv = None
+                        child_shape.top_crv = None
+                        child_shape.cpt = None
+                        child_shape.ht = None
+                        child_shape.top_cpt = None
+                        child_shape.z_dist = None
+                        # primary edges
+                        bp = rs.BoundingBox(child,self.data.shape.cplane)
+                        ## check if 3d shape and if first 4 pts at bottom
+                        if bp[0][2] > bp[4][2]:
+                            bp_ = bp[4:] + bp[:4]
+                            bp = bp_
+                        child_shape.s_wt,child_shape.e_ht,child_shape.n_wt,child_shape.w_ht = bp[:2],bp[1:3],bp[2:4],[bp[3],bp[0]]
+                        child_shape.x_dist = float(rs.Distance(child_shape.s_wt[0],child_shape.s_wt[1]))
+                        child_shape.y_dist = float(rs.Distance(child_shape.e_ht[0],child_shape.e_ht[1]))
+                        if abs(child_shape.x_dist-0.) < 0.0001 or abs(child_shape.y_dist-0.) < 0.0001:
+                            #print 'degenerate child_shape (line or point)'
+                            kill = True
+                        
+                    if not kill:
+                        child_grammar = Fabric_Grammar(locr[i],child_shape,0,axis=axis_)
+                        child_node = Fabric_Tree(child_grammar,parent=self,depth=self.depth+1)
+                        self.loc.append(child_node)
+                for i,c in enumerate(self.loc):
+                    if len(self.loc)==2:
+                        self.loc[i].sib = 1 if i == 0 else 0
+                    self.loc[i].make_tree_3D(grid_type,div,axis_,random_tol,cut_width,div_depth+1,ratio)
 
 
 if True:

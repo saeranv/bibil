@@ -13,10 +13,9 @@ import System as sys
 
 """import classes"""
 Shape_3D = sc.sticky["Shape_3D"]
-Tree = sc.sticky["Tree"]
 #Grammar = sc.sticky["Grammar"]
-Fabric_Tree = sc.sticky["Fabric_Tree"] 
-Fabric_Grammar = sc.sticky["Fabric_Grammar"] 
+Tree = sc.sticky["Tree"] 
+Grammar = sc.sticky["Grammar"] 
 
 class Pattern:
     """Pattern"""
@@ -28,8 +27,8 @@ class Pattern:
             tempnode = self.main_pattern(node_,pd_)
             return tempnode
         except Exception as e:
-            print 'error at apply_pattern',  str(e)
-
+            print str(e)
+            
     def split_brep_zaxis(self,s,ht,splitsrf=None,geom=None,cplane=None):
         try:
             #debug = sc.sticky['debug']
@@ -328,8 +327,8 @@ class Pattern:
 
         ## 2. make a new, fresh node
         build_shape = Shape_3D(geo_brep,node.data.shape.cplane)
-        build_grammar = Fabric_Grammar([],build_shape,0)
-        temp_node = Fabric_Tree(build_grammar,parent=node,depth=0)
+        build_grammar = Grammar([],build_shape,0)
+        temp_node = Tree(build_grammar,parent=node,depth=0)
         #node.data.shape = build_shape
         #temp_node = node
             

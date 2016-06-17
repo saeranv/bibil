@@ -3,6 +3,8 @@ Created on Jun 6, 2016
 @author: Saeran Vasanthakumar
 """
 
+## shape original inheritance
+
 import rhinoscriptsyntax as rs
 import Rhino as rc
 import math
@@ -15,22 +17,20 @@ TOL = sc.doc.ModelAbsoluteTolerance
 #import pydevd as py
 #py.settrace()
 
-class Shape_3D:
+class Shape:
     """
     Parent shape operations and information
     """
     TOL = sc.doc.ModelAbsoluteTolerance
     
-    def __init__(self,geom,cplane=None):
-        self.geom = geom
-        self.cplane = cplane
-        self.north = rs.VectorCreate([0,1,0],[0,0,0])
-        self.area = None
-        self.local_north = None
-        self.dimension = '3d'
-        self.bottom_crv = None
-        self.reset(xy_change=True)
-    def reset(self,xy_change=True):
+    #def __init__(self):
+    self.geom = geom
+    self.cplane = cplane
+    self.north = rs.VectorCreate([0,1,0],[0,0,0])
+    self.area = None
+    self.local_north = None
+    
+    def reset(self):
         def get_dim_bbox(b):
             ## counterclockwise, start @ bottom SW  
             #      n_wt
@@ -43,36 +43,24 @@ class Shape_3D:
             return b[:2],b[1:3],b[2:4],[b[3],b[0]]
             self.cplane = self.get_cplane_advanced(self.geom)
         # primary edges
-        if xy_change == True:
-            try:
-                self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
-            except Exception as e:
-                print e
-            try:
-                if self.cplane == None:
-                    self.cplane = self.get_cplane_advanced(self.geom)
-                    self.local_north = self.cplane.YAxis
-            except Exception as e:
-                print e
-            try:
-                self.bbpts = self.get_boundingbox(self.geom,self.cplane)
-                self.s_wt,self.e_ht,self.n_wt,self.w_ht = get_dim_bbox(self.bbpts)
-                # x,y,z distances
-                self.x_dist = float(rs.Distance(self.s_wt[0],self.s_wt[1]))
-                self.y_dist = float(rs.Distance(self.e_ht[0],self.e_ht[1]))
-                self.area = None
-            except Exception as e:
-                print e
-            try:
-                bp = self.bbpts
-                self.cpt = rc.Geometry.AreaMassProperties.Compute(self.bottom_crv).Centroid
-            except Exception as e:
-                print e
-        try:# curve profile info
-            self.ht = float(bp[4][2])
-            self.z_dist = float(float(bp[4][2]) - self.cpt[2])
+        try:
+            self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
         except Exception as e:
-            print "Error @ Shape_3D.reset"
+            print e
+        try:
+            if self.cplane == None:
+                self.cplane = self.get_cplane_advanced(self.geom)
+                self.local_north = self.cplane.YAxis
+        except Exception as e:
+            print e
+        try:
+            self.bbpts = self.get_boundingbox(self.geom,self.cplane)
+            self.s_wt,self.e_ht,self.n_wt,self.w_ht = get_dim_bbox(self.bbpts)
+            # x,y,z distances
+            self.x_dist = float(rs.Distance(self.s_wt[0],self.s_wt[1]))
+            self.y_dist = float(rs.Distance(self.e_ht[0],self.e_ht[1]))
+            self.area = None
+        except Exception as e:
             print e
     def op_split(self,axis,ratio,deg=0.,split_depth=0):
         """
@@ -372,6 +360,85 @@ class Shape_3D:
         except Exception as e:
             print "Error @ shape.make_face"
             print e
+class Shape_2D(Shape):
+    # Phase out??
+    """ 
+    Shape_2D deals with surfaces. 
+    Shape is its parent class, like Shape_3D.
+    """
+    def __init__(self,geom,cplane=None,local_north=None):  
+        Shape.__init__(self,geom,cplane,local_north)
+        self.dimension = '2d'
+        self.reset()
+        self.ext=None
+    def reset(self,xy_change=True):
+        try:
+            if not xy_change:
+                curr_ht = rs.BoundingBox(self.ext)[4][2]
+                #print 'abs', curr_ht, self.ht
+                if not abs(curr_ht-self.ht) <= 2:
+                    self.op_extrude_2d(self.ht)
+                #Shape.reset(self)
+                # face references
+            else:
+                Shape.reset(self)
+                srf_pt = rs.SurfacePoints(self.geom)
+                if len(srf_pt) > 4:
+                    print "line 189, srfpts > 4"
+                else: 
+                    #self.crv = sc.doc.Objects.AddCurve(ghcomp.ConvexHull(srf_pt,self.cplane)[1])
+                    crv_lst = ghcomp.BrepWireframe(rs.coercebrep(self.geom))  
+                    crv = rc.Geometry.Curve.JoinCurves(crv_lst)[0]
+                    self.crv = rs.coercecurve(crv)
+                self.cpt = rs.SurfaceAreaCentroid(self.geom)[0]
+                self.ht = float(self.y_dist)
+                self.geom = rs.coercebrep(self.geom)
+                Shape.reset(self)
+        except Exception as e:
+            print "Error @ Shape_2D.reset"
+            print e   
+class Shape_3D(Shape):
+    """ 
+    Shape_3D deals with breps and extrusions. 
+    Shape is its parent class.
+    """
+    def __init__(self,geom,cplane=None,reset=True):
+        Shape.__init__(self,geom,cplane)
+        self.dimension = '3d'
+        #super(Shape_3D,self).__init__(geom,cplane,local_north)
+        self.bottom_crv = None
+        if reset and self.geom != None:
+            self.reset()
+    def reset(self,xy_change=True):
+        try:
+            Shape.reset(self)
+            bp = self.bbpts
+            if xy_change == True:
+                self.cpt = rc.Geometry.AreaMassProperties.Compute(self.bottom_crv).Centroid
+            # curve profile info
+            self.ht = float(bp[4][2])
+            self.z_dist = float(float(bp[4][2]) - self.cpt[2])
+        except Exception as e:
+            print "Error @ Shape_3D.reset"
+            print e
+    def construct_faces(self):
+        # phase this out
+        try:
+            g = copy.copy(self.bottom_crv)
+            cg = rs.coercegeometry(g)
+            loc = ghcomp.DeconstructBrep(cg)[1]
+            for i,c in enumerate(loc):
+                face = rc.Geometry.Extrusion.Create(c,self.z_dist,False)
+                cp = self.get_cplane(face)
+                #face = sc.doc.Objects.AddSurface(face)
+                loc[i] = Shape_2D(face,cp)
+            self.face_lst = loc
+            self.face_bottom = rs.AddPlanarSrf(g)[0]
+            #self.face_bottom = rc.Geometry.Brep.CreatePlanarBreps([cg])[0]
+            self.face_top = rs.CopyObject(self.face_bottom,[0,0,self.z_dist])
+        except Exception as e:
+            print "Error @ Shape_3d.construct_faces"
+            print e
     def op_extrude(self,z_dist,curve=None):
         try:
             returnflag = False 
@@ -502,7 +569,7 @@ class Shape_3D:
     def op_solar_envelope(self,start_time,end_time,curve=None):
         try:
             if not curve: curve = self.bottom_crv
-            if self.is_guid(curve): 
+            if Shape.is_guid(self,curve): 
                 curve = rs.coercecurve(curve)
             se = ghcomp.DIVA.SolarEnvelope(curve,43,start_time,end_time)
             #Solar = sc.sticky["Solar"]
@@ -518,4 +585,6 @@ class Shape_3D:
 
 
 if True:
+    sc.sticky["Shape"] = Shape
+    sc.sticky["Shape_2D"] = Shape_2D
     sc.sticky["Shape_3D"] = Shape_3D

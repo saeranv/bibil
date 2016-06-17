@@ -9,8 +9,8 @@ import System as sys
 Shape_3D = sc.sticky["Shape_3D"]
 Tree = sc.sticky["Tree"]
 Grammar = sc.sticky["Grammar"]
-Fabric_Tree = sc.sticky["Fabric_Tree"] 
-Fabric_Grammar = sc.sticky["Fabric_Grammar"] 
+Tree = sc.sticky["Tree"] 
+#Fabric_Grammar = sc.sticky["Fabric_Grammar"] 
 """--------------------------------------------"""
 
 from copy import deepcopy
@@ -120,8 +120,6 @@ def main(node_in_lst_):
         return gen_nodes
     except Exception as e:
         print e
-    
-    
 
 if run and node_in_lst!=[None] and node_in_lst!=[]:
     sc.sticky["debug"] = []
