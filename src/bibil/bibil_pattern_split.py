@@ -17,8 +17,6 @@ class Fabric_Grammar(Grammar):
     def __init__(self,rule,shape,deg,axis="EW",ratio=None):
         Grammar.__init__(self,rule,shape,deg,axis,ratio)
         self.maxht = None
-        self.type = None
-        self.label = ""
         self.density = None
     def make_label(self,node,grid_type,div,div_depth,axis="NS"):
         """make_label: self -> None"""
@@ -33,8 +31,8 @@ class Fabric_Grammar(Grammar):
 
         # add self.dw
         ss = self.shape
-        if self.label != None:
-            label_identity = "-" + self.label 
+        if self.type['label'] != None:
+            label_identity = "-" + self.type['label'] 
         else:
             label_identity = ""
         if grid_type == "subdivide_depth":
@@ -72,7 +70,7 @@ class Fabric_Grammar(Grammar):
             elif greater(ss.x_dist,grid_x,.1): 
                 label = "NS-" + str(grid_x/float(ss.x_dist)) + label_identity
             else: label = None
-        self.label = label
+        self.type['label'] = label
         
     def make_grammar(self,label,random_tol,cut_width,ratio):
         """ make_grammar: self -> None """
@@ -104,7 +102,7 @@ class Fabric_Tree(Tree):
         Tree.__init__(self,data,loc,parent,sib,depth)
     
     def get_label(self,label):
-        if self.data.label != None and label in self.data.label: 
+        if self.data.type['label'] != None and label in self.data.type['label']: 
             return self
 
     def make_tree_3D(self,grid_type,div,axis="NS",random_tol=0,cut_width=0,div_depth=0,ratio=None):        
@@ -117,10 +115,10 @@ class Fabric_Tree(Tree):
             else: pg,sib = None,None
             self.data.make_label(self,grid_type,div,div_depth,axis_)
             #print 'label: ', self.data.label
-            if self.data.label == None: # base case 2
+            if self.data.type['label'] == None: # base case 2
                 pass
             else:
-                self.data.make_grammar(self.data.label,random_tol,cut_width,ratio)
+                self.data.make_grammar(self.data.type['label'],random_tol,cut_width,ratio)
                 loc,locr = self.data.make_shape(self.data.rule)
                 for i,child in enumerate(loc):
                     kill = False

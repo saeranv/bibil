@@ -13,12 +13,15 @@ class Tree:
     """
     def __init__(self,data,loc=None,parent=None,sib=None,depth=0):
         self.data = data
+        self.data.node = self
+        self.data.shape.node = self
         if loc is None: loc = []
         self.loc = loc
         self.parent = parent
         self.sib = sib
         self.depth = depth
         self.root_index = None
+        
     def __repr__(self):
         """ http://cbio.ufs.ac.za/live_docs/nbn_tut/trees.html """
         ret = "nd:%s" % (self.depth)#"   "*self.depth+"depth:%s\n" % (self.depth)

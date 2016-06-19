@@ -6,17 +6,18 @@ author: Saeran Vasanthakumar
 import scriptcontext as sc
 import copy
 
+##Phase this out and replace with type dictionary data
+
 class Grammar:
     """ Parent Shape Grammar """
     def __init__(self,rule,shape,deg,axis="EW",ratio=None):
         self.rule = filter(lambda item: item!=[],rule)
         self.shape = shape
-        self.label = "nothing"
+        #self.label = "nothing"
         self.axis = axis
         self.ratio = ratio
         self.degree = deg
-        self.daylight = None
-        self.type = None
+        self.type = {'label':None}
         if self.rule: 
             #handles child rules before making the labels
             #child rules only apply to mutations, if geometric children
