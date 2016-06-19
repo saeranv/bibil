@@ -45,7 +45,7 @@ class Line(object):
         self.set_basepoint()
     def set_basepoint(self):
         """
-        The basepoint is the y or x intercept:
+        The basepoint is the y or x or z intercept:
         [0,k/B] iff B!=0
         [k/A,0] iff A!=0
         """
