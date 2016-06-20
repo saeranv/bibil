@@ -28,7 +28,21 @@ class Pattern:
             return tempnode
         except Exception as e:
             print str(e)
-            
+    def helper_geom2node(self,geom,parent_node,cplane_ref=None,label=""):
+        try:
+            if rs.IsCurve(geom):
+                curve = rs.coercecurve(geom)
+                geom = rs.AddPlanarSrf(curve)[0]
+            shape = Shape_3D(geom,node=parent_node,cplane=cplane_ref)
+            if int(shape.z_dist) == 0:
+                shape.op_extrude(6.)
+            grammar = Grammar([],shape,0)
+            grammar.type["label"] = label
+            node = Tree(grammar,parent=parent_node,depth=parent_node.depth+1)
+            return node
+        except Exception as e:
+            print "Error at Pattern.make_node_from_geom", str(e)
+                   
     def split_brep_zaxis(self,s,ht,splitsrf=None,geom=None,cplane=None):
         try:
             #debug = sc.sticky['debug']
@@ -175,17 +189,30 @@ class Pattern:
         except Exception as e:
             print "Error at pattern solar envelope multi"
             print e
-    def pattern_stepback(self,lon_,stepback_,stepback_node_):
-        """
+    def pattern_stepback(self,tnode,stepback_,stepback_node_):
+        ##stepback_: height,recess distance 
+        lon_ = tnode.traverse_tree(lambda n: n,internal=False)
         if True:
-            for i,subdiv in enumerate(lon_):
-                if int(stepback_node) == 0:
-                    root = node.get_root()
-                    tcrv = root.data.shape.bottom_crv
-                else:
-                    tcrv = subdiv.data.shape.bottom_crv
-        """  
-        return None
+            ## Loop through list and identify node crv??
+            ## extract the setback crvs
+            ## insert split crv
+            ## test op_split
+            ## modify op_split
+            
+            for i,curr_n in enumerate(lon_):
+                node_root = curr_n.get_root()
+                setback_ref_lst = node_root.data.type.get('setback_reference_line')
+                ht, dist = stepback_[0][0], stepback_[0][1]
+                
+                for sbref in setback_ref_lst:
+                    cut_geom = curr_n.data.shape.op_split("EW",0.5,deg=0.,\
+                    split_depth=float(dist),split_line_ref=sbref)  
+                    try:
+                        curr_n.data.shape.geom = cut_geom[0]
+                        curr_n.data.shape.reset(xy_change=True)
+                    except Exception as e:
+                        print "Error at shape.reset at pattern_stepback",str(e)
+        return tnode
     def pattern_divide(self,node_,temp_node_,div_num_,div_deg_,div_cut_,div_ratio_,flip_):
         try:
             #print div_num
@@ -307,7 +334,6 @@ class Pattern:
         debug = sc.sticky["debug"]
         TOL = sc.doc.ModelAbsoluteTolerance
         
-        
         ## 0. make a copy of the geometry
         
         gb = node.data.shape.geom
@@ -359,8 +385,7 @@ class Pattern:
         stepback_node = PD['stepback_node']
         if stepback != None:
             try:
-                lon = temp_node.traverse_tree(lambda n: n,internal=False)
-                self.pattern_stepback(lon,stepback,stepback_node)
+                temp_node = self.pattern_stepback(temp_node,stepback,stepback_node)
             except Exception as e:
                 print "Error @ stepback"
                 print e

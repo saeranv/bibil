@@ -70,17 +70,18 @@ class Shape_3D:
             except Exception as e:
                 print e
         try:# curve profile info
-            self.ht = float(bp[4][2])
-            self.z_dist = float(float(bp[4][2]) - self.cpt[2])
+            self.ht = float(self.bbpts[4][2])
+            self.z_dist = float(float(self.bbpts[4][2]) - self.cpt[2])
         except Exception as e:
             print "Error @ Shape_3D.reset"
             print e
-    def op_split(self,axis,ratio,deg=0.,split_depth=0):
+    def op_split(self,axis,ratio,deg=0.,split_depth=0,split_line_ref=None):
         """
         op_split: self, ratio -> (list of geom)
         Splits original geom into two
         """
-        def helper_make_split_srf_z(ratio_):
+        debug = sc.sticky['debug']
+        def helper_make_split_surf_z(ratio_):
             try:
                 zht = ratio_ * self.z_dist
                 splitptlst = self.bbpts[:4]+[self.bbpts[0]]
@@ -91,7 +92,8 @@ class Shape_3D:
             except Exception as e:
                 print "Error @ shape.helper_make_split_srf_z"
                 print e
-        def helper_make_split_srf_xy(ratio_,degree):
+        def helper_make_split_line_xy(ratio_,degree):
+            debug = sc.sticky['debug']
             try:
                 if axis == "NS":
                     edge_0, edge_1 = self.s_wt, self.n_wt
@@ -110,27 +112,32 @@ class Shape_3D:
                 if float(degree) > 0.5:
                     cpt = rs.DivideCurve(split_line,2,True,True)[1] 
                     split_line = rs.RotateObject(split_line,cpt,degree)
-                if self.ht < 1: ht = 1.
-                else: ht = self.ht
-                split_path = rs.AddCurve([[0,0,0],[0,0,ht*2]],1)
-                
                 sc_ = 3,3,3
                 line_cpt = rs.DivideCurve(split_line,2)[1]
-                split_line_ = rs.ScaleObject(split_line,line_cpt,sc_)
-                split_surf_ = rs.coercebrep(rs.ExtrudeCurve(split_line,split_path))
-                return split_line_, split_surf_
+                split_line_sc = rs.ScaleObject(split_line,line_cpt,sc_)
+                return split_line_sc
             except Exception as e:
                 print "Error @ shape.helper_make_split_srf_xy"
                 print e
-        
+        def helper_make_split_surf(split_line_):
+            if self.ht < 1: 
+                ht = 1.
+            else: 
+                ht = self.ht
+            split_path = rs.AddCurve([[0,0,0],[0,0,ht*2]],1)    
+            split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line_,split_path))
+            return split_surf
         rs.EnableRedraw(False)
         #if (self.dimension in "3d") == True: self.convert_guid('3d')
         #else: self.convert_guid('2d')
-        if axis == "Z":
-            split_surf = helper_make_split_srf_z(ratio)
+        if split_line_ref != None:
+            split_line = split_line_ref
+            split_surf = helper_make_split_surf(split_line)
+        elif axis == "Z":
+            split_surf = helper_make_split_surf_z(ratio)
         else:
-            split_line,split_surf = helper_make_split_srf_xy(ratio,deg)
-        
+            split_line = helper_make_split_line_xy(ratio,deg)
+            split_surf = helper_make_split_surf(split_line)
         try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:
@@ -140,47 +147,41 @@ class Shape_3D:
             else:
                 if self.z_dist < 0.09:
                     print 'not a 3d geom, therefore will not split'
-                ## check local_north and apply if missing
-                if not self.local_north:
-                    self.local_north = self.cplane.YAxis
-                # to apply local transformations
-                vec_angle = rs.VectorAngle(self.north,self.local_north)
-                vec_dir = 1 if self.north[0] > self.local_north[0] else -1
                 # vec transformation
+                if self.is_guid(split_line):
+                    split_line = rs.coercecurve(split_line)
+                nc = split_line.ToNurbsCurve()
+                end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
+                dir_vector = end_pts[1] - end_pts[0]
+                z_vector = rs.VectorCreate([0,0,0],[0,0,1])
+                # create forward and backwards vector using crossproduct
+                normal_f = rs.VectorCrossProduct(dir_vector,z_vector)
+                normal_b = rs.VectorCrossProduct(z_vector,dir_vector) 
                 
-                local_north_line = rs.AddLine([0,0,0],rs.AddPoint(self.local_north[0],self.local_north[1],self.local_north[2]))
-                split_angle = rs.Angle2(split_line,local_north_line)
-                perpendicular = True if (abs(split_angle[0]-90.)<2. or abs(split_angle[0]-270.)<2) else False
-                if not perpendicular:
-                    c_xypt = rs.AddPoint(self.cpt[0]+split_depth,self.cpt[1],self.cpt[2])
-                else:
-                    c_xypt = rs.AddPoint(self.cpt[0],self.cpt[1]+split_depth,self.cpt[2])
-                xy_path = rs.AddCurve([self.cpt,c_xypt])
-                xy_path_rot = rs.RotateObject(xy_path,self.cpt,vec_angle*vec_dir,[0,0,1])
-                cutter = rs.ExtrudeSurface(split_surf,xy_path_rot)
-                if not perpendicular:
-                    move_pt = rs.AddPoint(self.cpt[0]-split_depth/2.,self.cpt[1],self.cpt[2])
-                else:
-                    move_pt = rs.AddPoint(self.cpt[0],self.cpt[1]-split_depth/2.,self.cpt[2])
-                move_pt = rs.RotateObject(move_pt,self.cpt,vec_angle*vec_dir)
-                cutter = rs.CopyObject(cutter,rs.VectorCreate(move_pt,self.cpt))
-                rc_geom, rc_cutter = rs.coercebrep(self.geom),rs.coercebrep(cutter)
-                rc_cutter.Flip()
-                lst_child = rc.Geometry.Brep.CreateBooleanIntersection(rc_geom,rc_cutter,TOL)
-                #print 'rotation', rs.coercegeometry(xy_path_rot)
-                #self.DEBUG.append(rs.coercegeometry(xy_path_rot))
-                #self.DEBUG.append(rc_cutter)
-                #self.DEBUG.append(self.cpt)
-                #print lst_child
-                if lst_child != None and len(lst_child) == 1:
-                    rc_cutter.Flip()
-                    lst_child = rc.Geometry.Brep.CreateBooleanIntersection(rc_geom,rc_cutter,TOL)
+                sc_ = split_depth,split_depth,split_depth
+                
+                normal_f.Unitize()
+                normal_b.Unitize()
+                normal_b = map(lambda v: v*split_depth/2.,normal_b)
+                
+                c = rs.AddCurve([rs.AddPoint(0,0,0),rs.AddPoint(normal_f[0],normal_f[1],normal_f[2])],0)
+                c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
+                rc_cut = rs.ExtrudeSurface(split_surf,c)
+                rc_cut = rs.MoveObject(rc_cut,normal_b)
+                #debug.append(rc_cut)
+                #debug.append(split_surf)
+                lst_child = []
+                rc_geom,rc_cut = rs.coercebrep(self.geom),rs.coercebrep(rc_cut)
+                #ghcomp.Flip(rc_cut,sc.sticky['surface_ref'])[0]
+                geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
+                lst_child.extend(geom_childs)
         except Exception as e:
             print "Error @ shape.op_split while splitting"
             print e
+            
         ## Clean up or rearrange or cap the split child geometries
         try:
-            if lst_child == None or len(lst_child) == 1:
+            if lst_child == [None] or lst_child == []:
                 lst_child = [copy.copy(self.geom)]
             else:
                 if not "2" in self.dimension:
@@ -196,6 +197,7 @@ class Shape_3D:
         except Exception as e:
             print "Error @ shape.op_split while formatting children"
             print e
+        
         rs.EnableRedraw(False)
         return lst_child
     def get_boundingbox(self,geom_,cplane_):
@@ -272,8 +274,8 @@ class Shape_3D:
                 nc = segment.ToNurbsCurve()
                 end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
                 #print (end_pts[0],end_pts[1]), '\n'
-                if i == 1:
-                    debug.append(end_pts[1])
+                #if i == 1:
+                #    debug.append(end_pts[1])
         except Exception as e:
             print "Error @ shape.get_shape_axis"
             print e

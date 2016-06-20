@@ -26,11 +26,11 @@ TOWER ----------------"""
 TT = copy.deepcopy(PD_) 
 TT['type_id'] = 'type_tower'
 #TT['div_num'],TT['div_deg'],TT['div_cut'] = 1, 0, 7.
-TT['solartype'] = 3
-TT['solartime'], TT['solarht'] = 11.5, 15.
+#TT['solartype'] = 3
+#TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
-#TT['stepback'] = [(6.,1.),(12.,2.)]
-#TT['stepback_node']=-1
+TT['stepback'] = [(6.,20.),(12.,20.)]
+TT['stepback_node']=-1
 #TT['court'], TT['court_width'] = 1, 2.5
 
 

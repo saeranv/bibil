@@ -23,9 +23,11 @@ def make_node_lst(copy_lot_in_):
         if int(lot_shape.z_dist) == 0:
             lot_shape.op_extrude(6.)
         lot_grammar = Fabric_Grammar([],lot_shape,0)
-        print 'fabricgrammar', lot_grammar.type
+        lot_grammar.label = label
         lot_grammar.type["label"] = label
         lot_node = Fabric_Tree(lot_grammar,parent=None,depth=0)
+        setback_line_ = map(lambda l: rs.coercecurve(l),setback_line)
+        lot_grammar.type["setback_reference_line"] = setback_line_
         yield lot_node
         
         

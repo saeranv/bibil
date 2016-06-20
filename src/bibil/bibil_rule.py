@@ -13,7 +13,7 @@ class Grammar:
     def __init__(self,rule,shape,deg,axis="EW",ratio=None):
         self.rule = filter(lambda item: item!=[],rule)
         self.shape = shape
-        #self.label = "nothing"
+        self.type = {"label":""}
         self.axis = axis
         self.ratio = ratio
         self.degree = deg
