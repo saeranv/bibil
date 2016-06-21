@@ -9,6 +9,7 @@ import math
 import ghpythonlib.components as ghcomp
 import copy
 import scriptcontext as sc
+import System as sys
 
 vec = sc.sticky["Vector"]
 TOL = sc.doc.ModelAbsoluteTolerance
@@ -48,13 +49,13 @@ class Shape_3D:
             try:
                 self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
             except Exception as e:
-                print e
+                print str(e),sys.exc_traceback.tb_lineno 
             try:
                 if self.cplane == None:
                     self.cplane = self.get_cplane_advanced(self.geom)
                     self.local_north = self.cplane.YAxis
             except Exception as e:
-                print e
+                print str(e),sys.exc_traceback.tb_lineno 
             try:
                 self.bbpts = self.get_boundingbox(self.geom,self.cplane)
                 self.s_wt,self.e_ht,self.n_wt,self.w_ht = get_dim_bbox(self.bbpts)
@@ -68,13 +69,13 @@ class Shape_3D:
                 bp = self.bbpts
                 self.cpt = rc.Geometry.AreaMassProperties.Compute(self.bottom_crv).Centroid
             except Exception as e:
-                print e
+                print str(e),sys.exc_traceback.tb_lineno 
         try:# curve profile info
             self.ht = float(self.bbpts[4][2])
             self.z_dist = float(float(self.bbpts[4][2]) - self.cpt[2])
         except Exception as e:
             print "Error @ Shape_3D.reset"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def op_split(self,axis,ratio,deg=0.,split_depth=0,split_line_ref=None):
         """
         op_split: self, ratio -> (list of geom)
@@ -91,7 +92,7 @@ class Shape_3D:
                 return split_surf_
             except Exception as e:
                 print "Error @ shape.helper_make_split_srf_z"
-                print e
+                print str(e),sys.exc_traceback.tb_lineno 
         def helper_make_split_line_xy(ratio_,degree):
             debug = sc.sticky['debug']
             try:
@@ -118,7 +119,7 @@ class Shape_3D:
                 return split_line_sc
             except Exception as e:
                 print "Error @ shape.helper_make_split_srf_xy"
-                print e
+                print str(e),sys.exc_traceback.tb_lineno 
         def helper_make_split_surf(split_line_):
             if self.ht < 1: 
                 ht = 1.
@@ -177,7 +178,7 @@ class Shape_3D:
                 lst_child.extend(geom_childs)
         except Exception as e:
             print "Error @ shape.op_split while splitting"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
             
         ## Clean up or rearrange or cap the split child geometries
         try:
@@ -196,7 +197,7 @@ class Shape_3D:
                         lst_child.append(tempchild)
         except Exception as e:
             print "Error @ shape.op_split while formatting children"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
         
         rs.EnableRedraw(False)
         return lst_child
@@ -212,7 +213,7 @@ class Shape_3D:
             return check_bbpts(bbpts_)
         except Exception as e:
             print "Error @ get_boundingbox"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def is_guid(self,geom):
         return type(rs.AddPoint(0,0,0)) == type(geom) 
     def convert_rc(self,dim=None):
@@ -231,7 +232,7 @@ class Shape_3D:
                 self.geom = rs.coercegeometry(self.geom)
         except Exception as e:
             print "Error @ shape.convert_rc"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def convert_guid(self,dim='2d'):
         # phase this out
         try:
@@ -247,7 +248,7 @@ class Shape_3D:
                 self.geom = sc.doc.Objects.AddBrep(self.geom)
         except Exception as e:
             print "Error @ shape.convert_guid"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def get_bottom(self,g,refpt,tol=0.1):
         ## Extract curves from brep according to input cpt lvl
         try:
@@ -259,7 +260,7 @@ class Shape_3D:
             return crvs[0]
         except Exception as e:
             print "Error @ shape.get_bottom"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def get_shape_axis(self,crv):
         ### Purpose: Input 2d planar curve
         ### and return list of vector axis based
@@ -278,7 +279,7 @@ class Shape_3D:
                 #    debug.append(end_pts[1])
         except Exception as e:
             print "Error @ shape.get_shape_axis"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def get_cplane_advanced(self,g):
         def helper_define_axis_pts(pl_):
             ##(origin,x,y)
@@ -340,7 +341,7 @@ class Shape_3D:
             return cplane
         except Exception as e:
             print "Error @ shape.get_cplane_advanced"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
         
     def get_area(self):
         try:
@@ -355,7 +356,7 @@ class Shape_3D:
             return area
         except Exception as e:
             print "Error @ shape.get_area"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def get_long_short_axis(self):
         if (self.x_dist > self.y_dist): 
             long_dist,short_dist = self.x_dist,self.y_dist
@@ -374,7 +375,7 @@ class Shape_3D:
                 return Shape_2D(face,cp)
         except Exception as e:
             print "Error @ shape.make_face"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def op_extrude(self,z_dist,curve=None):
         try:
             returnflag = False 
@@ -400,7 +401,7 @@ class Shape_3D:
                 self.reset(xy_change=False)
         except Exception as e:
             print "Error @ Shape_3D.op_extrude"
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
     def op_check_offset(self,dim,curve,count=0,refcpt = None):
         #print 'count: ', count, 'dim: ', dim
         if count > 5 or int(dim <= 0):
@@ -420,7 +421,7 @@ class Shape_3D:
                     return offcurve[0] 
             except Exception as e:
                 print "Error @ Shape_3D.op_check_offset"
-                print e
+                print str(e),sys.exc_traceback.tb_lineno 
     def op_offset(self,dim,curve,dir="courtyard",useoffcrv=False):
         try:
             rs.EnableRedraw(False)
@@ -478,29 +479,30 @@ class Shape_3D:
                         booldiff = rc.Geometry.Brep.CreateBooleanDifference(geom,diff_geom,TOL)
                         if len(booldiff) > 1:
                             self.geom = booldiff
-                        else:
+                        elif len(booldiff) > 0:
                             self.geom = booldiff[0]
                     elif dir=="terrace":
                         booldiff = rs.BooleanIntersection(diff_geom,offgeom,True)
                         #booldiff = map(lambda c: rs.coercegeometry(c),booldiff)
-                        self.geom = booldiff[0]
+                        if len(booldiff)>0.1:
+                            self.geom = booldiff[0]
                     elif dir=="terrace_3d":
                         booldiff = rc.Geometry.Brep.CreateBooleanIntersection(geom,offgeom,TOL)
                         booldiff = map(lambda c: sc.doc.Objects.AddBrep(c),booldiff)
                         diff_geom = offgeom
                         if len(booldiff) > 1:
                             self.geom = booldiff
-                        else:
+                        elif len(booldiff)> 0.1:
                             self.geom = booldiff[0]
                     self.reset()
                 except Exception,e: 
-                    print str(e)
+                    print str(e),sys.exc_traceback.tb_lineno 
                     print 'fail op_offset'
             rs.EnableRedraw(True)
             return diff_geom
         except Exception as e:
             print 'Error @ Shape_3D.op_offset'
-            print e
+            print str(e),sys.exc_traceback.tb_lineno 
             
     def op_solar_envelope(self,start_time,end_time,curve=None):
         try:

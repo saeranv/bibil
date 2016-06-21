@@ -12,25 +12,19 @@ import copy
 Shape_3D = sc.sticky["Shape_3D"]
 Fabric_Grammar = sc.sticky["Fabric_Grammar"]
 Fabric_Tree = sc.sticky["Fabric_Tree"]
+Pattern = sc.sticky["Pattern"]
 
-def make_node_lst(copy_lot_in_): 
-    for lot_node in copy_lot_in_:
-        if rs.IsCurve(lot_node):
-            lot_curve = rs.CopyObject(lot_node)
-            lot_curve = rs.coercecurve(lot_curve)
-            lot_node = rs.AddPlanarSrf(lot_node)[0]
-        lot_shape = Shape_3D(lot_node)
-        if int(lot_shape.z_dist) == 0:
-            lot_shape.op_extrude(6.)
-        lot_grammar = Fabric_Grammar([],lot_shape,0)
-        lot_grammar.label = label
-        lot_grammar.type["label"] = label
-        lot_node = Fabric_Tree(lot_grammar,parent=None,depth=0)
+def make_node_lst(copy_lot_in_,ref_block_in_): 
+    L = []
+    for lot_geom in copy_lot_in_:
+        P = Pattern()
+        p_n_ = P.helper_geom2node(ref_block_in_,None,cplane_ref=None,label="block")
+        n_ = P.helper_geom2node(lot_geom,p_n_,cplane_ref=p_n_.data.shape.cplane,label=label)
         setback_line_ = map(lambda l: rs.coercecurve(l),setback_line)
-        lot_grammar.type["setback_reference_line"] = setback_line_
-        yield lot_node
-        
-        
+        p_n_.data.type["setback_reference_line"] = setback_line_
+        L.append(n_)
+    return L
+    
 def split_node_lst(node_lst_):
     for lot_node in node_lst_:
         axis_,dist_,saxis_,sdist_ = lot_node.data.shape.get_long_short_axis()
@@ -46,11 +40,10 @@ def main(lot_in_):
     ### Purpose: This component consumes a list of node lots and two int and 
     ###generates a list of mutated nodes, with the lots subdivided according
     ###to the int int dimensions.     
-    
-    lst_node = make_node_lst(lot_in_)
-    split_nodes = split_node_lst(lst_node)
-    generator = reduce(lambda s, a: s + a, split_nodes)
-    return generator
+    lst_node = make_node_lst(lot_in_,ref_block_in)
+    #split_nodes = split_node_lst(lst_node)
+    #generator = reduce(lambda s, a: s + a, split_nodes)
+    return lst_node#generator
 
 if run and lot_in!=[None]:
     sc.sticky["debug"] = []

@@ -1,14 +1,6 @@
-'''
-Created on Jun 8, 2016
-@author: Saeran Vasanthakumar
-'''
-
 import copy
 import scriptcontext as sc
-import Rhino
 
-
-#type_blank_dict
 PD_ = \
 {'child':None, 'type_id': 'type_blank',\
 'height':6, 'axis':None,\
@@ -18,6 +10,7 @@ PD_ = \
 'div_ratio':0.,\
 'court':0, 'court_width':0., 'court_node':-1,\
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
+'terrace':0,'terrace_node':-1,\
 'stepback':None, 'stepback_node':-1}
 """--------------------------------"""
 
@@ -29,15 +22,16 @@ TT['type_id'] = 'type_tower'
 #TT['solartype'] = 3
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
-TT['stepback'] = [(6.,20.),(12.,20.)]
-TT['stepback_node']=-1
-#TT['court'], TT['court_width'] = 1, 2.5
-
+TT['stepback_node'] = -1
+TT['stepback'] = [(0.,sb_dim),(12.,sb_dim+7.)]
+TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
+#TT['terrace']=1.5
+#TT['terrace_node']=-1
 
 """--------------------------------"""
 if True:
     sc.sticky['type_tower'] = TT
     
     o = True 
-    Rhino.RhinoApp.Wait()
+    #Rhino.RhinoApp.Wait()
 

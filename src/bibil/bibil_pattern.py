@@ -1,7 +1,7 @@
-'''
+"""
 Created on Jun 8, 2016
 @author: Saeran Vasanthakumar
-'''
+"""
 
 import rhinoscriptsyntax as rs
 import Rhino as rc
@@ -10,10 +10,8 @@ import scriptcontext as sc
 import copy
 import System as sys
 
-
 """import classes"""
 Shape_3D = sc.sticky["Shape_3D"]
-#Grammar = sc.sticky["Grammar"]
 Tree = sc.sticky["Tree"] 
 Grammar = sc.sticky["Grammar"] 
 
@@ -29,19 +27,26 @@ class Pattern:
         except Exception as e:
             print str(e)
     def helper_geom2node(self,geom,parent_node,cplane_ref=None,label=""):
+        debug = sc.sticky['debug']
         try:
             if rs.IsCurve(geom):
-                curve = rs.coercecurve(geom)
-                geom = rs.AddPlanarSrf(curve)[0]
+                if type(rs.AddPoint(0,0,0)) != type(geom):
+                    geom = sc.doc.Objects.AddCurve(geom)
+                geom = rs.AddPlanarSrf(geom)[0]
+                geom = rs.coercebrep(geom)
             shape = Shape_3D(geom,node=parent_node,cplane=cplane_ref)
             if int(shape.z_dist) == 0:
                 shape.op_extrude(6.)
             grammar = Grammar([],shape,0)
             grammar.type["label"] = label
-            node = Tree(grammar,parent=parent_node,depth=parent_node.depth+1)
+            if parent_node:
+                depth = parent_node.depth+1
+            else:
+                depth = 0
+            node = Tree(grammar,parent=parent_node,depth=depth)
             return node
         except Exception as e:
-            print "Error at Pattern.make_node_from_geom", str(e)
+            print "Error at Pattern.helper_makegeom2node", str(e)
                    
     def split_brep_zaxis(self,s,ht,splitsrf=None,geom=None,cplane=None):
         try:
@@ -189,29 +194,29 @@ class Pattern:
         except Exception as e:
             print "Error at pattern solar envelope multi"
             print e
-    def pattern_stepback(self,tnode,stepback_,stepback_node_):
+    def pattern_stepback(self,tnode,stepback_,stepback_node_,sb_ref_):
         ##stepback_: height,recess distance 
         lon_ = tnode.traverse_tree(lambda n: n,internal=False)
-        if True:
-            ## Loop through list and identify node crv??
-            ## extract the setback crvs
-            ## insert split crv
-            ## test op_split
-            ## modify op_split
-            
+        try:
             for i,curr_n in enumerate(lon_):
                 node_root = curr_n.get_root()
-                setback_ref_lst = node_root.data.type.get('setback_reference_line')
-                ht, dist = stepback_[0][0], stepback_[0][1]
-                
-                for sbref in setback_ref_lst:
+                ht, dist = stepback_[0], stepback_[1]
+                for sbref in sb_ref_:
+                    # move sbref
+                    move_vector= rc.Geometry.Vector3d(0,0,float(ht))
+                    sbref_crv = sc.doc.Objects.AddCurve(sbref)
+                    sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
                     cut_geom = curr_n.data.shape.op_split("EW",0.5,deg=0.,\
-                    split_depth=float(dist),split_line_ref=sbref)  
+                    split_depth=float(dist),split_line_ref=sbref_crv)  
                     try:
                         curr_n.data.shape.geom = cut_geom[0]
                         curr_n.data.shape.reset(xy_change=True)
                     except Exception as e:
                         print "Error at shape.reset at pattern_stepback",str(e)
+        except Exception as e:
+            print str(e)#,sys.exc_traceback.tb_lineno 
+            print "Error at Pattern.stepback"
+            
         return tnode
     def pattern_divide(self,node_,temp_node_,div_num_,div_deg_,div_cut_,div_ratio_,flip_):
         try:
@@ -383,12 +388,16 @@ class Pattern:
         ## 5. stepback
         stepback = PD['stepback']
         stepback_node = PD['stepback_node']
-        if stepback != None:
-            try:
-                temp_node = self.pattern_stepback(temp_node,stepback,stepback_node)
-            except Exception as e:
-                print "Error @ stepback"
-                print e
+        if stepback != None and stepback != []:
+            setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
+            for step_data in stepback:
+                #sr: [ht,dim]
+                try:
+                    temp_node = self.pattern_stepback(temp_node,step_data,stepback_node,setback_ref)
+                except Exception as e:
+                    print "Error @ stepback"
+                    print str(e),sys.exc_traceback.tb_lineno 
+            
             
         ## 5. param 1
         court = PD['court']
@@ -397,8 +406,31 @@ class Pattern:
         subdiv_num = PD['subdiv_num']
         subdiv_cut = PD['subdiv_cut'] 
         subdiv_flip = PD['subdiv_flip']
+        terrace = float(PD['terrace'])
+        terrace_node = PD['terrace_node']
         
-        
+        #"""
+        if terrace > 0.:
+            lon = temp_node.traverse_tree(lambda n: n,internal=False)
+            for i,subdiv in enumerate(lon):
+                #debug.append(subdiv.data.shape.geom)
+                #tcrv = subdiv.data.shape.bottom_crv
+                # 2. offset
+                #if debug_print:
+                #    print 'terracenode', terrace_node
+                if int(terrace_node) == 0:
+                    root = node.get_root()
+                    tcrv = root.data.shape.bottom_crv
+                elif int(terrace_node) == 1:
+                    tcrv = subdiv.parent.data.shape.bottom_crv
+                elif int(terrace_node) == 2 and subdiv.parent.parent:
+                    tcrv = subdiv.parent.parent.data.shape.bottom_crv
+                elif int(terrace_node) == 3 and subdiv.parent.parent.parent:
+                    tcrv = subdiv.parent.parent.parent.data.shape.bottom_crv
+                else:#terrace_node = -1
+                    tcrv = subdiv.data.shape.bottom_crv
+                subdiv.data.shape.op_offset(terrace,tcrv,dir="terrace_3d")
+                #"""
         if court==1:
             try:
                 temp_node = self.pattern_court(temp_node,node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip)            

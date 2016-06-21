@@ -30,11 +30,13 @@ def apply_param_dictionary(copy_node_in_):
             
             noderoot = node.get_root()
             noderoot.traverse_tree(lambda n: n.data.shape.convert_rc('3d'))
+            #noderoot.data.type.get('setback_reference_line')
+            #debug.append(noderoot.data.shape.geom)
             
             s = node.data.shape
             if pd['axis']:
                 s.cplane = s.get_cplane_vector(s.geom,pd['axis']) 
-            
+
             try:
                 P = Pattern() 
                 tempnode = P.apply_pattern(node,pd)
