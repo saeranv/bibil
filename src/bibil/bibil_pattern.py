@@ -15,6 +15,8 @@ Shape_3D = sc.sticky["Shape_3D"]
 Tree = sc.sticky["Tree"] 
 Grammar = sc.sticky["Grammar"] 
 
+
+
 class Pattern:
     """Pattern"""
     def __init__(self):
@@ -26,28 +28,51 @@ class Pattern:
             return tempnode
         except Exception as e:
             print str(e)
-    def helper_geom2node(self,geom,parent_node,cplane_ref=None,label=""):
-        debug = sc.sticky['debug']
-        try:
-            if rs.IsCurve(geom):
-                if type(rs.AddPoint(0,0,0)) != type(geom):
-                    geom = sc.doc.Objects.AddCurve(geom)
-                geom = rs.AddPlanarSrf(geom)[0]
-                geom = rs.coercebrep(geom)
-            shape = Shape_3D(geom,node=parent_node,cplane=cplane_ref)
-            if int(shape.z_dist) == 0:
-                shape.op_extrude(6.)
-            grammar = Grammar([],shape,0)
-            grammar.type["label"] = label
-            if parent_node:
-                depth = parent_node.depth+1
+    def helper_geom2node(self,geom,parent_node,label=""):
+        def helper_curve2srf(geom_):
+            #check if not guid and is a curve
+            curve_guid = None
+            if type(geom_) != type(rs.AddPoint(0,0,0)):
+                points = [rc.Geometry.Point3d(0,0,0),rc.Geometry.Point3d(0,1,0),rc.Geometry.Point3d(1,0,0)]
+                curve = rc.Geometry.Curve.CreateControlPointCurve(points,1)
+                if geom_.ObjectType == curve.ObjectType: 
+                    curve_guid = sc.doc.Objects.AddCurve(geom_)
             else:
-                depth = 0
-            node = Tree(grammar,parent=parent_node,depth=depth)
-            return node
+                if rs.IsCurve(geom_): 
+                    curve_guid = geom_
+            if curve_guid:
+                srf_guid = rs.AddPlanarSrf(curve_guid)[0]
+                rc_brep = rs.coercebrep(srf_guid)
+                return rc_brep
+            else:
+                return geom_     
+        debug = sc.sticky['debug']
+        child_node = None
+        try:
+            geom = helper_curve2srf(geom)
+            cplane_ref = None
+            tree_depth = 0
+            
+            if parent_node: 
+                cplane_ref = parent_node.data.shape.cplane
+                tree_depth = parent_node.depth+1
+            try:
+                child_shape = Shape_3D(geom,cplane=cplane_ref)
+            except Exception as e: 
+                print 'Bibil has detected a degenerate shape', str(e)
+                child_shape = Shape_3D(geom,parent_node.data.shape.cplane)
+            
+            IsDegenerate = abs(child_shape.x_dist-0.) < 0.0001 or abs(child_shape.y_dist-0.) < 0.0001
+            
+            if not IsDegenerate:
+                if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
+                    child_shape.op_extrude(6.)
+                child_grammar = Grammar(child_shape)
+                child_grammar.type["label"] = label
+                child_node = Tree(child_grammar,parent=parent_node,depth=tree_depth)
         except Exception as e:
-            print "Error at Pattern.helper_makegeom2node", str(e)
-                   
+            print "Error at Pattern.helper_geom2node", str(e)
+        return child_node               
     def split_brep_zaxis(self,s,ht,splitsrf=None,geom=None,cplane=None):
         try:
             #debug = sc.sticky['debug']
@@ -87,6 +112,13 @@ class Pattern:
             #debug.append(rs.coercegeometry(top))
         except Exception as e:
             print e
+    def pattern_normalize_list(self,lov,hibound,lobound):
+        """normalized_val = ( (val-min)*(hibound-lobound) )/(max-min) + lobound"""
+        max_ = max(lov)
+        min_ = min(lov)
+        for i,v in enumerate(lov):
+            lov[i] = ((hibound-lobound)*(v-min_))/(max_-min_) + lobound
+        return lov
     def pattern_solar_envelope_uni(self,node_0,time,seht,stype):
         def helper_get_curve_in_tree(node_,stype_,seht_):
             if stype_ == 3:
@@ -216,118 +248,114 @@ class Pattern:
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
-            
-        return tnode
-    def pattern_divide(self,node_,temp_node_,div_num_,div_deg_,div_cut_,div_ratio_,flip_):
-        try:
-            #print div_num
-            # 1. fabric subdivide
-            #print 'divparam', div_param
-            temp_node_.data.shape.convert_guid(dim='3d')
-            axis_ = "EW"
-            if flip_: axis_ = "NS"
-            if node_.parent:
-                if node_.parent.data.axis == "EW": 
-                    if not flip_: axis_ = "NS"
-                    else: axis_ = "EW"
-                else: 
-                    if not flip_: axis_ = "EW"
-                    else: axis_ = "NS"
-            try:
-                temp_node_.make_tree_3D("subdivide_depth",div_num_,axis=axis_,cut_width=div_cut_)
-                temp_node_.traverse_tree(lambda n: n.data.shape.convert_rc('3d'))
-            except Exception as e:
-                print 'error at split div', str(e)
-            return temp_node_
-        except Exception as e:
-            print 
-    def pattern_court(self,temp_node_,node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip):
-        try:
-            lon = temp_node_.traverse_tree(lambda n: n,internal=False)
-            court_width_ = 8.
-            debug_print = False
-            
-            for subdiv in lon:
-                subdiv.data.shape.convert_rc('3d')
-                # 2. offset
-                if debug_print:
-                    print 'courtnode', court_node
-                if int(court_node) == 0:
-                    root = node_.get_root()
-                    bcrv = root.data.shape.bottom_crv
-                    refshape = root.data.shape
-                elif int(court_node) == 1:
-                    bcrv = subdiv.parent.data.shape.bottom_crv
-                    refshape = subdiv.parent.data.shape
-                elif int(court_node) == 2 and subdiv.parent.parent:
-                    bcrv = subdiv.parent.parent.data.shape.bottom_crv
-                    refshape = subdiv.parent.parent.data.shape
-                elif int(court_node) == 3 and subdiv.parent.parent.parent:
-                    bcrv = subdiv.parent.parent.parent.data.shape.bottom_crv
-                    refshape = subdiv.parent.parent.parent.data.shape
-                    #print 'bcrv', bcrv
-                    #debug.append(bcrv)
+        return tnode    
+    def pattern_divide(self,node,grid_type,div,axis="NS",random_tol=0,cut_width=0,div_depth=0,ratio=None,flip=False):        
+        def helper_calculate_split(hnode,grid_type,div,div_depth,ratio_,axis_ref="NS"):            
+            if grid_type == "subdivide_depth":
+                #print 'divdepth, div', div_depth,',', div
+                # stop subdivide
+                if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
+                    haxis,hratio = axis_ref,0.
+                # start subdivide
+                elif int(div_depth) == 0 and int(div) > 0:
+                    haxis,hratio = axis_ref,0.5
+                # alternate subdivide by axis
+                elif "NS" in hnode.parent.data.type['axis']:
+                    haxis,hratio = "EW",0.5
+                elif "EW" in hnode.parent.data.type['axis']:
+                    haxis,hratio = "NS",0.5
+            if grid_type == "subdivide_depth_same":
+                # stop subdivide
+                if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
+                    haxis,hratio = axis_ref,0.
+                # alternate subdivide by axis
                 else:
-                    bcrv = subdiv.data.shape.bottom_crv
-                    refshape = subdiv.data.shape
-                
-                #print refshape.bottom_crv
-                area = refshape.get_area()
-                long_axis,long_dist,short_axis,short_dist = refshape.get_long_short_axis()
-                
-                if short_dist >= 13:
-                    thickfactor = float(random.randint(-2,2))
-                    thickfactor = thickfactor if thickfactor != float(0) else 1. 
-                    court_width_ = short_dist/3. + 1//thickfactor
-                
-                testcrv = refshape.op_check_offset(court_width_,bcrv)
-                #debug.append(rs.coercegeometry(testcrv))
-                if testcrv: 
-                    if not refshape.is_guid(testcrv):
-                        testcrv = sc.doc.Objects.AddCurve(testcrv)
-                    offsrf = rs.AddPlanarSrf([testcrv])[0]
-                    srfcplane = refshape.get_cplane_advanced(offsrf)
-                    offshape_temp = Shape_3D(offsrf,srfcplane)
-                    off_area = offshape_temp.get_area()
-                    ofla,ofld,off_shortaxis,off_shortdist = offshape_temp.get_long_short_axis() 
+                    haxis,hratio = axis_ref,0.5
+            hnode.data.type['axis'] = haxis
+            hnode.data.type['ratio'] = hratio
+            return hnode
+        #print "We are changing recursively!"
+        if node.depth >=100: # base case 1
+            print 'node.depth > 60'
+        else:
+            axis_ = axis
+            if flip:
+                axis_ = "NS" if "EW" in axis else "EW"
+            node = helper_calculate_split(node,grid_type,div,div_depth,ratio,axis_ref=axis_)
+            if node.data.type['ratio'] > 0.0001:
+                loc = node.data.shape.op_split(node.data.type['axis'],node.data.type['ratio'],0.,split_depth=cut_width)
+                for i,child_geom in enumerate(loc):
+                    child_node = self.helper_geom2node(child_geom,node)
+                    if child_node: node.loc.append(child_node)
+                for c in node.loc:
+                    self.pattern_divide(c,grid_type,div,axis_,random_tol,cut_width,div_depth+1,ratio)
+        return node
+    def pattern_court(self,temp_node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=None):        
+        def helper_court_refcrv(court_node_,subdiv_):
+            if int(court_node_) == 0:
+                root = temp_node_.get_root()
+                bcrv_ = root.data.shape.bottom_crv
+                refshape_ = root.data.shape
+            else:
+                bcrv_ = subdiv_.data.shape.bottom_crv
+                refshape_ = subdiv_.data.shape
+            return bcrv_,refshape_  
+        def helper_court_slice(curr_node,axis_,ratio_):
+            rootshape = curr_node.get_root().data.shape
+            
+            for i in range(2):
+                if i%2==0:
+                    axis_ = "NS"
                 else:
-                    off_area,off_shortdist,off_shortaxis = area,short_dist,short_axis 
+                    axis_ = "EW"
+                for j in range(2):
+                    ###'simpledivdie' in patterndivide
+                    if j%2==0: 
+                        ratio_ = 0.2
+                    else:
+                        ratio_ = 0.8
+                    print 'axis,ratio', axis_, ',' , ratio_
                     
-                buildht = node_.data.shape.ht
-                #print 'buildht', buildht
-                if buildht > 21: minarea, mindist,minwidth = 170, 12, 9.5
-                elif buildht > 15: minarea, mindist,minwidth = 100, 9, 8.3
-                else: minarea,mindist,minwidth = 75, 7, 8.
-
-                if court_width > 0:
-                    court_width_ = court_width
-                    subdiv.data.shape.op_offset(court_width_,bcrv,dir="courtyard")
-                elif off_area < minarea or off_shortdist < mindist or not testcrv:
-                    if court_width_ > minwidth:
-                        court_width_ = minwidth #short_dist/4.
-                        if buildht<15.: court_width_ = 10. 
-                        subdiv.data.shape.op_offset(court_width_,bcrv,dir="courtyard")
-                else:
-                    if buildht<15.: court_width_ = 10. 
-                    subdiv.data.shape.op_offset(court_width_,testcrv,dir="courtyard",useoffcrv=True)
-                #debug_print = True
-                if debug_print:
-                    print 'cw: ', court_width_, 'area', off_area, 'shortdist', off_shortdist
-                    print '  '
-                # 3, building subdiv
-                #lolon = subdiv.traverse_tree(lambda n:n,internal=False)
-                #lolon_ = map(lambda n: n.data.shape.geom,lolon)
-                #print lolon_
-                #for subsubdiv in lolon:
-                #    if subdiv_flip: saxis = "NS"
-                #    else: saxis = "EW"
-                    #subsubdiv.make_tree_3D("subdivide_depth_same",subdiv_num,axis=saxis,random_tol=0,cut_width=subdiv_cut)
-                    #except Exception, e: print str(e)
-            return temp_node_
+                    geom_lst = curr_node.data.shape.op_split(axis_,ratio_,deg=0.,split_depth=5,split_line_ref=rootshape)    
+                    for j,geom in enumerate(geom_lst):
+                        child_node = self.helper_geom2node(geom,parent_node=curr_node,label="")
+                        cns = child_node.data.shape
+                        print 'check ratio'
+                        print cns.x_dist, rootshape.x_dist
+                        print abs(cns.x_dist/float(rootshape.x_dist)-0.2)<=1
+                        print abs(cns.y_dist/float(rootshape.y_dist)-0.2)<=1
+                        IsRatio = abs(cns.x_dist/float(rootshape.x_dist)-0.2)<=0.5\
+                        or abs(cns.y_dist/float(rootshape.y_dist)-0.2)<=0.5
+                        if IsRatio:
+                            debug.append(child_node.data.shape.geom)
+                        #if child_node: curr_node.loc.append(child_node)
+                    
+                    ####             
+        debug = sc.sticky['debug']
         
-        except Exception as e:
-            print e
-            
+        lon = temp_node_.traverse_tree(lambda n: n,internal=False)  
+        for subdiv in lon:
+            try:    
+                subdiv.data.shape.convert_rc('3d')
+                bcrv,refshape = helper_court_refcrv(court_node, subdiv)
+                if slice:
+                    print ''
+                    print 'we are slicing!'
+                    try:
+                        subdiv = helper_court_slice(subdiv,"NS",0.25)
+                        #geoms = subdiv.data.shape.op_split(axis,cort,deg=0.,split_depth=2,split_line_ref=None)
+                        ## cehck both to see if dist = splitdist
+                        #geom_child = geom_node.data.shape.op_split(axis,1.-cort,deg=0,split_depth=2)
+                        #debug.append(geoms[1])
+                        #debug.append(geom_child[0])
+                    except Exception as e:
+                        print 'error at court_slice', str(e)
+                elif court_width > 0.:
+                    subdiv.data.shape.op_offset(court_width,bcrv,dir="courtyard")
+            except Exception as e:
+                print 'fail court', str(e)  
+        return temp_node_
+              
     def main_pattern(self,node,PD):
         """
         param_dictionary
@@ -357,8 +385,8 @@ class Pattern:
                     print "Error @ solartype 1 or 3", str(e)
 
         ## 2. make a new, fresh node
-        build_shape = Shape_3D(geo_brep,node.data.shape.cplane)
-        build_grammar = Grammar([],build_shape,0)
+        build_shape = Shape_3D(geo_brep,cplane=node.data.shape.cplane)
+        build_grammar = Grammar(build_shape)
         temp_node = Tree(build_grammar,parent=node,depth=0)
         #node.data.shape = build_shape
         #temp_node = node
@@ -396,20 +424,21 @@ class Pattern:
                     temp_node = self.pattern_stepback(temp_node,step_data,stepback_node,setback_ref)
                 except Exception as e:
                     print "Error @ stepback"
-                    print str(e),sys.exc_traceback.tb_lineno 
+                    print str(e)#,sys.exc_traceback.tb_lineno 
             
             
         ## 5. param 1
         court = PD['court']
         court_node = PD['court_node']
         court_width = PD['court_width']
+        court_slice = PD['court_slice']
         subdiv_num = PD['subdiv_num']
         subdiv_cut = PD['subdiv_cut'] 
         subdiv_flip = PD['subdiv_flip']
         terrace = float(PD['terrace'])
         terrace_node = PD['terrace_node']
         
-        #"""
+        
         if terrace > 0.:
             lon = temp_node.traverse_tree(lambda n: n,internal=False)
             for i,subdiv in enumerate(lon):
@@ -430,13 +459,13 @@ class Pattern:
                 else:#terrace_node = -1
                     tcrv = subdiv.data.shape.bottom_crv
                 subdiv.data.shape.op_offset(terrace,tcrv,dir="terrace_3d")
-                #"""
+        
         if court==1:
             try:
-                temp_node = self.pattern_court(temp_node,node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip)            
+                temp_node = self.pattern_court(temp_node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=court_slice)            
             except Exception as e:
                 print "Error at pattern_court"
-                print e
+                print str(e)
         ## 7. finish
         return temp_node
         

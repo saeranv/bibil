@@ -18,7 +18,7 @@ class Fabric_Grammar(Grammar):
         Grammar.__init__(self,rule,shape,deg,axis,ratio)
         self.maxht = None
         self.density = None
-    def make_label(self,node,grid_type,div,div_depth,axis="NS"):
+    def make_label(self,node,grid_type,div,div_depth,ratio,cut_width,axis="NS"):
         """make_label: self -> None"""
         ## check density weight possibly distance here
         ## pg = parent Grammar
@@ -71,31 +71,24 @@ class Fabric_Grammar(Grammar):
                 label = "NS-" + str(grid_x/float(ss.x_dist)) + label_identity
             else: label = None
         self.type['label'] = label
-        
-    def make_grammar(self,label,random_tol,cut_width,ratio):
-        """ make_grammar: self -> None """
-        # child rules only apply to mutations, 
-        # if geometric children are returned, 
-        # they are not added back to the tree object!
-        label_div = 0
-        deg = 0.#random_tol if (random_tol==0) else random.randint(random_tol*-1, random_tol)
-        label_lst = label.split('-')
-        axis = label_lst[0]
-        if len(label_lst) > 1:
-            label_div = label_lst[1] 
-        if axis == "NS": # rename to block? fabric? nested cities
-            div = ratio if ratio else float(label_div)
-            axis,ratio,degree = "NS",div,deg
-        elif axis == "EW":
-            div = ratio if ratio else float(label_div)
-            axis,ratio,degree = "EW",div,deg
-        else: print 'error @ 51'
-        self.axis = axis    
-        self.ratio = ratio
-        self.degree = degree
-        child_rule = []
-        self.rule += [["split",self.axis,self.ratio,self.degree,cut_width,child_rule]]
 
+        if label:
+            label_div = 0
+            label_lst = label.split('-')
+            axis = label_lst[0]
+            if len(label_lst) > 1:
+                label_div = label_lst[1] 
+            if axis == "NS": # rename to block? fabric? nested cities
+                div = ratio if ratio else float(label_div)
+                axis,ratio = "NS",div
+            elif axis == "EW":
+                div = ratio if ratio else float(label_div)
+                axis,ratio = "EW",div
+            loc = self.shape.op_split(axis,ratio,0.,split_depth=cut_width)
+            return loc
+        else:
+            return label
+        
 class Fabric_Tree(Tree):
     """Fabric Tree"""
     def __init__(self,data,loc=None,parent=None,sib=None,depth=0):
@@ -113,13 +106,15 @@ class Fabric_Tree(Tree):
         else:
             if self.parent: pg,sib = self.parent.data,self.sib  
             else: pg,sib = None,None
-            self.data.make_label(self,grid_type,div,div_depth,axis_)
+            loc = self.data.make_label(self,grid_type,div,div_depth,ratio,cut_width,axis_)
             #print 'label: ', self.data.label
             if self.data.type['label'] == None: # base case 2
                 pass
             else:
-                self.data.make_grammar(self.data.type['label'],random_tol,cut_width,ratio)
-                loc,locr = self.data.make_shape(self.data.rule)
+                #loc = self.data.make_grammar(self.data.type['label'],random_tol,cut_width,ratio)
+                #loc,locr = self.data.make_shape(self.data.rule)
+                #print loc
+                #loc = self.data.shape.op_split(self.data.axis,self.data.ratio,0.,split_depth=cut_width)
                 for i,child in enumerate(loc):
                     kill = False
                     try:
@@ -147,7 +142,7 @@ class Fabric_Tree(Tree):
                             kill = True
                         
                     if not kill:
-                        child_grammar = Fabric_Grammar(locr[i],child_shape,0,axis=axis_)
+                        child_grammar = Fabric_Grammar([],child_shape,0,axis=axis_)
                         child_node = Fabric_Tree(child_grammar,parent=self,depth=self.depth+1)
                         self.loc.append(child_node)
                 for i,c in enumerate(self.loc):

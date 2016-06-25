@@ -10,11 +10,15 @@ import ghpythonlib.components as ghcomp
 import copy
 import scriptcontext as sc
 import System as sys
+import clr
+from System import SystemException
 
+clr.AddReference("System")
 vec = sc.sticky["Vector"]
 TOL = sc.doc.ModelAbsoluteTolerance
 #import pydevd as py
 #py.settrace()
+
 
 class Shape_3D:
     """
@@ -22,16 +26,18 @@ class Shape_3D:
     """
     TOL = sc.doc.ModelAbsoluteTolerance
     
-    def __init__(self,geom,node=None,cplane=None):
-        self.node = node
+    def __init__(self,geom,cplane=None):
         self.geom = geom
         self.cplane = cplane
         self.north = rs.VectorCreate([0,1,0],[0,0,0])
         self.area = None
-        self.local_north = None
         self.dimension = '3d'
         self.bottom_crv = None
-        self.reset(xy_change=True)
+        self.primary_axis_vector = None
+        try:
+            self.reset(xy_change=True)
+        except Exception as e:
+            print str(e), "Error at Shape.reset()"
     def reset(self,xy_change=True):
         def get_dim_bbox(b):
             ## counterclockwise, start @ bottom SW  
@@ -42,40 +48,56 @@ class Shape_3D:
             #      |   |
             #      -----
             #     s_wt = x_dist
+            """    self.s_wt,self.e_ht,self.n_wt,self.w_ht """
             return b[:2],b[1:3],b[2:4],[b[3],b[0]]
-            self.cplane = self.get_cplane_advanced(self.geom)
+            
+            
         # primary edges
         if xy_change == True:
             try:
                 self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
             except Exception as e:
-                print str(e),sys.exc_traceback.tb_lineno 
+                #print str(e)##sys.exc_traceback.tb_lineno 
+                self.bottom_crv = None
             try:
                 if self.cplane == None:
                     self.cplane = self.get_cplane_advanced(self.geom)
-                    self.local_north = self.cplane.YAxis
+                self.primary_axis_vector = self.cplane.YAxis
             except Exception as e:
-                print str(e),sys.exc_traceback.tb_lineno 
+                #print str(e)##sys.exc_traceback.tb_lineno 
+                self.cplane, self.primary_axis_vector = None, None
             try:
                 self.bbpts = self.get_boundingbox(self.geom,self.cplane)
                 self.s_wt,self.e_ht,self.n_wt,self.w_ht = get_dim_bbox(self.bbpts)
+                self.ew_vector = self.n_wt[1]-self.n_wt[0]
+                self.ns_vector = self.e_ht[1]-self.e_ht[0]
+                """
+                print 'check ew'
+                print self.primary_axis_vector.IsParallelTo(self.ew_vector)
+                print self.primary_axis_vector.IsPerpendicularTo(self.ew_vector)
+                print ''
+                """
                 # x,y,z distances
                 self.x_dist = float(rs.Distance(self.s_wt[0],self.s_wt[1]))
                 self.y_dist = float(rs.Distance(self.e_ht[0],self.e_ht[1]))
                 self.area = None
             except Exception as e:
-                print e
+                #print str(e)
+                self.bbpts,self.s_wt,self.e_ht,self.n_wt,self.w_ht = None, None, None, None, None 
             try:
                 bp = self.bbpts
                 self.cpt = rc.Geometry.AreaMassProperties.Compute(self.bottom_crv).Centroid
             except Exception as e:
-                print str(e),sys.exc_traceback.tb_lineno 
+                #print str(e)#sys.exc_traceback.tb_lineno 
+                self.cpt = None
         try:# curve profile info
+            if xy_change == False:
+                self.bbpts = self.get_boundingbox(self.geom,self.cplane)
             self.ht = float(self.bbpts[4][2])
             self.z_dist = float(float(self.bbpts[4][2]) - self.cpt[2])
         except Exception as e:
-            print "Error @ Shape_3D.reset"
-            print str(e),sys.exc_traceback.tb_lineno 
+            #print str(e)#sys.exc_traceback.tb_lineno 
+            self.ht, self.z_dist = None, None
     def op_split(self,axis,ratio,deg=0.,split_depth=0,split_line_ref=None):
         """
         op_split: self, ratio -> (list of geom)
@@ -92,16 +114,25 @@ class Shape_3D:
                 return split_surf_
             except Exception as e:
                 print "Error @ shape.helper_make_split_srf_z"
-                print str(e),sys.exc_traceback.tb_lineno 
-        def helper_make_split_line_xy(ratio_,degree):
+                print str(e)#sys.exc_traceback.tb_lineno 
+        def helper_make_split_line_xy(ratio_,degree,ref_shape=None):
             debug = sc.sticky['debug']
             try:
+                if ref_shape:
+                    s_wt,n_wt = ref_shape.s_wt,ref_shape.n_wt
+                    e_ht,w_ht = ref_shape.e_ht,ref_shape.w_ht
+                    x_dist,y_dist = ref_shape.x_dist,ref_shape.y_dist
+                else:
+                    s_wt,n_wt = self.s_wt,self.n_wt
+                    e_ht,w_ht = self.e_ht,self.w_ht
+                    x_dist,y_dist = self.x_dist,self.y_dist
+                    
                 if axis == "NS":
-                    edge_0, edge_1 = self.s_wt, self.n_wt
-                    dist = ratio_*self.x_dist
+                    edge_0, edge_1 = s_wt, n_wt
+                    dist = ratio_* x_dist
                 else:#if axis == "EW"
-                    edge_0, edge_1 = self.e_ht, self.w_ht
-                    dist = ratio_*self.y_dist
+                    edge_0, edge_1 = e_ht, w_ht
+                    dist = ratio_* y_dist
                     
                 ### helper geom that splits box
                 line_0 = rs.AddLine(edge_0[0],edge_0[1])
@@ -119,7 +150,7 @@ class Shape_3D:
                 return split_line_sc
             except Exception as e:
                 print "Error @ shape.helper_make_split_srf_xy"
-                print str(e),sys.exc_traceback.tb_lineno 
+                print str(e)#sys.exc_traceback.tb_lineno 
         def helper_make_split_surf(split_line_):
             if self.ht < 1: 
                 ht = 1.
@@ -128,17 +159,25 @@ class Shape_3D:
             split_path = rs.AddCurve([[0,0,0],[0,0,ht*2]],1)    
             split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line_,split_path))
             return split_surf
+        def helper_get_split_line_surf(ratio_,axis_,deg_,split_line_ref_):
+            split_line_, split_surf_ = None,None
+            if split_line_ref_ != None:
+                ## Check if Closed curve
+                if type(self) == type(split_line_ref_):
+                    split_line_ = helper_make_split_line_xy(ratio_,deg_,ref_shape=split_line_ref_)
+                else:
+                    split_line_ = split_line_ref_
+                #debug.append(split_line_)
+                split_surf_ = helper_make_split_surf(split_line_)
+            elif axis_ == "Z":
+                split_surf_ = helper_make_split_surf_z(ratio_)
+            else:
+                split_line_ = helper_make_split_line_xy(ratio_,deg_)
+                split_surf_ = helper_make_split_surf(split_line_)           
+            return split_line_, split_surf_
+        
         rs.EnableRedraw(False)
-        #if (self.dimension in "3d") == True: self.convert_guid('3d')
-        #else: self.convert_guid('2d')
-        if split_line_ref != None:
-            split_line = split_line_ref
-            split_surf = helper_make_split_surf(split_line)
-        elif axis == "Z":
-            split_surf = helper_make_split_surf_z(ratio)
-        else:
-            split_line = helper_make_split_line_xy(ratio,deg)
-            split_surf = helper_make_split_surf(split_line)
+        split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
         try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:
@@ -178,17 +217,17 @@ class Shape_3D:
                 lst_child.extend(geom_childs)
         except Exception as e:
             print "Error @ shape.op_split while splitting"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#, sys.traceback.tb_lineno 
             
         ## Clean up or rearrange or cap the split child geometries
         try:
-            if lst_child == [None] or lst_child == []:
-                lst_child = [copy.copy(self.geom)]
+            if float(len(lst_child)) < 1. or lst_child == [None] or lst_child == []:
+                lst_child = []
             else:
-                if not "2" in self.dimension:
-                    if not self.is_guid(lst_child[0]): lst_child_ = map(lambda child: sc.doc.Objects.AddBrep(child), lst_child)
-                    map(lambda child: rs.CapPlanarHoles(child),lst_child_)
-                    lst_child = map(lambda child: rs.coercebrep(child),lst_child_)
+                if not self.is_guid(lst_child[0]): 
+                    lst_child_ = map(lambda child: sc.doc.Objects.AddBrep(child), lst_child)
+                map(lambda child: rs.CapPlanarHoles(child),lst_child_)
+                lst_child = map(lambda child: rs.coercebrep(child),lst_child_)
                 if axis == "Z":
                     z_0 = rc.Geometry.AreaMassProperties.Compute(lst_child[0]).Centroid[2]
                     z_1 = rc.Geometry.AreaMassProperties.Compute(lst_child[1]).Centroid[2]    
@@ -197,7 +236,7 @@ class Shape_3D:
                         lst_child.append(tempchild)
         except Exception as e:
             print "Error @ shape.op_split while formatting children"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#, sys.traceback.tb_lineno 
         
         rs.EnableRedraw(False)
         return lst_child
@@ -213,7 +252,7 @@ class Shape_3D:
             return check_bbpts(bbpts_)
         except Exception as e:
             print "Error @ get_boundingbox"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def is_guid(self,geom):
         return type(rs.AddPoint(0,0,0)) == type(geom) 
     def convert_rc(self,dim=None):
@@ -232,7 +271,7 @@ class Shape_3D:
                 self.geom = rs.coercegeometry(self.geom)
         except Exception as e:
             print "Error @ shape.convert_rc"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def convert_guid(self,dim='2d'):
         # phase this out
         try:
@@ -248,7 +287,7 @@ class Shape_3D:
                 self.geom = sc.doc.Objects.AddBrep(self.geom)
         except Exception as e:
             print "Error @ shape.convert_guid"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def get_bottom(self,g,refpt,tol=0.1):
         ## Extract curves from brep according to input cpt lvl
         try:
@@ -260,8 +299,31 @@ class Shape_3D:
             return crvs[0]
         except Exception as e:
             print "Error @ shape.get_bottom"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def get_shape_axis(self,crv):
+        def helper_group_parallel(AL):
+            ## Identifies parallel lines and groups them
+            lop = []
+            CULLDICT = {}
+            for i,v in enumerate(AL):
+                refdist,refdir = v[0],v[1]
+                power_lst = []
+                if i < len(AL)-1 and not CULLDICT.has_key(refdist):
+                    power_lst.append(refdist)
+                    AL_ = AL[i+1:]
+                    for j,v_ in enumerate(AL_):
+                        currdist,currdir = v_[0],v_[1]
+                        if currdir.IsParallelTo(refdir) != 0 and not CULLDICT.has_key(currdist):
+                            power_lst.append(currdist)
+                            CULLDICT[currdist] = True
+                if power_lst:
+                    power_lst.sort(reverse=True)
+                    power_num = reduce(lambda x,y: x+y,power_lst)
+                else:
+                    power_num = 0
+                lop.append(power_num)
+            return lop
+        
         ### Purpose: Input 2d planar curve
         ### and return list of vector axis based
         ### on prominence
@@ -269,52 +331,36 @@ class Shape_3D:
         ## topological ordering preserved
         ## direction counterclockwise
         try:
+            ## Breaks up geometry into points
             segments = crv.DuplicateSegments()
+            axis_lst = []
             for i in xrange(len(segments)):
                 segment = segments[i]
                 nc = segment.ToNurbsCurve()
                 end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
-                #print (end_pts[0],end_pts[1]), '\n'
-                #if i == 1:
-                #    debug.append(end_pts[1])
+                #debug.extend(end_pts)
+                dist = rs.Distance(end_pts[0],end_pts[1])
+                dir_vector = end_pts[1] - end_pts[0]
+                axis_lst.append((dist,dir_vector))
+            
+            axis_power_lst = helper_group_parallel(axis_lst)
+            primary_index = axis_power_lst.index(max(axis_power_lst))
+            self.primary_axis_vector = axis_lst[primary_index][1]
+            return self.primary_axis_vector
+        
         except Exception as e:
             print "Error @ shape.get_shape_axis"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def get_cplane_advanced(self,g):
-        def helper_define_axis_pts(pl_):
+        def helper_define_axis_pts(primary_vec):
             ##(origin,x,y)
-            o_pt_ = pl_[2]
-            x_pt_ = pl_[1]
-            y_pt_ = pl_[0]
+            o_pt_ = rc.Geometry.Point3d(0,0,0)
+            y_pt_ = primary_vec
+            z_pt_ = rc.Geometry.Vector3d(0,0,1)
+            ## construct x_pt_ using the communitive property of crossproduct
+            x_pt_ = rc.Geometry.Vector3d.CrossProduct(y_pt_,z_pt_)
+            
             return o_pt_,x_pt_,y_pt_
-        def helper_rotate_cplane(cplane_,ra_,cpt_):
-            ## rotate cplane in xy plane
-            axis = rc.Geometry.Vector3d(0,0,1)
-            angle_in_radians = math.radians(ra_)
-            cplane.Rotate(angle_in_radians,axis,cpt_)
-        def helper_local_north(cplane,vecangle_):
-            ### defines local_north vector: a vector located
-            ### within the local plane, that is closest to world north
-            ### Find the orientation closest to local north
-            ### within the 90 rotation increments of the 
-            ### referenced cplane
-            veclst = []
-            orient_lst = [0.,90.,180.,270.]
-            for orient in orient_lst:
-                veclst.append(abs(orient - vecangle_))
-            ## find the 90 rotation increment closest to world north
-            minindex = min(xrange(len(veclst)),key=veclst.__getitem__)
-            orient_angle = orient_lst[minindex]
-            return orient_angle
-        def helper_check_direction_rotation(cplane_,lno,opt):
-            # probably a better way to do this
-            helper_rotate_cplane(cplane_,lno,opt)
-            pos_angle = vec(self.north).angle(vec(cplane_.YAxis))
-            helper_rotate_cplane(cplane_,lno*-2,opt)
-            neg_angle = vec(self.north).angle(vec(cplane_.YAxis))
-            if pos_angle < neg_angle:
-                helper_rotate_cplane(cplane_,lno*2,opt)
-            return cplane_
         try:
             if self.is_guid(g):
                 brep = rs.coercebrep(g)
@@ -323,26 +369,13 @@ class Shape_3D:
             ## Get primary axis
             nc = self.bottom_crv.ToNurbsCurve()
             planar_pts = [nc.Points[i].Location for i in xrange(nc.Points.Count)]
-            self.get_shape_axis(self.bottom_crv)
-            o_pt,x_pt,y_pt = helper_define_axis_pts(planar_pts)
-            ## Generate plane
-            normal = rc.Geometry.Vector3d(0,0,1)
-            cplane = rc.Geometry.Plane(o_pt,normal)
-            ## Rotate cplane to align with primary axis (temp)
-            y_axis = x_pt - o_pt #create axis through vector subtraction
-            align_angle = vec(self.north).angle(vec(y_axis))
-            align_angle = float(align_angle)
-            helper_rotate_cplane(cplane,align_angle*-1,o_pt)
-            ## rotate cplane yaxis according to world north
-            local_north_orient = helper_local_north(cplane,align_angle)
-            cplane = helper_check_direction_rotation(cplane,local_north_orient,o_pt)
-            self.local_north = cplane.YAxis
-            #debug.append(cplane)
+            primary_axis_vector = self.get_shape_axis(self.bottom_crv)
+            o_pt,x_pt,y_pt = helper_define_axis_pts(primary_axis_vector)
+            cplane = rc.Geometry.Plane(o_pt,x_pt,y_pt)
             return cplane
         except Exception as e:
             print "Error @ shape.get_cplane_advanced"
-            print str(e),sys.exc_traceback.tb_lineno 
-        
+            print str(e)#sys.exc_traceback.tb_lineno 
     def get_area(self):
         try:
             area_crv = self.bottom_crv if self.dimension == '3d' else self.crv
@@ -356,7 +389,7 @@ class Shape_3D:
             return area
         except Exception as e:
             print "Error @ shape.get_area"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def get_long_short_axis(self):
         if (self.x_dist > self.y_dist): 
             long_dist,short_dist = self.x_dist,self.y_dist
@@ -375,10 +408,11 @@ class Shape_3D:
                 return Shape_2D(face,cp)
         except Exception as e:
             print "Error @ shape.make_face"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def op_extrude(self,z_dist,curve=None):
+        debug = sc.sticky['debug']
         try:
-            returnflag = False 
+            returnflag = True 
             if curve == None:
                 curve = rs.coercecurve(self.bottom_crv) if self.is_guid(self.bottom_crv) else self.bottom_crv
                 returnflag = True
@@ -395,13 +429,14 @@ class Shape_3D:
                     #print 'move down'
                     ext.Translate(0.,0.,z_dist*-1)
             brep = ext.ToBrep()
-            if returnflag == False:return brep
-            else:
+            #if returnflag == False:
+            #    return brep
+            if True:#else:
                 self.geom = brep
                 self.reset(xy_change=False)
         except Exception as e:
             print "Error @ Shape_3D.op_extrude"
-            print str(e),sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno 
     def op_check_offset(self,dim,curve,count=0,refcpt = None):
         #print 'count: ', count, 'dim: ', dim
         if count > 5 or int(dim <= 0):
@@ -421,7 +456,7 @@ class Shape_3D:
                     return offcurve[0] 
             except Exception as e:
                 print "Error @ Shape_3D.op_check_offset"
-                print str(e),sys.exc_traceback.tb_lineno 
+                print str(e)#sys.exc_traceback.tb_lineno 
     def op_offset(self,dim,curve,dir="courtyard",useoffcrv=False):
         try:
             rs.EnableRedraw(False)
@@ -496,14 +531,13 @@ class Shape_3D:
                             self.geom = booldiff[0]
                     self.reset()
                 except Exception,e: 
-                    print str(e),sys.exc_traceback.tb_lineno 
+                    print str(e)#sys.exc_traceback.tb_lineno 
                     print 'fail op_offset'
             rs.EnableRedraw(True)
             return diff_geom
         except Exception as e:
             print 'Error @ Shape_3D.op_offset'
-            print str(e),sys.exc_traceback.tb_lineno 
-            
+            print str(e)#sys.exc_traceback.tb_l          
     def op_solar_envelope(self,start_time,end_time,curve=None):
         try:
             if not curve: curve = self.bottom_crv
@@ -519,8 +553,6 @@ class Shape_3D:
         except Exception as e:
             print "Shape_3D.op_solar_envelope error"
             print e
-
-
 
 if True:
     sc.sticky["Shape_3D"] = Shape_3D

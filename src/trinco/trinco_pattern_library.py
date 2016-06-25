@@ -1,3 +1,8 @@
+"""
+Created on Jun 22, 2016
+@author: Saeran Vasanthakumar
+"""
+
 import copy
 import scriptcontext as sc
 
@@ -17,21 +22,21 @@ PD_ = \
 """----------------
 TOWER ----------------""" 
 TT = copy.deepcopy(PD_) 
-TT['type_id'] = 'type_tower'
+TT['type_id'] = 'type_block'
 #TT['div_num'],TT['div_deg'],TT['div_cut'] = 1, 0, 7.
 #TT['solartype'] = 3
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
-TT['stepback_node'] = -1
-TT['stepback'] = [(0.,35),(12.,35+7.)]
-#TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
+#TT['stepback_node'] = -1
+#TT['stepback'] = [(0.,35),(12.,35+7.)]
+TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
+TT['court_slice'] = 0.5
 #TT['terrace']=1.5
 #TT['terrace_node']=-1
 
 """--------------------------------"""
 if True:
-    sc.sticky['type_tower'] = TT
-    
+    sc.sticky['type_block'] = TT
     o = True 
     #Rhino.RhinoApp.Wait()
 

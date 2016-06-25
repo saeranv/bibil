@@ -5,12 +5,6 @@ Created on Jun 9, 2016
 import scriptcontext as sc
 import System as sys
 
-"""import classes"""
-Shape_3D = sc.sticky["Shape_3D"]
-Tree = sc.sticky["Tree"]
-Grammar = sc.sticky["Grammar"]
-Tree = sc.sticky["Tree"] 
-#Fabric_Grammar = sc.sticky["Fabric_Grammar"] 
 """--------------------------------------------"""
 
 from copy import deepcopy
