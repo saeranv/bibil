@@ -26,7 +26,7 @@ class Shape_3D:
     """
     TOL = sc.doc.ModelAbsoluteTolerance
     
-    def __init__(self,geom,cplane=None):
+    def __init__(self,geom=None,cplane=None):
         self.geom = geom
         self.cplane = cplane
         self.north = rs.VectorCreate([0,1,0],[0,0,0])
