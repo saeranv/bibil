@@ -11,7 +11,9 @@ PD_ = \
 'court':0, 'court_width':0., 'court_node':-1,'court_slice':None,\
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
-'stepback':None, 'stepback_node':-1}
+'stepback':None, 'stepback_node':-1,\
+'separate':False,'separation_dist':0.,\
+'dim_x':30., 'dim_y':30, 'dim_z':0.} 
 """--------------------------------"""
 
 """----------------
@@ -23,7 +25,12 @@ TT['type_id'] = 'type_tower'
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
 TT['stepback_node'] = -1
-TT['stepback'] = [(0.,35),(9.,35+7.),(27.,35+9.)]
+TT['stepback'] = [(0.,35),(12.,35+7.),(27.,35+9.)]
+## Change this to separate PD so it can be reused for base
+TT['separate'] = True 
+TT['separation_dist'] = 60.
+TT['dim_x'],TT['dim_y'],TT['dim_z']=25.,25.,18. 
+
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
 #TT['terrace']=1.5
 #TT['terrace_node']=-1

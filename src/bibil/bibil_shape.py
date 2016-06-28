@@ -98,6 +98,12 @@ class Shape_3D:
         except Exception as e:
             #print str(e)#sys.exc_traceback.tb_lineno 
             self.ht, self.z_dist = None, None
+    def calculate_ratio_from_dist(self,axis,dist):
+        if "NS" in axis:
+            ratio = dist/float(self.x_dist)
+        elif "EW" in axis:
+            ratio = dist/float(self.y_dist)
+        return ratio
     def op_split(self,axis,ratio,deg=0.,split_depth=0,split_line_ref=None):
         """
         op_split: self, ratio -> (list of geom)
@@ -254,7 +260,7 @@ class Shape_3D:
             print "Error @ get_boundingbox"
             print str(e)#sys.exc_traceback.tb_lineno 
     def is_guid(self,geom):
-        return type(rs.AddPoint(0,0,0)) == type(geom) 
+        return type(rs.AddPoint(0,0,0)) == type(geom)     
     def convert_rc(self,dim=None):
         # phase this function out
         try:
@@ -437,7 +443,7 @@ class Shape_3D:
         except Exception as e:
             print "Error @ Shape_3D.op_extrude"
             print str(e)#sys.exc_traceback.tb_lineno 
-    def op_check_offset(self,dim,curve,count=0,refcpt = None):
+    def op_offset_crv(self,dim,curve,count=0,refcpt = None):
         #print 'count: ', count, 'dim: ', dim
         if count > 5 or int(dim <= 0):
             return None
@@ -472,7 +478,7 @@ class Shape_3D:
             #0 = None, 1 = Sharp, 2 = Round, 3 = Smooth, 4 = Chamfer
             copy_curve = rs.CopyObject(curve)
             if not useoffcrv:
-                check_curve = self.op_check_offset(dim,copy_curve,0,refcpt=cpt)
+                check_curve = self.op_offset_crv(dim,copy_curve,0,refcpt=cpt)
             else: check_curve = copy_curve
         
             if check_curve:

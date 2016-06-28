@@ -59,7 +59,7 @@ class Bula_Data:
         ## Normalize points
         cpt_lst_val = map(lambda cpt: cpt[2], cpt_lst_)
         ## temp add lowerbound for height
-        norm_lst = Pattern().pattern_normalize_list(cpt_lst_val,1.,0.)
+        norm_lst = self.normalize_list(cpt_lst_val,1.,0.)
         for i,val in enumerate(zip(norm_lst,cpt_lst_)):
             norm,cpt = val[0],val[1]
             cpt[2] = norm

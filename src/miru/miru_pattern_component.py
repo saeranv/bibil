@@ -21,7 +21,6 @@ def apply_param_dictionary(copy_node_in_):
             #copy_PD = deepcopy(blank_param_dict)
             #pd = get_param_dictionary(node,copy_PD)
             pd = node.data.type
-            
             noderoot = node.get_root()
             noderoot.traverse_tree(lambda n: n.data.shape.convert_rc('3d'))
             #noderoot.data.type.get('setback_reference_line')
@@ -32,7 +31,7 @@ def apply_param_dictionary(copy_node_in_):
                 s.cplane = s.get_cplane_vector(s.geom,pd['axis']) 
 
             try:
-                P = Pattern() 
+                P = Pattern()
                 tempnode = P.apply_pattern(node,pd)
                 RhinoApp.Wait()
                 tempnode.traverse_tree(lambda n: n.data.shape.convert_rc('3d'),internal=False)

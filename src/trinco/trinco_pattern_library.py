@@ -16,8 +16,9 @@ PD_ = \
 'court':0, 'court_width':0., 'court_node':-1,'court_slice':None,\
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
-'stepback':None, 'stepback_node':-1}
-"""--------------------------------"""
+'stepback':None, 'stepback_node':-1,\
+'separate':False,'separation_dist':0.,\
+'dim_x':30., 'dim_y':30, 'dim_z':0.} 
 
 """----------------
 TOWER ----------------""" 
@@ -29,7 +30,7 @@ TT['type_id'] = 'type_block'
 ##TT['height'] = 12.
 #TT['stepback_node'] = -1
 #TT['stepback'] = [(0.,35),(12.,35+7.)]
-TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
+TT['court'], TT['court_width'],TT['court_node'] = 1, 35., 0
 TT['court_slice'] = 0.5
 #TT['terrace']=1.5
 #TT['terrace_node']=-1

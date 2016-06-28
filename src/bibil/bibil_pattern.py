@@ -9,6 +9,7 @@ import random
 import scriptcontext as sc
 import copy
 import System as sys
+import math
 
 """import classes"""
 Shape_3D = sc.sticky["Shape_3D"]
@@ -72,46 +73,7 @@ class Pattern:
                 child_node = Tree(child_grammar,parent=parent_node,depth=tree_depth)
         except Exception as e:
             print "Error at Pattern.helper_geom2node", str(e)
-        return child_node               
-    def split_brep_zaxis(self,s,ht,splitsrf=None,geom=None,cplane=None):
-        try:
-            #debug = sc.sticky['debug']
-            lst_child = []
-            base, top = None, None
-            s.convert_guid('3d')
-            if not splitsrf:
-                splitsrf = rs.AddPlanarSrf([s.bottom_crv])[0]
-            if geom == None:
-                geom = copy.copy(s.geom)
-            if not cplane:
-                cplane = s.cplane
-            split_surf = rs.CopyObject(splitsrf,[0,0,ht])
-            #debug.append(split_surf)
-            
-            #if ht == 12.: 
-                #debug.append(split_surf)
-                #debug.append(geom)
-            try:lst_child = rs.SplitBrep(geom,split_surf)
-            except: print 'splitfail at ht: ', ht
-            try: map(lambda child: rs.CapPlanarHoles(child),lst_child)
-            except: pass
-            if lst_child:
-                for i,child in enumerate(lst_child):
-                    if rs.IsSurface(child): lst_child[i] = None
-                lst_child = filter(lambda c: c != None, lst_child)
-                if lst_child and len(lst_child) > 1:
-                    first_child_z = rs.BoundingBox(lst_child[0],cplane)[0][2]
-                    second_child_z = rs.BoundingBox(lst_child[1],cplane)[0][2]
-                    if first_child_z > second_child_z:
-                        base = lst_child[1]
-                        top = lst_child[0]
-                    else:
-                        base = lst_child[0]
-                        top = lst_child[1]
-            return rs.coercegeometry(base), rs.coercegeometry(top)
-            #debug.append(rs.coercegeometry(top))
-        except Exception as e:
-            print e
+        return child_node                   
     def pattern_solar_envelope_uni(self,node_0,time,seht,stype):
         def helper_get_curve_in_tree(node_,stype_,seht_):
             if stype_ == 3:
@@ -225,8 +187,9 @@ class Pattern:
         try:
             for i,curr_n in enumerate(lon_):
                 node_root = curr_n.get_root()
+                
                 ht, dist = stepback_[0], stepback_[1]
-                for sbref in sb_ref_:
+                for j,sbref in enumerate(sb_ref_):
                     # move sbref
                     move_vector= rc.Geometry.Vector3d(0,0,float(ht))
                     sbref_crv = sc.doc.Objects.AddCurve(sbref)
@@ -237,52 +200,120 @@ class Pattern:
                         curr_n.data.shape.geom = cut_geom[0]
                         curr_n.data.shape.reset(xy_change=True)
                     except Exception as e:
-                        print "Error at shape.reset at pattern_stepback",str(e)
+                        pass
+                        #print "Error at shape.reset at pattern_stepback",str(e)
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
         return tnode    
     def pattern_divide(self,node,grid_type,div,axis="NS",random_tol=0,cut_width=0,div_depth=0,ratio=None,flip=False):        
-        def helper_calculate_split(hnode,grid_type,div,div_depth,ratio_,axis_ref="NS"):            
-            if grid_type == "subdivide_depth":
-                #print 'divdepth, div', div_depth,',', div
-                # stop subdivide
-                if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
-                    haxis,hratio = axis_ref,0.
-                # start subdivide
-                elif int(div_depth) == 0 and int(div) > 0:
-                    haxis,hratio = axis_ref,0.5
-                # alternate subdivide by axis
-                elif "NS" in hnode.parent.data.type['axis']:
-                    haxis,hratio = "EW",0.5
-                elif "EW" in hnode.parent.data.type['axis']:
-                    haxis,hratio = "NS",0.5
-            if grid_type == "subdivide_depth_same":
-                # stop subdivide
-                if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
-                    haxis,hratio = axis_ref,0.
-                # alternate subdivide by axis
-                else:
-                    haxis,hratio = axis_ref,0.5
+        def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
+            #print 'divdepth, div', div_depth,',', div
+            # stop subdivide
+            if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
+                haxis,hratio = axis_ref,0.
+            # start subdivide
+            elif int(div_depth) == 0 and int(div) > 0:
+                haxis,hratio = axis_ref,0.5
+            # alternate subdivide by axis
+            elif "NS" in hnode.parent.data.type['axis']:
+                haxis,hratio = "EW",0.5
+            elif "EW" in hnode.parent.data.type['axis']:
+                haxis,hratio = "NS",0.5
             hnode.data.type['axis'] = haxis
             hnode.data.type['ratio'] = hratio
             return hnode
-        #print "We are changing recursively!"
+        def helper_subdivide_depth_same(hnode,div,div_depth,ratio_,axis_ref="NS"):            
+            # base case: stop subdivide
+            if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
+                haxis,hratio = axis_ref,0.
+            # alternate subdivide by axis
+            elif float(div_depth) < 0.5 and int(div) > 0.01:
+                haxis,hratio = axis_ref,0.5
+            # alternate subdivide by axis
+            else:
+                haxis,hratio = node.parent.data.type['axis'],0.5
+            hnode.data.type['axis'] = haxis
+            hnode.data.type['ratio'] = hratio
+            return hnode
+        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS"):            
+            def greater(a,b,tol=int(3)):
+                checktol = abs(a-b) <= tol
+                return a >= b and not checktol
+            ss = hnode.data.shape
+            grid_x, grid_y = float(div[0]), float(div[1])
+            if greater(ss.y_dist,grid_y):
+                haxis = "EW" 
+                hratio = grid_y/float(ss.y_dist)
+            elif greater(ss.x_dist,grid_x): 
+                haxis = "NS"
+                hratio = grid_x/float(ss.x_dist)
+            else: 
+                haxis,hratio = axis_ref,0.
+            hnode.data.type['axis'] = haxis
+            hnode.data.type['ratio'] = hratio
+            return hnode
+        
+        debug = sc.sticky['debug']
         if node.depth >=100: # base case 1
             print 'node.depth > 60'
         else:
+            ## Calculate and encode the ratio and axis data
             axis_ = axis
             if flip:
                 axis_ = "NS" if "EW" in axis else "EW"
-            node = helper_calculate_split(node,grid_type,div,div_depth,ratio,axis_ref=axis_)
+            if grid_type == "subdivide_depth":
+                node = helper_subdivide_depth(node,div,div_depth,ratio,axis_ref=axis_)
+            elif grid_type == "subdivide_depth_same":
+                node = helper_subdivide_depth_same(node,div,div_depth,ratio,axis_ref=axis_)
+            elif grid_type == "subdivide_dim":
+                node = helper_subdivide_dim(node,div,div_depth,ratio,axis_ref=axis_)
+            else:
+                print "You probably want simple divide which hasnt been implemented yet"
+            
+            ## Split, make a node, and recurse.
             if node.data.type['ratio'] > 0.0001:
                 loc = node.data.shape.op_split(node.data.type['axis'],node.data.type['ratio'],0.,split_depth=cut_width)
+                #debug.extend(loc)
                 for i,child_geom in enumerate(loc):
                     child_node = self.helper_geom2node(child_geom,node)
                     if child_node: node.loc.append(child_node)
                 for c in node.loc:
                     self.pattern_divide(c,grid_type,div,axis_,random_tol,cut_width,div_depth+1,ratio)
         return node
+    def pattern_separate_dist(self,temp_node_,sep_dist,dimx,dimy,dimz):
+            print 'We are separating!'
+            debug = sc.sticky['debug']
+            lon = temp_node_.traverse_tree(lambda n: n,internal=False)
+            for n in lon:
+                ## Extract the appropriate crv
+                pt = n.data.shape.cpt
+                refpt = rs.AddPoint(pt[0],pt[1],n.data.shape.z_dist)
+                topcrv = n.data.shape.get_bottom(n.data.shape.geom,refpt)
+                childn = self.helper_geom2node(topcrv,n,"tower_base")
+                #print n.parent.data.type.has_key('bula_data')
+                norm_val = n.parent.data.type['bula_data'].value
+                if norm_val <= 0.3:
+                    norm_val = 0.35
+                if norm_val >= 0.85:
+                    norm_val = 0.8
+                #n.loc.append(childnode)
+                
+                ##Divide by dim!
+                div_ = (dimx,dimy)
+                childn = self.pattern_divide(childn,"subdivide_dim",div_,axis="NS",cut_width=0,div_depth=0,ratio=None)
+                
+                lolon = childn.traverse_tree(lambda n_: n_,internal=False)
+                for n_ in lolon:
+                    shapes = n_.data.shape.bottom_crv
+                    debug.append(shapes)
+                for n_ in lolon:
+                    r = random.randrange(1,10)
+                    area = n_.data.shape.get_area()
+                    print area
+                    if r <= 5:#(norm_val*10.):
+                        n_.data.shape.op_extrude(100.*norm_val)
+                        debug.append(n_.data.shape.geom)
     def pattern_court(self,temp_node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):
             if int(court_node_) == 0:
@@ -291,27 +322,32 @@ class Pattern:
             else:
                 refshape_ = subdiv_.data.shape
             return refshape_  
-        def helper_court_slice(curr_node,ref_shape_,axis_,ratio_):
+        def helper_court_slice(curr_node,ref_shape_,width_):
             rootshape = ref_shape_
+            debug.append(rootshape.n_wt[1])
             L = []
             curr_node_ref = curr_node 
             for i in range(2):
                 if i%2==0:
-                    axis_ = "NS"
-                else:
                     axis_ = "EW"
+                else:
+                    axis_ = "NS"
                 for j in range(2):
-                    ###'simpledivdie' in patterndivide
-                    if j%2==0: 
-                        ratio_ = 0.2
-                    else:
-                        ratio_ = 0.8
+                    ratio_ = rootshape.calculate_ratio_from_dist(axis_,width_)
+                    print ratio_
+                    width_ref = ratio_
+                    if j%2==0:
+                        ratio_ = 1.- ratio_ 
+                        if ratio_ < width_ref: width_ref = ratio_
+                    y_dist = rootshape.y_dist
+                    print 'ratio',width_,axis_, round(ratio_,2)
+                    print 'y_dist', y_dist, y_dist * ratio_
                     geom_lst = curr_node.data.shape.op_split(axis_,ratio_,deg=0.,split_depth=0.,split_line_ref=rootshape)    
                     for j,geom in enumerate(geom_lst):
                         child_node = self.helper_geom2node(geom,parent_node=curr_node,label="")
                         cns = child_node.data.shape
-                        IsRatioX = abs(cns.x_dist/float(rootshape.x_dist)-0.2)<=0.01
-                        IsRatioY = abs(cns.y_dist/float(rootshape.y_dist)-0.2)<=0.01
+                        IsRatioX = abs(cns.x_dist/float(rootshape.x_dist)-width_ref)<=0.01
+                        IsRatioY = abs(cns.y_dist/float(rootshape.y_dist)-width_ref)<=0.01
                         if IsRatioX or IsRatioY:
                             L.append(copy.deepcopy(child_node))
                         else:
@@ -327,10 +363,10 @@ class Pattern:
         for subdiv in lon:    
             subdiv.data.shape.convert_rc('3d')
             refshape = helper_court_refcrv(court_node,subdiv)
-            debug.append(refshape.bottom_crv)
+            
             if slice:
                 try:
-                    helper_court_slice(subdiv,refshape,"NS",0.2)
+                    helper_court_slice(subdiv,refshape,court_width)
                 except Exception as e:
                     print 'Error @ court_slice', str(e)
             elif court_width > 0.:
@@ -339,7 +375,6 @@ class Pattern:
                 except Exception as e:
                     print 'Error @ court', str(e)
         return temp_node_
-              
     def main_pattern(self,node,PD):
         """
         param_dictionary
@@ -369,12 +404,9 @@ class Pattern:
                     print "Error @ solartype 1 or 3", str(e)
 
         ## 2. make a new, fresh node
-        build_shape = Shape_3D(geo_brep,cplane=node.data.shape.cplane)
-        build_grammar = Grammar(build_shape)
-        temp_node = Tree(build_grammar,parent=node,depth=0)
-        #node.data.shape = build_shape
-        #temp_node = node
-            
+        temp_node = self.helper_geom2node(geo_brep,node)
+        
+        
         ## 3. param 2
         div_num = PD['div_num']
         div_deg = PD['div_deg']
@@ -396,6 +428,7 @@ class Pattern:
             except Exception as e:
                 print e
         
+          
            
         ## 5. stepback
         stepback = PD['stepback']
@@ -409,8 +442,16 @@ class Pattern:
                 except Exception as e:
                     print "Error @ stepback"
                     print str(e)#,sys.exc_traceback.tb_lineno 
-            
-            
+        
+        ## 6. separation_distance
+        if PD['separate']:
+            separation_dist = PD['separation_dist']
+            dx = PD['dim_x']
+            dy = PD['dim_y']
+            dz = PD['dim_z'] 
+            self.pattern_separate_dist(temp_node,separation_dist,dx,dy,dz)
+          
+        
         ## 5. param 1
         court = PD['court']
         court_node = PD['court_node']
