@@ -41,19 +41,8 @@ def apply_param_dictionary(copy_node_in_):
                 print str(e)
                 lon = node.traverse_tree(lambda n:n,internal=False)
             for i,n in enumerate(lon):
-                #n.data.density = node.data.density
-                #n.data.label = "subbuild"
                 n.data.type_id = node.data.type['type_id']
-                #try:
-                #    #quick and dirty fix!
-                #    if type(n.data.shape.geom) == type([]):
-                #        geom1 = n.data.shape.geom[0]
-                #        geom2 = n.data.shape.geom[1]
-                #        n.data.shape.geom = geom1
-                #        n2 = deepcopy(n)
-                #        n2.data.shape.geom = geom2
-                #        lon.append(n2)
-                #except: pass
+
             
             lon = filter(lambda n: n!=None, lon)
             #yield leaves

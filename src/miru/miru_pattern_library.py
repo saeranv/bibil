@@ -25,11 +25,11 @@ TT['type_id'] = 'type_tower'
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
 TT['stepback_node'] = -1
-TT['stepback'] = [(0.,35),(12.,35+7.),(27.,35+9.)]
+TT['stepback'] = [(0.,32),(12.,32+7.)]#,(24.,32+12.)]
 ## Change this to separate PD so it can be reused for base
 TT['separate'] = True 
-TT['separation_dist'] = 60.
-TT['dim_x'],TT['dim_y'],TT['dim_z']=25.,25.,18. 
+TT['separation_dist'] = 25.
+TT['dim_x'],TT['dim_y'],TT['dim_z']=25.,25.,27. 
 
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
 #TT['terrace']=1.5

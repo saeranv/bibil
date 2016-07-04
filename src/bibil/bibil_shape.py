@@ -9,15 +9,8 @@ import math
 import ghpythonlib.components as ghcomp
 import copy
 import scriptcontext as sc
-import System as sys
-import clr
-from System import SystemException
 
-clr.AddReference("System")
-vec = sc.sticky["Vector"]
 TOL = sc.doc.ModelAbsoluteTolerance
-#import pydevd as py
-#py.settrace()
 
 
 class Shape_3D:
@@ -34,6 +27,7 @@ class Shape_3D:
         self.dimension = '3d'
         self.bottom_crv = None
         self.primary_axis_vector = None
+        self.base_matrix = None
         try:
             self.reset(xy_change=True)
         except Exception as e:
@@ -98,11 +92,34 @@ class Shape_3D:
         except Exception as e:
             #print str(e)#sys.exc_traceback.tb_lineno 
             self.ht, self.z_dist = None, None
-    def calculate_ratio_from_dist(self,axis,dist):
+    def calculate_ratio_from_dist(self,axis,dist,dir=0.):
+        # Direction of cut   
+        # Long axis: YAxis
+        # 1.0 ^
+        #     |   
+        # 0.5 ^ w_ht = y_dist  
+        #     |   
+        # 0.0 ->->->->->->->
+        #     0.0  0.5   1.0
+        #  s_wt = x_dist
+        
+        ## dir: 0 = cut dist from bottom 
+        ## dir: 1 = cut dist from top
+        ## test1: 25m/100m
+        ## if dir == 0: ratio = 0.25
+        ## if dir == 1: ratio = 0.75
+        ## test2: 75m/100m
+        ## if dir == 0: ratio = 0.75
+        ## if dir == 1: ratio = 0.25
         if "NS" in axis:
-            ratio = dist/float(self.x_dist)
-        elif "EW" in axis:
-            ratio = dist/float(self.y_dist)
+            total_dist = self.x_dist
+        else:# if "EW" in axis:
+            total_dist = self.y_dist
+        # Cut from bottom
+        ratio = dist/float(total_dist)
+        # Cut from top
+        if dir > 0.5: 
+            ratio = 1. - ratio
         return ratio
     def op_split(self,axis,ratio,deg=0.,split_depth=0,split_line_ref=None):
         """
@@ -306,19 +323,45 @@ class Shape_3D:
         except Exception as e:
             print "Error @ shape.get_bottom"
             print str(e)#sys.exc_traceback.tb_lineno 
-    def get_shape_axis(self,crv):
+    def set_base_matrix(self,crv=None):
+        ## Breaks up geometry into:
+        ##[ [[vector1a,vector1b],  // line 1
+        ##   [vector2a,vector2b],  // line 2
+        ##          ....
+        ##   [vectorna, vectornb]] // line n
+        ## topological ordering preserved
+        ## direction counterclockwise
+        ## but can start from anywhere!
+        #debug = sc.sticky['debug']
+        if self.base_matrix == None:
+            if crv == None:
+                crv = self.bottom_crv
+            if not self.is_guid(crv):
+                crv = rs.coercecurve(crv)
+            segments = crv.DuplicateSegments()
+            matrix = []
+            for i in xrange(len(segments)):
+                segment = segments[i]
+                nc = segment.ToNurbsCurve()
+                end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
+                matrix.append(end_pts) 
+            self.base_matrix = matrix
+        return self.base_matrix
+    def get_shape_axis(self,crv=None):
         def helper_group_parallel(AL):
             ## Identifies parallel lines and groups them
             lop = []
             CULLDICT = {}
             for i,v in enumerate(AL):
-                refdist,refdir = v[0],v[1]
+                refdist = rs.Distance(v[0],v[1])
+                refdir = v[1] - v[0]
                 power_lst = []
                 if i < len(AL)-1 and not CULLDICT.has_key(refdist):
                     power_lst.append(refdist)
                     AL_ = AL[i+1:]
-                    for j,v_ in enumerate(AL_):
-                        currdist,currdir = v_[0],v_[1]
+                    for v_ in AL_:
+                        currdist = rs.Distance(v_[0],v_[1])
+                        currdir = v_[1] - v_[0]
                         if currdir.IsParallelTo(refdir) != 0 and not CULLDICT.has_key(currdist):
                             power_lst.append(currdist)
                             CULLDICT[currdist] = True
@@ -334,26 +377,15 @@ class Shape_3D:
         ### and return list of vector axis based
         ### on prominence
         debug = sc.sticky['debug']
-        ## topological ordering preserved
-        ## direction counterclockwise
         try:
-            ## Breaks up geometry into points
-            segments = crv.DuplicateSegments()
-            axis_lst = []
-            for i in xrange(len(segments)):
-                segment = segments[i]
-                nc = segment.ToNurbsCurve()
-                end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
-                #debug.extend(end_pts)
-                dist = rs.Distance(end_pts[0],end_pts[1])
-                dir_vector = end_pts[1] - end_pts[0]
-                axis_lst.append((dist,dir_vector))
-            
-            axis_power_lst = helper_group_parallel(axis_lst)
-            primary_index = axis_power_lst.index(max(axis_power_lst))
-            self.primary_axis_vector = axis_lst[primary_index][1]
+            if crv==None:
+                crv = self.bottom_crv
+            axis_matrix = self.set_base_matrix(crv)
+            axis_power_lst = helper_group_parallel(axis_matrix)
+            pa_index = axis_power_lst.index(max(axis_power_lst))
+            pa_vector = axis_matrix[pa_index][1]-axis_matrix[pa_index][0]
+            self.primary_axis_vector = pa_vector
             return self.primary_axis_vector
-        
         except Exception as e:
             print "Error @ shape.get_shape_axis"
             print str(e)#sys.exc_traceback.tb_lineno 
@@ -382,6 +414,11 @@ class Shape_3D:
         except Exception as e:
             print "Error @ shape.get_cplane_advanced"
             print str(e)#sys.exc_traceback.tb_lineno 
+    def check_colinear_pt(self,crv,testpt,tol=0.01):
+        ## May need to swap with own method
+        dist = ghcomp.CurveClosestPoint(testpt,crv)[2]
+        IsColinear = True if abs(dist-0.)<tol else False
+        return IsColinear
     def get_area(self):
         try:
             area_crv = self.bottom_crv if self.dimension == '3d' else self.crv
@@ -404,17 +441,6 @@ class Shape_3D:
             long_dist,short_dist = self.y_dist,self.x_dist
             long_axis,short_axis = 'NS','EW'
         return long_axis,long_dist,short_axis,short_dist
-    def make_face(self,curve_,z,face=None):
-        # phase this out
-        try:
-            if not face:
-                face = rc.Geometry.Extrusion.Create(curve_,z,False)
-                cp = self.get_cplane(face)
-                face = sc.doc.Objects.AddSurface(face)
-                return Shape_2D(face,cp)
-        except Exception as e:
-            print "Error @ shape.make_face"
-            print str(e)#sys.exc_traceback.tb_lineno 
     def op_extrude(self,z_dist,curve=None):
         debug = sc.sticky['debug']
         try:

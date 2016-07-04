@@ -253,9 +253,12 @@ class Pattern:
             hnode.data.type['axis'] = haxis
             hnode.data.type['ratio'] = hratio
             return hnode
-        
+        def helper_simple_divide(hnode,ratio_,axis_ref="NS"):
+            hnode.data.type['axis'] = axis_ref
+            hnode.data.type['ratio'] =ratio_
+            return hnode
         debug = sc.sticky['debug']
-        if node.depth >=100: # base case 1
+        if node.depth >=5: # base case 1
             print 'node.depth > 60'
         else:
             ## Calculate and encode the ratio and axis data
@@ -268,8 +271,8 @@ class Pattern:
                 node = helper_subdivide_depth_same(node,div,div_depth,ratio,axis_ref=axis_)
             elif grid_type == "subdivide_dim":
                 node = helper_subdivide_dim(node,div,div_depth,ratio,axis_ref=axis_)
-            else:
-                print "You probably want simple divide which hasnt been implemented yet"
+            else:#simple_divide
+                node = helper_simple_divide(node,ratio,axis_ref=axis_)
             
             ## Split, make a node, and recurse.
             if node.data.type['ratio'] > 0.0001:
@@ -278,42 +281,98 @@ class Pattern:
                 for i,child_geom in enumerate(loc):
                     child_node = self.helper_geom2node(child_geom,node)
                     if child_node: node.loc.append(child_node)
-                for c in node.loc:
-                    self.pattern_divide(c,grid_type,div,axis_,random_tol,cut_width,div_depth+1,ratio)
+                if 'simple_divide' not in grid_type:
+                    for c in node.loc:
+                        self.pattern_divide(c,grid_type,div,axis_,random_tol,cut_width,div_depth+1,ratio)
         return node
     def pattern_separate_dist(self,temp_node_,sep_dist,dimx,dimy,dimz):
-            print 'We are separating!'
-            debug = sc.sticky['debug']
-            lon = temp_node_.traverse_tree(lambda n: n,internal=False)
-            for n in lon:
-                ## Extract the appropriate crv
-                pt = n.data.shape.cpt
-                refpt = rs.AddPoint(pt[0],pt[1],n.data.shape.z_dist)
-                topcrv = n.data.shape.get_bottom(n.data.shape.geom,refpt)
-                childn = self.helper_geom2node(topcrv,n,"tower_base")
-                #print n.parent.data.type.has_key('bula_data')
-                norm_val = n.parent.data.type['bula_data'].value
-                if norm_val <= 0.3:
-                    norm_val = 0.35
-                if norm_val >= 0.85:
-                    norm_val = 0.8
-                #n.loc.append(childnode)
-                
-                ##Divide by dim!
-                div_ = (dimx,dimy)
-                childn = self.pattern_divide(childn,"subdivide_dim",div_,axis="NS",cut_width=0,div_depth=0,ratio=None)
-                
-                lolon = childn.traverse_tree(lambda n_: n_,internal=False)
-                for n_ in lolon:
-                    shapes = n_.data.shape.bottom_crv
-                    debug.append(shapes)
-                for n_ in lolon:
-                    r = random.randrange(1,10)
-                    area = n_.data.shape.get_area()
-                    print area
-                    if r <= 5:#(norm_val*10.):
-                        n_.data.shape.op_extrude(100.*norm_val)
-                        debug.append(n_.data.shape.geom)
+        def extract_topo(n_):    
+            L = []
+            pt = n_.data.shape.cpt
+            refpt = rs.AddPoint(pt[0],pt[1],n_.data.shape.z_dist)
+            topcrv = n_.data.shape.get_bottom(n_.data.shape.geom,refpt)
+            childn = self.helper_geom2node(topcrv,n_,"tower_base")
+            L.append(childn) 
+            return L
+        def get_colinear_line(refnode_,tn_):
+            def get_max_magnitude(lst):
+                max_index = 0
+                max_dist = rs.Distance(lst[0][0],lst[0][1])
+                for i,ln in enumerate(lst[1:]):
+                    dist = rs.Distance(ln[0],ln[1])
+                    if dist > max_dist:
+                        max_dist = dist
+                        max_index = i+1
+                lst = [lst[max_index]]
+                return lst
+            ## Input refnode, and tn
+            ## Outputs the lines of tn that are colinear to refnode
+            ## Loop through all lines in refshape
+            ## Loop through all lines in tempnode
+            ## if colinear line, add to colinear_lst 
+            ref_base = refnode_.data.shape.set_base_matrix()
+            foo_colinear = refnode_.data.shape.check_colinear_pt
+            colinear_lst = []
+            newht = tn_.data.shape.cpt[2]
+            n_matrix = tn_.data.shape.set_base_matrix()
+            check_x = False
+            check_y = False
+            for line in ref_base:
+                newline = map(lambda p: [p[0],p[1],newht],line)
+                refcrv = rs.coercecurve(rs.AddLine(newline[0],newline[1]))
+                #debug.append(refcrv)
+                for nline in n_matrix:
+                    pt_0 = foo_colinear(refcrv,nline[0],tol=0.5)
+                    pt_1 = foo_colinear(refcrv,nline[1],tol=0.5)
+                    if pt_0 and pt_1:
+                        colinear_lst.append(nline)
+            if len(colinear_lst) < 1:
+                colinear_lst = get_max_magnitude(tn_.data.shape.base_matrix)
+            if len(colinear_lst) > 1:
+                colinear_lst = get_max_magnitude(colinear_lst)
+            return colinear_lst.pop(0)
+        def get_normal_to_exterior_vector(parallel2ext):
+            ## Take cross product ccw * [0,0,1] vector
+            ## solution vector is inward pointing vector
+            ccw_vec = parallel2ext[1] - parallel2ext[0]
+            up_vec = rc.Geometry.Vector3d(0,0,1)
+            cross = rc.Geometry.Vector3d.CrossProduct(ccw_vec,up_vec)
+            return cross
+        def translate2axis(refshape,norm2srf):
+            ## Assess which axis the normal is closer to.
+            ew_axis = refshape.n_wt[1]-refshape.n_wt[0]
+            ns_axis = refshape.e_ht[1]-refshape.e_ht[0]
+            ## unitize
+            norm2srf.Unitize()
+            ew_axis.Unitize()
+            ns_axis.Unitize()
+            ew_dotprod = rc.Geometry.Vector3d.Multiply(ew_axis,norm2srf)
+            ns_dotprod = rc.Geometry.Vector3d.Multiply(ns_axis,norm2srf)
+            ## Greater the dot product, closer it is to 90
+            cutaxis = "NS" if abs(ew_dotprod) < abs(ns_dotprod) else "EW"
+            return cutaxis
+            
+        print 'We are separating!'
+        debug = sc.sticky['debug']
+        temp_node_.traverse_tree(lambda n: n,internal=False)
+        ref_node = temp_node_.get_root()
+        refshape = temp_node_.data.shape
+        ## for vis
+        #topo_lst = extract_topo(temp_node_)
+        parallel2refext = get_colinear_line(ref_node,temp_node_)
+        line = rs.AddLine(parallel2refext[0],parallel2refext[1])
+        #debug.append(line)
+        normal2srf = get_normal_to_exterior_vector(parallel2refext)
+        cut_axis = translate2axis(temp_node_.data.shape,normal2srf)
+        width_ = sep_dist + dimx
+        print width_
+        #ratio_ = refshape.calculate_ratio_from_dist(cut_axis,width_,0)
+        ratio_ = 0.1
+        #print ratio_
+        self.pattern_divide(temp_node_,'simple_divide',0,axis=cut_axis,ratio=ratio_)
+        temp_node_.loc[1].data.shape.op_extrude(50.)
+        #debug.append()
+                   
     def pattern_court(self,temp_node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):
             if int(court_node_) == 0:
@@ -324,7 +383,7 @@ class Pattern:
             return refshape_  
         def helper_court_slice(curr_node,ref_shape_,width_):
             rootshape = ref_shape_
-            debug.append(rootshape.n_wt[1])
+            #debug.append(rootshape.n_wt[1])
             L = []
             curr_node_ref = curr_node 
             for i in range(2):
@@ -333,15 +392,21 @@ class Pattern:
                 else:
                     axis_ = "NS"
                 for j in range(2):
-                    ratio_ = rootshape.calculate_ratio_from_dist(axis_,width_)
-                    print ratio_
+                    if j%2==0:dir = 1. 
+                    else: dir = 0.
+                    ratio_ = rootshape.calculate_ratio_from_dist(axis_,width_,dir)
+                    
+                    ## Construct width_reference to find small slice
                     width_ref = ratio_
-                    if j%2==0:
-                        ratio_ = 1.- ratio_ 
-                        if ratio_ < width_ref: width_ref = ratio_
-                    y_dist = rootshape.y_dist
-                    print 'ratio',width_,axis_, round(ratio_,2)
-                    print 'y_dist', y_dist, y_dist * ratio_
+                    if "EW" in axis_:
+                        total_dist = rootshape.y_dist
+                    else:
+                        total_dist = rootshape.x_dist
+                    if width_/total_dist < width_ref: width_ref = 1.-ratio_
+                    #y_dist = rootshape.y_dist
+                    #print 'ratio',width_,axis_, round(ratio_,2)
+                    #print 'y_dist', y_dist, y_dist * ratio_
+                    ## Split the geom (use simple divide for this, is redundant)
                     geom_lst = curr_node.data.shape.op_split(axis_,ratio_,deg=0.,split_depth=0.,split_line_ref=rootshape)    
                     for j,geom in enumerate(geom_lst):
                         child_node = self.helper_geom2node(geom,parent_node=curr_node,label="")
@@ -352,6 +417,7 @@ class Pattern:
                             L.append(copy.deepcopy(child_node))
                         else:
                             curr_node = child_node 
+            ## Make this into separate function: clean up depth (also in spearate)
             for i,n in enumerate(L):
                 n.depth = curr_node_ref.depth+1
                 n.parent = curr_node_ref
@@ -375,6 +441,7 @@ class Pattern:
                 except Exception as e:
                     print 'Error @ court', str(e)
         return temp_node_
+        
     def main_pattern(self,node,PD):
         """
         param_dictionary
@@ -428,8 +495,14 @@ class Pattern:
             except Exception as e:
                 print e
         
-          
-           
+        ## 6. separation_distance
+        if PD['separate']:
+            separation_dist = PD['separation_dist']
+            dx = PD['dim_x']
+            dy = PD['dim_y']
+            dz = PD['dim_z'] 
+            self.pattern_separate_dist(temp_node,separation_dist,dx,dy,dz) 
+        
         ## 5. stepback
         stepback = PD['stepback']
         stepback_node = PD['stepback_node']
@@ -443,15 +516,8 @@ class Pattern:
                     print "Error @ stepback"
                     print str(e)#,sys.exc_traceback.tb_lineno 
         
-        ## 6. separation_distance
-        if PD['separate']:
-            separation_dist = PD['separation_dist']
-            dx = PD['dim_x']
-            dy = PD['dim_y']
-            dz = PD['dim_z'] 
-            self.pattern_separate_dist(temp_node,separation_dist,dx,dy,dz)
-          
-        
+         
+            
         ## 5. param 1
         court = PD['court']
         court_node = PD['court_node']

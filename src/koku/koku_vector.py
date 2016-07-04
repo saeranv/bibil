@@ -4,7 +4,7 @@
 '''
 from math import acos,pi
 from decimal import Decimal, getcontext
-from scriptcontext import sticky
+
 ## Set the decimal precision to 30 places.
 getcontext().prec = 30
 
@@ -25,12 +25,11 @@ class Vector(object):
         except ValueError:
             ## instantiate a custom instance of ValueError class with cust arg
             raise ValueError('The coordinates must be nonempty')
-        except TypeError:
-            raise TypeError('The coordinates must be an iterable')
+        except Exception as e: #TypeError:
+            print str(e)
+            #raise TypeError('The coordinates must be an iterable')
     def __str__(self):
-        return 'Vector: {}'.format([round(float(c),4) for c in self.coord])
-    def helloworld(self):
-        print 'helloworld'
+        return str([round(float(c),4) for c in self.coord])
     def __eq__(self, v):
         return self.coord == v.coord
     def plus(self,v):
@@ -173,14 +172,14 @@ class MyDecimal(Decimal):
         return abs(self) < eps
 
 if True:
-    sticky['Vector'] = Vector
     
     ### Vector Tests
-    """
+    #"""
     ## cross product test
-    vector_v = Vector([8.462,7.893,-8.187])
-    vector_w = Vector([6.984,-5.975,4.778])
+    vector_v = Vector(['4','6','5.5'])#[8.462,7.893,-8.187])
+    vector_w = Vector(['6.984','-5.975','4.778'])
     print vector_v.cross_product(vector_w),'\n'
+    """
     ## area parallelogram test
     vector_v = Vector([-8.987,-9.838,5.031])
     vector_w = Vector([-4.268,-1.861,-8.866])

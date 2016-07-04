@@ -4,7 +4,7 @@ Created on Jun 6, 2016
 '''
 from decimal import Decimal, getcontext
 from koku_vector import Vector
-
+import sys
 getcontext().prec = 30
 
 
@@ -113,7 +113,7 @@ class Plane(object):
             return bool_
         except Exception as e:
             print "Error checking plane parallel: ", str(e)
-
+            
     def __eq__(self,p):
         """
         Planes are equal when they are parallel and are
@@ -147,7 +147,8 @@ class Plane(object):
                 return False
         except Exception as e:
             print "Error checking line equality: ", str(e)
-
+            
+            
 class MyDecimal(Decimal):
     def is_near_zero(self, eps=1e-10):
         return abs(self) < eps
@@ -175,9 +176,10 @@ print '\ntest 3'
 print plane_1 == plane_0
 print plane_1.is_parallel(plane_0)
 """
-plane_0 = Plane(Vector([1,2,3]),5)
-plane_1 = Plane(Vector([2,4,6]),10)
+plane_0 = Plane(Vector(['1','2','3']),'5')
+plane_1 = Plane(Vector(['2','4','6']),'10')
+print plane_0
 print '\ntest 3'
-print plane_1 == plane_0
-print plane_1.is_parallel(plane_0)
+#print plane_1 == plane_0
+#print plane_1.is_parallel(plane_0)
 
