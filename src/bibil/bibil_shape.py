@@ -13,6 +13,7 @@ import scriptcontext as sc
 TOL = sc.doc.ModelAbsoluteTolerance
 
 
+
 class Shape_3D:
     """
     Parent shape operations and information
@@ -121,6 +122,20 @@ class Shape_3D:
         if dir > 0.5: 
             ratio = 1. - ratio
         return ratio
+    def vector2axis(self,ref_vector):
+        ## Compare ref_vector with shape axis, and return
+        ## closest shape axis
+        ew_axis = self.n_wt[1]-self.n_wt[0]
+        ns_axis = self.e_ht[1]-self.e_ht[0]
+        ## unitize
+        ref_vector.Unitize()
+        ew_axis.Unitize()
+        ns_axis.Unitize()
+        ew_dotprod = rc.Geometry.Vector3d.Multiply(ew_axis,ref_vector)
+        ns_dotprod = rc.Geometry.Vector3d.Multiply(ns_axis,ref_vector)
+        ## Greater the dot product, closer it is to 90
+        cutaxis = "NS" if abs(ew_dotprod) < abs(ns_dotprod) else "EW"
+        return cutaxis
     def op_split(self,axis,ratio,deg=0.,split_depth=0,split_line_ref=None):
         """
         op_split: self, ratio -> (list of geom)

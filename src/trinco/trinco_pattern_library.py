@@ -17,8 +17,7 @@ PD_ = \
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
 'stepback':None, 'stepback_node':-1,\
-'separate':False,'separation_dist':0.,\
-'dim_x':30., 'dim_y':30, 'dim_z':0.} 
+'separate':False,'separation_dist':0.,'dim':0.} 
 
 """----------------
 TOWER ----------------""" 
