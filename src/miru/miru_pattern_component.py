@@ -37,8 +37,8 @@ def apply_param_dictionary(copy_node_in_):
                 tempnode.traverse_tree(lambda n: n.data.shape.convert_rc('3d'),internal=False)
                 lon = tempnode.traverse_tree(lambda n: n,internal=False)
             except Exception as e:
-                #print "Error @ Pattern.apply_pattern"
-                #print str(e)
+                print "Error @ Pattern.apply_pattern"
+                print str(e)
                 lon = node.traverse_tree(lambda n:n,internal=False)
             for i,n in enumerate(lon):
                 n.data.type_id = node.data.type['type_id']

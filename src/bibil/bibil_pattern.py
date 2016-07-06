@@ -434,7 +434,10 @@ class Pattern:
             if valid_base: 
                 extrudable_base = check_base_with_offset(valid_base,sep_lst)
                 if extrudable_base:
-                    sep_crv = extrudable_base.data.shape.op_offset_crv(-2.)#sep_dist)
+                    #sep_crv = extrudable_base.data.shape.op_offset_crv(-2.)#sep_dist)
+                    curve = extrudable_base.data.shape.bottom_crv
+                    normal_off = rc.Geometry.Vector3d(0,0,1)
+                    sep_crv = rs.OffsetCurve(rs.CopyObject(curve),refcpt,-2.,normal_off,1)
                     debug.append(sep_crv)
                     extrudable_base.data.shape.op_extrude(100.)
                     base_lst.append(valid_base)
