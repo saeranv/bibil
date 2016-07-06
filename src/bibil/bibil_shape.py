@@ -187,8 +187,8 @@ class Shape_3D:
                 split_line_sc = rs.ScaleObject(split_line,line_cpt,sc_)
                 return split_line_sc
             except Exception as e:
-                print "Error @ shape.helper_make_split_srf_xy"
-                print str(e)#sys.exc_traceback.tb_lineno 
+                pass#print "Error @ shape.helper_make_split_srf_xy"
+                #print str(e)#sys.exc_traceback.tb_lineno 
         def helper_make_split_surf(split_line_):
             if self.ht < 1: 
                 ht = 1.
@@ -484,12 +484,14 @@ class Shape_3D:
         except Exception as e:
             print "Error @ Shape_3D.op_extrude"
             print str(e)#sys.exc_traceback.tb_lineno 
-    def op_offset_crv(self,dim,curve,count=0,refcpt = None):
+    def op_offset_crv(self,dim,curve=None,count=0,refcpt = None):
         #print 'count: ', count, 'dim: ', dim
         if count > 5 or int(dim <= 0):
             return None
         else: 
             try:    
+                if not curve:
+                    curve = copy.copy(self.bottom_crv)
                 if not self.is_guid(curve):
                     curve = sc.doc.Objects.AddCurve(curve)            
                 if not refcpt: 
@@ -498,11 +500,11 @@ class Shape_3D:
                 if not offcurve or len(offcurve) > 1: 
                     dim -= 1.
                     count += 1
-                    return self.op_check_offset(dim,curve,count,refcpt)
+                    return self.op_offset_crv(dim,curve,count,refcpt)
                 else:
                     return offcurve[0] 
             except Exception as e:
-                print "Error @ Shape_3D.op_check_offset"
+                print "Error @ Shape_3D.op_offset_crv"
                 print str(e)#sys.exc_traceback.tb_lineno 
     def op_offset(self,dim,curve,dir="courtyard",useoffcrv=False):
         try:

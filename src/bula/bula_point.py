@@ -30,8 +30,12 @@ class Bula_Data:
         max_ = max(lov)
         min_ = min(lov)
         L = []
+        
         for i,v in enumerate(lov):
-            norm_val = ((hibound-lobound)*(v-min_))/(max_-min_) + lobound
+            if max_-min_ > 0.:
+                norm_val = ((hibound-lobound)*(v-min_))/(max_-min_) + lobound
+            else: 
+                norm_val = 1/float(len(lov))
             L.append(norm_val)
         return L
     def extract_line_data(self,lstx_):
@@ -72,7 +76,6 @@ class Bula_Data:
         lst_bpt_lst_ = []
         for j,lot in enumerate(lots_):
             boundary = lot.data.shape.bottom_crv
-            #print cpt
             neighbor = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):

@@ -348,8 +348,9 @@ class Pattern:
             refpt = rs.AddPoint(pt[0],pt[1],n_.data.shape.z_dist)
             topcrv = n_.data.shape.get_bottom(n_.data.shape.geom,refpt)
             childn = self.helper_geom2node(topcrv,n_,"tower_base")
-            L.append(childn) 
-            return         
+            childn.data.shape.op_extrude(6.)
+            n_.loc.append(childn)
+            return childn    
         ## Takes a node subdivides it along one axis according to separation distance
         ## and dimension
         def new_subdivide_by_dim(count,tn_,cut_axis_,cut_width_,recurse=True):
@@ -369,27 +370,80 @@ class Pattern:
                         pass
             else:
                 print 'newsubdivide by depth > 30 recursion!'
-        def extrude_tower(tn_,cut_axis,cut_width_,z):
+        def check_base_dimension(tn_,cut_axis,cut_width_):
             if "NS" in cut_axis:
                 IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
             else:
                 IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
             if IsWidth:
-                tn_.data.shape.op_extrude(z)
-    
+                return tn_
+            else:
+                return None
+        
+        def check_base_with_offset(base_,offsetlst):
+            base_.data.shape.set_base_matrix()
+            inside_offset = False
+            for offset in offsetlst:
+                ptlst = map(lambda l:l[0], base_.data.shape.base_matrix)
+                for pt in ptlst:
+                    offset = sc.doc.Objects.AddCurve(offset)
+                    in_lot = int(rs.PointInPlanarClosedCurve(pt,offset,base_.data.shape.cplane))
+                    #0 = point is outside of the curve
+                    #1 = point is inside of the curve
+                    #2 = point in on the curve
+                    if abs(float(in_lot) - 1.) <= 0.1:
+                        inside_offset = True
+                        break
+                if inside_offset:
+                    break
+            
+            if inside_offset:
+                return None
+            else: 
+                return base_
+            
+        debug = sc.sticky['debug']
         print 'We are separating!'
-        #topo_lst = extract_topo(temp_node_)
-        refshape = temp_node_.data.shape
+        
+        # get root node
+        rootnode = temp_node_.get_root()
+        if not rootnode.data.type.has_key('seperation_offset_lst'):
+            rootnode.data.type['seperation_offset_lst'] = []
+        sep_lst = rootnode.data.type['seperation_offset_lst']
+        ## Get normal to exterior srf
         normal2srf = self.helper_normal2extsrf(temp_node_)
         cut_axis = temp_node_.data.shape.vector2axis(normal2srf)
         cut_width = sep_dist + dim
+        temp_node_ = extract_topo(temp_node_)
+        
+        ## Subdivide the lot crvs
+        subdiv_lst = []
+        #subdivide by dist
         new_subdivide_by_dim(0,temp_node_,cut_axis,cut_width)
-        t_lst = temp_node_.traverse_tree(lambda n:n,internal=False)
-        for tnc in t_lst:
+        topo_child = temp_node_.traverse_tree(lambda n:n, internal=False)
+
+        #subdivide by tower_dim
+        for tnc in topo_child:
             new_subdivide_by_dim(0,tnc,cut_axis,dim,recurse=False)
-            t_lst_ = tnc.traverse_tree(lambda n:n,internal=False)
-            for t in t_lst_:
-                extrude_tower(t,cut_axis,dim,150.)
+            subdiv_lst.extend(tnc.traverse_tree(lambda n:n,internal=False))
+            
+        # sort bases
+        base_lst = []
+        for t in subdiv_lst:
+            valid_base = check_base_dimension(t,cut_axis,dim)
+            if valid_base: 
+                extrudable_base = check_base_with_offset(valid_base,sep_lst)
+                if extrudable_base:
+                    sep_crv = extrudable_base.data.shape.op_offset_crv(-2.)#sep_dist)
+                    debug.append(sep_crv)
+                    extrudable_base.data.shape.op_extrude(100.)
+                    base_lst.append(valid_base)
+                        
+            #print base.data.shape.base_matrix
+            #
+        
+        #valid_base.data.shape.op_extrude(100.)
+        
     def pattern_court(self,temp_node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):
             if int(court_node_) == 0:
@@ -427,8 +481,8 @@ class Pattern:
                     for j,geom in enumerate(geom_lst):
                         child_node = self.helper_geom2node(geom,parent_node=curr_node,label="")
                         cns = child_node.data.shape
-                        IsRatioX = abs(cns.x_dist/float(rootshape.x_dist)-width_ref)<=0.1
-                        IsRatioY = abs(cns.y_dist/float(rootshape.y_dist)-width_ref)<=0.1
+                        IsRatioX = abs(cns.x_dist/float(rootshape.x_dist)-width_ref)<=0.01
+                        IsRatioY = abs(cns.y_dist/float(rootshape.y_dist)-width_ref)<=0.01
                         if IsRatioX or IsRatioY:
                             L.append(copy.deepcopy(child_node))
                         else:
@@ -445,7 +499,6 @@ class Pattern:
         for subdiv in lon:    
             subdiv.data.shape.convert_rc('3d')
             refshape = helper_court_refcrv(court_node,subdiv)
-            
             if slice:
                 try:
                     helper_court_slice(subdiv,refshape,court_width)
