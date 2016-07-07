@@ -426,7 +426,7 @@ class Pattern:
         for tnc in topo_child:
             new_subdivide_by_dim(0,tnc,cut_axis,dim,recurse=False)
             subdiv_lst.extend(tnc.traverse_tree(lambda n:n,internal=False))
-            
+         
         # sort bases
         base_lst = []
         for t in subdiv_lst:
@@ -435,15 +435,18 @@ class Pattern:
                 extrudable_base = check_base_with_offset(valid_base,sep_lst)
                 if extrudable_base:
                     #sep_crv = extrudable_base.data.shape.op_offset_crv(-2.)#sep_dist)
-                    curve = extrudable_base.data.shape.bottom_crv
-                    normal_off = rc.Geometry.Vector3d(0,0,1)
-                    sep_crv = rs.OffsetCurve(rs.CopyObject(curve),refcpt,-2.,normal_off,1)
+                    #curve = extrudable_base.data.shape.bottom_crv
+                    #normal_off = rc.Geometry.Vector3d(0,0,1)
+                    #refcpt = extrudable_base.data.shape.cpt
+                    #sep_crv = rs.OffsetCurve(rs.CopyObject(curve),refcpt,2.,normal_off,1)
+                    sep_crv = extrudable_base.data.shape.op_offset_crv(-2.)
+                    #print sep_crv
+                    #print rs.OffsetCurve(rs.CopyObject(curve),refcpt,2.,normal_off,1)
                     debug.append(sep_crv)
-                    extrudable_base.data.shape.op_extrude(100.)
-                    base_lst.append(valid_base)
-                        
+                    #extrudable_base.data.shape.op_extrude(100.)
+                    #base_lst.append(valid_base)
+                
             #print base.data.shape.base_matrix
-            #
         
         #valid_base.data.shape.op_extrude(100.)
         

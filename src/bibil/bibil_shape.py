@@ -485,11 +485,11 @@ class Shape_3D:
             print "Error @ Shape_3D.op_extrude"
             print str(e)#sys.exc_traceback.tb_lineno 
     def op_offset_crv(self,dim,curve=None,count=0,refcpt = None):
-        #print 'count: ', count, 'dim: ', dim
+        print 'count: ', count, 'dim: ', dim
         if count > 5 or int(dim <= 0):
             return None
         else: 
-            try:    
+            if True:#try:    
                 if not curve:
                     curve = copy.copy(self.bottom_crv)
                 if not self.is_guid(curve):
@@ -497,15 +497,16 @@ class Shape_3D:
                 if not refcpt: 
                     refcpt = rs.CurveAreaCentroid(curve)[0]
                 offcurve = rs.OffsetCurve(rs.CopyObject(curve),refcpt,dim,None,1)
+                print 'offcurve', offcurve
                 if not offcurve or len(offcurve) > 1: 
                     dim -= 1.
                     count += 1
                     return self.op_offset_crv(dim,curve,count,refcpt)
                 else:
                     return offcurve[0] 
-            except Exception as e:
-                print "Error @ Shape_3D.op_offset_crv"
-                print str(e)#sys.exc_traceback.tb_lineno 
+            #except Exception as e:
+            #    print "Error @ Shape_3D.op_offset_crv"
+            #    print str(e)#sys.exc_traceback.tb_lineno 
     def op_offset(self,dim,curve,dir="courtyard",useoffcrv=False):
         try:
             rs.EnableRedraw(False)
