@@ -5,7 +5,6 @@ Created on Jun 25, 2016
 
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
-import copy
 
 """
 Bula takes in data points (i.e. from GIS, from manhattan distance 
@@ -162,17 +161,16 @@ class Bula_Data:
 
 if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     Bula = Bula_Data()
-    lots = copy.deepcopy(oldlots)
     cpt_lst = Bula.extract_line_data(lstx)
     norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
-    lst_bpt_lst = Bula.getpoints4lot(lots,norm_cpt_lst)
-    lots = Bula.generate_bula_point(lots,lst_bpt_lst)
+    lst_bpt_lst = Bula.getpoints4lot(oldlots,norm_cpt_lst)
+    lots = Bula.generate_bula_point(oldlots,lst_bpt_lst)
     
     line_ = []
-    for lot in lots:
+    for lot in oldlots:
         cp = lot.data.shape.cpt
         ht = lot.data.type['bula_data'].value
         line = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
         line_.append(line)
           
-    lst_lots = lots
+    lst_lots = oldlots

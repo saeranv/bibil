@@ -12,54 +12,26 @@ from rhinoscriptsyntax import EnableRedraw
 from Rhino import RhinoApp
 Pattern = sc.sticky["Pattern"]
 
-def apply_param_dictionary(copy_node_in_):
-    copy_node_in_ = list(copy_node_in_)
-    LN = []
-    if True:#try:
-        sc.sticky['seperation_offset_lst'] = []
-        for i,node in enumerate(copy_node_in_):
-            #copy_PD = deepcopy(blank_param_dict)
-            #pd = get_param_dictionary(node,copy_PD)
-            pd = node.data.type
-            noderoot = node.get_root()
-            noderoot.traverse_tree(lambda n: n.data.shape.convert_rc('3d'))
-            #noderoot.data.type.get('setback_reference_line')
-            #debug.append(noderoot.data.shape.geom)
-            
-            s = node.data.shape
-            if pd['axis']:
-                s.cplane = s.get_cplane_vector(s.geom,pd['axis']) 
-
-            try:
-                P = Pattern()
-                tempnode = P.apply_pattern(node,pd)
-                RhinoApp.Wait()
-                tempnode.traverse_tree(lambda n: n.data.shape.convert_rc('3d'),internal=False)
-                lon = tempnode.traverse_tree(lambda n: n,internal=False)
-            except Exception as e:
-                print "Error @ Pattern.apply_pattern"
-                print str(e)
-                lon = node.traverse_tree(lambda n:n,internal=False)
-            for i,n in enumerate(lon):
-                n.data.type_id = node.data.type['type_id']
-
-            
-            lon = filter(lambda n: n!=None, lon)
-            #yield leaves
-            LN.extend(lon)
-            #"""
-        return LN    
-    
-def main(node_in_lst_):
-    def helper_main_copy(nlst):
-        for n in nlst:
-            yield deepcopy(n)
-    copy_node_in = helper_main_copy(node_in_lst_)
-    
+def apply_param_dictionary(node):
+    pd = node.data.type
+    if pd['axis']:
+        s = node.data.shape
+        s.cplane = s.get_cplane_vector(s.geom,pd['axis']) 
     try:
-        gen_nodes = apply_param_dictionary(copy_node_in)
-        #generator = reduce(lambda s, a: s + a, gen_nodes)
-        return gen_nodes
+        P = Pattern()
+        tempnode = P.apply_pattern(node,pd)
+    except Exception as e:
+        print "Error @ Pattern.apply_pattern"
+        print str(e)
+    return tempnode    
+    
+def main(node_in_lst):
+    try:
+        NL = []
+        for node_in_ in node_in_lst:
+            node_out_ = apply_param_dictionary(node_in_)
+            NL.append(node_out_)
+        return NL
     except Exception as e:
         print e
     

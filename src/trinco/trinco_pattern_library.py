@@ -30,7 +30,7 @@ TT['type_id'] = 'type_block'
 #TT['stepback_node'] = -1
 #TT['stepback'] = [(0.,35),(12.,35+7.)]
 TT['court'], TT['court_width'],TT['court_node'] = 1, 45., 0
-TT['court_slice'] = 0.5
+#TT['court_slice'] = 0.5
 #TT['terrace']=1.5
 #TT['terrace_node']=-1
 

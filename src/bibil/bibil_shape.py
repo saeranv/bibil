@@ -484,7 +484,7 @@ class Shape_3D:
         except Exception as e:
             print "Error @ Shape_3D.op_extrude"
             print str(e)#sys.exc_traceback.tb_lineno 
-    def op_offset_crv(self,dim,curve=None,count=0,refcpt = None):
+    def op_offset_crv(self,dim,curve=None,count=0,refcpt = None,corner=1):
         #print 'count: ', count, 'dim: ', dim
         if count > 5. or abs(dim-0.)<=0.1:
             return None
@@ -496,12 +496,12 @@ class Shape_3D:
                     curve = sc.doc.Objects.AddCurve(curve)            
                 if not refcpt: 
                     refcpt = rs.CurveAreaCentroid(curve)[0]
-                offcurve = rs.OffsetCurve(rs.CopyObject(curve),refcpt,dim,None,1)
+                offcurve = rs.OffsetCurve(rs.CopyObject(curve),refcpt,dim,None,corner)
                 #print 'offcurve', offcurve
                 if not offcurve or len(offcurve) > 1: 
                     dim -= 1.
                     count += 1
-                    return self.op_offset_crv(dim,curve,count,refcpt)
+                    return self.op_offset_crv(dim,curve,count,refcpt,corner)
                 else:
                     return offcurve[0] 
             except Exception as e:

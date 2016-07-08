@@ -62,9 +62,7 @@ class Pattern:
             except Exception as e: 
                 print 'Bibil has detected a degenerate shape', str(e)
                 child_shape = Shape_3D(geom,parent_node.data.shape.cplane)
-            
             IsDegenerate = abs(child_shape.x_dist-0.) < 0.0001 or abs(child_shape.y_dist-0.) < 0.0001
-            
             if not IsDegenerate:
                 if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
                     child_shape.op_extrude(12.)
@@ -183,25 +181,24 @@ class Pattern:
             print e
     def pattern_stepback(self,tnode,stepback_,stepback_node_,sb_ref_):
         ##stepback_: height,recess distance 
-        lon_ = tnode.traverse_tree(lambda n: n,internal=False)
+        debug = sc.sticky['debug']
+        curr_n = tnode#tnode.traverse_tree(lambda n: n,internal=False)
         try:
-            for i,curr_n in enumerate(lon_):
-                node_root = curr_n.get_root()
-                
-                ht, dist = stepback_[0], stepback_[1]
-                for j,sbref in enumerate(sb_ref_):
-                    # move sbref
-                    move_vector= rc.Geometry.Vector3d(0,0,float(ht))
-                    sbref_crv = sc.doc.Objects.AddCurve(sbref)
-                    sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
-                    cut_geom = curr_n.data.shape.op_split("EW",0.5,deg=0.,\
-                    split_depth=float(dist),split_line_ref=sbref_crv)  
-                    try:
-                        curr_n.data.shape.geom = cut_geom[0]
-                        curr_n.data.shape.reset(xy_change=True)
-                    except Exception as e:
-                        pass
-                        #print "Error at shape.reset at pattern_stepback",str(e)
+            ht, dist = stepback_[0], stepback_[1]
+            for j,sbref in enumerate(sb_ref_):
+                # move sbref
+                move_vector= rc.Geometry.Vector3d(0,0,float(ht))
+                sbref_crv = sc.doc.Objects.AddCurve(sbref)
+                sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
+                cut_geom = curr_n.data.shape.op_split("EW",0.5,deg=0.,\
+                split_depth=float(dist),split_line_ref=sbref_crv)  
+                try:
+                    curr_n.data.shape.geom = cut_geom[0]
+                    curr_n.data.shape.reset(xy_change=True)
+                except Exception as e:
+                    pass
+                    #print "Error at shape.reset at pattern_stepback",str(e)
+                #debug.append(curr_n.data.shape.geom)
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
@@ -342,14 +339,13 @@ class Pattern:
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
     def pattern_separate_by_dist(self,temp_node_,sep_dist,dim=1.):
-        def extract_topo(n_):    
-            L = []
+        def extract_topo(n_):
             pt = n_.data.shape.cpt
             refpt = rs.AddPoint(pt[0],pt[1],n_.data.shape.z_dist)
             topcrv = n_.data.shape.get_bottom(n_.data.shape.geom,refpt)
-            childn = self.helper_geom2node(topcrv,n_.parent,"tower_base")
+            childn = self.helper_geom2node(topcrv,n_,"")
+            n_.loc.append(childn)
             childn.data.shape.op_extrude(6.)
-            n_.parent.loc.insert(0,childn) 
             return childn 
         def new_subdivide_by_dim(count,tn_,cut_axis_,cut_width_,recurse=True):
             ## Takes a node subdivides it along one axis according to separation distance
@@ -413,36 +409,38 @@ class Pattern:
         normal2srf = self.helper_normal2extsrf(temp_node_)
         cut_axis = temp_node_.data.shape.vector2axis(normal2srf)
         cut_width = sep_dist + dim
+        temp_node_.data.type['print'] = True
+        temp_node_.data.type['label'] = 'base'
         temp_node_topo = extract_topo(temp_node_)
-        
+
         ## Subdivide the lot crvs
-        subdiv_lst = []
         #subdivide by dist
         new_subdivide_by_dim(0,temp_node_topo,cut_axis,cut_width)
-        #debug.append(temp_node_.data.shape.geom)
-        topo_child = temp_node_topo.traverse_tree(lambda n:n, internal=False)
-        
+        topo_child_lst = temp_node_topo.traverse_tree(lambda n:n, internal=False)
         #subdivide by tower_dim
-        for tnc in topo_child:
+        for tnc in topo_child_lst:
             new_subdivide_by_dim(0,tnc,cut_axis,dim,recurse=False)
-            subdiv_lst.extend(tnc.traverse_tree(lambda n:n,internal=False))
-        
+        topo_grand_child_lst = temp_node_topo.traverse_tree(lambda n:n, internal=False)
+
         # sort bases
-        base_lst = []
-        for t in subdiv_lst:
+        #base_lst = []
+        for t in topo_grand_child_lst:
             valid_base = check_base_dimension(t,cut_axis,dim)
             if valid_base:
                 extrudable_base = check_base_with_offset(valid_base,sep_lst)
                 if extrudable_base:# != None:
-                    sep_crv = extrudable_base.data.shape.op_offset_crv(sep_dist*-1)
+                    sep_crv = extrudable_base.data.shape.op_offset_crv(sep_dist*-1,corner=2)
+                    debug.append(sep_crv)
                     sc.sticky['seperation_offset_lst'].append(sep_crv)
                     extrudable_base.data.shape.op_extrude(100.)
-                    debug.append(extrudable_base.data.shape.geom)
-                    base_lst.append(valid_base)
-        ## ADD "PRINT" 2 node.data.type['print'] = True
-        ## gives us way to extract render info from quadtree
-        #L = temp_node_.traverse_tree(lambda n: n,internal=False)#.data.shape.geom,internal=False)
-        #print temp_node_.loc
+                    #debug.append(extrudable_base.data.shape.geom)
+                    extrudable_base.data.type['print'] = True
+                    extrudable_base.data.type['label'] = "tower" 
+                    #base_lst.append(extrudable_base)
+    def print_node(self,node_):
+        debug = sc.sticky['debug']
+        if node_.data.type['print']:
+            return node_
     def pattern_court(self,temp_node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):
             if int(court_node_) == 0:
@@ -562,8 +560,6 @@ class Pattern:
             except Exception as e:
                 print e
             
-        
-
         ## 6. separation_distance 2
         if PD['separate']:
             separation_dist = PD['separation_dist']
@@ -579,12 +575,19 @@ class Pattern:
             setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
             for step_data in stepback:
                 #sr: [ht,dim]
-                try:
-                    temp_node = self.pattern_stepback(temp_node,step_data,stepback_node,setback_ref)
-                except Exception as e:
-                    print "Error @ stepback"
-                    print str(e)#,sys.exc_traceback.tb_lineno 
-        #"""
+                #fix this really bad solution
+                build_lst = temp_node.traverse_tree(lambda n: self.print_node(n),internal=False)
+                build_lst = filter(lambda n: n!=None,build_lst)
+                if self.print_node(temp_node):
+                    build_lst.append(temp_node)
+                for build_node in build_lst:
+                    try:
+                        print 'check', build_node.data.type['label']
+                        build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
+                    except Exception as e:
+                        print "Error @ stepback"
+                        print str(e)#,sys.exc_traceback.tb_lineno 
+            
             
         ## 5. param 1
         court = PD['court']
@@ -614,7 +617,7 @@ class Pattern:
                     tcrv = subdiv.parent.parent.data.shape.bottom_crv
                 elif int(terrace_node) == 3 and subdiv.parent.parent.parent:
                     tcrv = subdiv.parent.parent.parent.data.shape.bottom_crv
-                else:#terrace_node = -1
+                else:
                     tcrv = subdiv.data.shape.bottom_crv
                 subdiv.data.shape.op_offset(terrace,tcrv,dir="terrace_3d")
         
@@ -630,6 +633,7 @@ class Pattern:
             except Exception as e:
                 print "Error at pattern_court"
                 print str(e)
+        
         ## 7. finish
         return temp_node
         
