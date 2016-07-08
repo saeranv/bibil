@@ -16,7 +16,7 @@ def apply_param_dictionary(copy_node_in_):
     copy_node_in_ = list(copy_node_in_)
     LN = []
     if True:#try:
-        
+        sc.sticky['seperation_offset_lst'] = []
         for i,node in enumerate(copy_node_in_):
             #copy_PD = deepcopy(blank_param_dict)
             #pd = get_param_dictionary(node,copy_PD)
