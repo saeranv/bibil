@@ -338,6 +338,27 @@ class Shape_3D:
         except Exception as e:
             print "Error @ shape.get_bottom"
             print str(e)#sys.exc_traceback.tb_lineno 
+    def check_region(self,crvA,crvB=None,tol=0.1):
+            """
+            Disjoint    0    There is no common area between the two regions.
+            Intersect   1    The two curves intersect. There is therefore no full containment relationship either way.
+            AInsideB    2    Region bounded by curveA (first curve) is inside of curveB (second curve).
+            BInsideA    3    Region bounded by curveB (second curve) is inside of curveA (first curve).
+            """
+            disjoint = rc.Geometry.RegionContainment.Disjoint 
+            #add the rest
+            if crvB == None:
+                crvB = self.bottom_crv
+            if self.is_guid(crvB):
+               crvB = rs.coercecurve(crvB)
+            if self.is_guid(crvA):
+                crvA = rs.coercecurve(crvA) 
+            refplane = self.cplane
+            setrel = rc.Geometry.Curve.PlanarClosedCurveRelationship (crvA,crvB,refplane,tol)
+            if disjoint == setrel:
+                return 0
+            else:
+                return 1
     def set_base_matrix(self,crv=None):
         ## Breaks up geometry into:
         ##[ [[vector1a,vector1b],  // line 1
@@ -588,21 +609,7 @@ class Shape_3D:
         except Exception as e:
             print 'Error @ Shape_3D.op_offset'
             print str(e)#sys.exc_traceback.tb_l          
-    def op_solar_envelope(self,start_time,end_time,curve=None):
-        try:
-            if not curve: curve = self.bottom_crv
-            if self.is_guid(curve): 
-                curve = rs.coercecurve(curve)
-            se = ghcomp.DIVA.SolarEnvelope(curve,43,start_time,end_time)
-            #Solar = sc.sticky["Solar"]
-            #monthRange = 1
-            #timeperiod = end_time - start_time
-            #S = Solar()
-            #se = S.main_envelope(curve,timeperiod,monthRange)
-            return se
-        except Exception as e:
-            print "Shape_3D.op_solar_envelope error"
-            print e
+    
 
 if True:
     sc.sticky["Shape_3D"] = Shape_3D

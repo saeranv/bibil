@@ -10,12 +10,12 @@ import scriptcontext as sc
 import copy
 import System as sys
 import math
+import ghpythonlib.components as ghcomp
 
 """import classes"""
 Shape_3D = sc.sticky["Shape_3D"]
 Tree = sc.sticky["Tree"] 
-Grammar = sc.sticky["Grammar"] 
-
+Grammar = sc.sticky["Grammar"]
 
 
 class Pattern:
@@ -376,43 +376,34 @@ class Pattern:
             else:
                 return None
         def check_base_with_offset(base_,offsetlst):
-            base_.data.shape.set_base_matrix()
-            inside_offset = False
+            intersect_offset = False
             for offset in offsetlst:
-                ptlst = map(lambda l:l[0], base_.data.shape.base_matrix)
-                for pt in ptlst:
-                    if not base_.data.shape.is_guid(offset):
-                        offset = sc.doc.Objects.AddCurve(offset)
-                    in_lot = int(rs.PointInPlanarClosedCurve(pt,offset,base_.data.shape.cplane))
-                    #0 = point is outside of the curve
-                    #1 = point is inside of the curve
-                    #2 = point in on the curve
-                    if abs(float(in_lot) - 1.) <= 0.1:
-                        inside_offset = True
-                        break
-                if inside_offset:
+                crvA = offset
+                crvB = base_.data.shape.bottom_crv
+                setrel = base_.data.shape.check_region(crvA,crvB,tol=0.1)
+                #If not disjoint
+                if abs(setrel-0.)>0.1:
+                    intersect_offset = True
                     break
-            
-            if inside_offset:
+            if intersect_offset:
                 return None
             else: 
                 return base_
             
         debug = sc.sticky['debug']
-        print 'We are separating!'
-        
         # get root node - not linked
         if not sc.sticky.has_key('seperation_offset_lst'):
             sc.sticky['seperation_offset_lst'] = []
         sep_lst = sc.sticky['seperation_offset_lst']
         ## Get normal to exterior srf
+        
         normal2srf = self.helper_normal2extsrf(temp_node_)
         cut_axis = temp_node_.data.shape.vector2axis(normal2srf)
         cut_width = sep_dist + dim
         temp_node_.data.type['print'] = True
         temp_node_.data.type['label'] = 'base'
         temp_node_topo = extract_topo(temp_node_)
-
+        
         ## Subdivide the lot crvs
         #subdivide by dist
         new_subdivide_by_dim(0,temp_node_topo,cut_axis,cut_width)
@@ -421,25 +412,122 @@ class Pattern:
         for tnc in topo_child_lst:
             new_subdivide_by_dim(0,tnc,cut_axis,dim,recurse=False)
         topo_grand_child_lst = temp_node_topo.traverse_tree(lambda n:n, internal=False)
-
-        # sort bases
-        #base_lst = []
+        
+        # Sort through subdivided bases
+        # label bases that are valid separations
         for t in topo_grand_child_lst:
-            valid_base = check_base_dimension(t,cut_axis,dim)
-            if valid_base:
-                extrudable_base = check_base_with_offset(valid_base,sep_lst)
-                if extrudable_base:# != None:
-                    sep_crv = extrudable_base.data.shape.op_offset_crv(sep_dist*-1,corner=2)
-                    debug.append(sep_crv)
+            check_base_dim = check_base_dimension(t,cut_axis,dim)
+            if check_base_dim:
+                valid_base = check_base_with_offset(check_base_dim,sep_lst)
+                if valid_base:# != None:
+                    ## Add some tolerance to separation distance
+                    tol = 1.
+                    sep_dist -= tol
+                    sep_crv = valid_base.data.shape.op_offset_crv(sep_dist*-1,corner=2)
+                    ## For viz
+                    sep_crv_viz = valid_base.data.shape.op_offset_crv((sep_dist+tol)*-1,corner=2)
+                    debug.append(sep_crv_viz)
+                    ## Append crv
                     sc.sticky['seperation_offset_lst'].append(sep_crv)
-                    extrudable_base.data.shape.op_extrude(100.)
-                    #debug.append(extrudable_base.data.shape.geom)
-                    extrudable_base.data.type['print'] = True
-                    extrudable_base.data.type['label'] = "tower" 
-                    #base_lst.append(extrudable_base)
-    def print_node(self,node_):
+                    valid_base.data.type["valid_seperation"] = True
+        
+        return temp_node_
+    def pattern_set_height(self,temp_node_,ht_,ht_node_):
+        def height_from_bula(n_):
+            bula_node,bptlst = False,False
+            setht = 21. #default ht = midrise
+            bula_node = n_.search_up_tree(lambda n: n.data.type.has_key('bula_data'))
+            if bula_node:
+                buladata = bula_node.data.type['bula_data']
+                crvlst = [n_]
+                #make this function in bula
+                inptlst = buladata.getpoints4lot(crvlst,buladata.bpt_lst)
+                if inptlst != [[]]:
+                    buladata.generate_bula_point(crvlst,inptlst)
+                    ## you are now a bulalot!
+                    ht_factor = n_.data.type['bula_data'].value
+                    setht = 1000.*ht_factor
+                return setht
+        def height_from_envelope(n_,PD_):
+            #TO['solartype'],TO['solartime']
+            env = sc.sticky['envelope']
+            maxht_env = 200.
+            if PD_['solartype']>0:
+                starthr = PD_['solartime']
+                endhr = starthr+5.
+                crv = sc.sticky['envelope'][0].data.shape.bottom_crv
+                env = self.get_solar_zone(starthr,endhr,curve=crv,zonetype='fan')
+                env = [env]
+            base_matrix = n_.data.shape.set_base_matrix()
+            ptlst = map(lambda l:l[0], base_matrix)
+            dir = rc.Geometry.Vector3d(0,0,1) 
+            tol = sc.doc.ModelAbsoluteTolerance
+            projlst = rc.Geometry.Intersect.Intersection.ProjectPointsToBreps(env,ptlst,dir,tol)
+            projlst = filter(lambda pt:abs(pt[2]-200.)>0.5,projlst)
+            if projlst:
+                debug.extend(projlst)
+                min_index = projlst.index(min(projlst,key=lambda p:p[2]))
+                min_pt = projlst[min_index]
+                envht = min_pt[2]
+            else:
+                envht = 50.
+            return envht
         debug = sc.sticky['debug']
-        if node_.data.type['print']:
+        #print 'We are setting height!'
+        overridePD = self.check_override(temp_node_)
+        if overridePD!=None:
+            ht_node_ = overridePD['height_node']
+        lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
+        lst_nodes = filter(lambda n:n!=None,lst_nodes)
+        for n_ in lst_nodes:
+            overridePD = self.check_override(n_)
+            if overridePD:
+                ht_ = overridePD['height']
+            if type(ht_)==type('') and 'bula' in ht_:
+                ht_ = height_from_bula(n_)
+            elif type(ht_)==type('') and 'envelope' in ht_:
+                #ugly
+                if overridePD:
+                    ht_ = height_from_envelope(n_,overridePD)
+                else:
+                    ht_ = height_from_envelope(n_,PD)
+            n_.data.shape.op_extrude(ht_)
+            n_.data.type['print'] = True
+        return temp_node_
+    def get_solar_zone(self,start_time,end_time,curve=None,zonetype='envelope'):
+        try:
+            if type(curve) == type(rs.AddPoint(0,0,0)): 
+                curve = rs.coercecurve(curve)
+            if 'envelope' in zonetype:
+                se = ghcomp.DIVA.SolarEnvelope(curve,43.65,start_time,end_time)
+            else:
+                minhr = end_time-start_time
+                se = ghcomp.DIVA.SolarFan(curve,43.65,minhr,263,200.)
+            return se
+        except Exception as e:
+            print "P.op_solar_envelope error"
+            print e
+    def check_override(self,node_):
+        """
+        Ref:
+        if label in overnode.data.type['label']:
+        overnode.data.type['grammar'] = grammar
+        sc.sticky['override'].append(overnode)
+        """
+        #debug = sc.sticky['debug']
+        lstoverride = sc.sticky['override']
+        theoverride = None
+        crvA = node_.data.shape.bottom_crv
+        for overnode in lstoverride:
+            crvB = overnode.data.shape.bottom_crv
+            setrel = node_.data.shape.check_region(crvA,crvB,tol=0.5)
+            if abs(setrel-0.)>0.1:
+                theoverride = overnode.data.type['grammar']
+                break
+        return theoverride
+    def print_node(self,node_,label='print'):
+        #debug = sc.sticky['debug']
+        if node_.data.type.has_key(label) and node_.data.type[label]:
             return node_
     def pattern_court(self,temp_node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):
@@ -560,15 +648,20 @@ class Pattern:
             except Exception as e:
                 print e
             
-        ## 6. separation_distance 2
+        ## 6. separation_distance
         if PD['separate']:
             separation_dist = PD['separation_dist']
             unitdim = PD['dim']
             norm2srfvector = self.helper_normal2extsrf(temp_node)
-            self.pattern_separate_by_dist(temp_node,separation_dist,unitdim) 
+            temp_node = self.pattern_separate_by_dist(temp_node,separation_dist,unitdim) 
         
-        
-        ## 5. stepback
+        ## 7. Extrude
+        if PD['height']!=False:
+            ht = PD['height']
+            ht_label = PD['height_node']
+            temp_node = self.pattern_set_height(temp_node,ht,ht_label)    
+            
+        ## 5. Stepback
         stepback = PD['stepback']
         stepback_node = PD['stepback_node']
         if stepback != None and stepback != []:
@@ -582,12 +675,11 @@ class Pattern:
                     build_lst.append(temp_node)
                 for build_node in build_lst:
                     try:
-                        print 'check', build_node.data.type['label']
+                        #print 'check', build_node.data.type['label']
                         build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
                     except Exception as e:
                         print "Error @ stepback"
                         print str(e)#,sys.exc_traceback.tb_lineno 
-            
             
         ## 5. param 1
         court = PD['court']
@@ -620,7 +712,6 @@ class Pattern:
                 else:
                     tcrv = subdiv.data.shape.bottom_crv
                 subdiv.data.shape.op_offset(terrace,tcrv,dir="terrace_3d")
-        
         if court==1:
             try:
                 #newyaxis = self.helper_normal2extsrf(temp_node)
@@ -636,9 +727,7 @@ class Pattern:
         
         ## 7. finish
         return temp_node
-        
-
-            
+     
 TOL = sc.doc.ModelAbsoluteTolerance
 if True:
     sc.sticky["Pattern"] = Pattern 

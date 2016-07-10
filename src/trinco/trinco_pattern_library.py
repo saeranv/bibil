@@ -8,7 +8,7 @@ import scriptcontext as sc
 
 PD_ = \
 {'child':None, 'type_id': 'type_blank',\
-'height':6, 'axis':None,\
+'axis':None,\
 'solartype':0, 'solartime':11.0, 'solarht':0.,'solargap':True,\
 'flip':False,\
 'div_num':0, 'div_deg':0, 'div_cut':0,\
@@ -17,22 +17,16 @@ PD_ = \
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
 'stepback':None, 'stepback_node':-1,\
-'separate':False,'separation_dist':0.,'dim':0.} 
+'separate':False,'separation_dist':0.,'dim':0.,\
+'height':False,'height_node':''} 
 
 """----------------
 TOWER ----------------""" 
 TT = copy.deepcopy(PD_) 
 TT['type_id'] = 'type_block'
 #TT['div_num'],TT['div_deg'],TT['div_cut'] = 1, 0, 7.
-#TT['solartype'] = 3
-#TT['solartime'], TT['solarht'] = 11.5, 15.
-##TT['height'] = 12.
-#TT['stepback_node'] = -1
-#TT['stepback'] = [(0.,35),(12.,35+7.)]
 TT['court'], TT['court_width'],TT['court_node'] = 1, 45., 0
 #TT['court_slice'] = 0.5
-#TT['terrace']=1.5
-#TT['terrace_node']=-1
 
 """--------------------------------"""
 if True:

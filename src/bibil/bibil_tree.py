@@ -46,15 +46,31 @@ class Tree:
         else:
             return self.parent.get_root()
     
-    def get_node_by_depth(self,d):
-        root = self.get_root()
-        lob = root.traverse_tree(lambda n:n.depth==d)
-        lon = root.traverse_tree(lambda n:n)
-        L = []
-        for n,b in zip(lon,lob):
-            if b==True: L.append(n) 
-        return L
+    def search_up_tree(self,foo):
+        """ 
+        Backtracks tree, applies function argument to every
+        node until parent.
+        """
+        if foo(self)==True:
+            return self
+        elif self.parent == None:
+            return False
+        else:
+            return self.parent.search_up_tree(foo)
     
+    def backtrack_tree(self,foo):
+        def helper_backtrack_tree(node,foo,accumulator):
+            accumulator.append(foo(node))
+            if node.parent == None:
+                return accumulator
+            else:
+                return helper_backtrack_tree(node.parent,foo,accumulator)
+        """ 
+        Backtracks tree, applies function argument to every
+        node until parent. Use tail-end recurusion
+        """
+        return helper_backtrack_tree(self,foo,[])
+            
     def traverse_tree(self,foo,internal=True):
         """ 
         traverse tree, applies function argument to every

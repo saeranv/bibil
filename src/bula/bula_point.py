@@ -4,6 +4,7 @@ Created on Jun 25, 2016
 """
 
 import rhinoscriptsyntax as rs
+import Rhino as rc
 import scriptcontext as sc
 
 """
@@ -17,7 +18,9 @@ but the density will always be DIRECTIONALLY DRIVEN by underling point
 data.
 """
 class Bula_Data:
-    def __init__(self,bpt_lst=[],value=0.):
+    def __init__(self,bpt_lst=None,value=0.):
+        if bpt_lst == None:
+            bpt_lst = []
         self.bpt_lst = bpt_lst
         self.bpt_num = 1 if len(bpt_lst) < 1. else len(bpt_lst)
         #Normalized value of bpt_lst data
@@ -40,23 +43,23 @@ class Bula_Data:
     def extract_line_data(self,lstx_):
         ## lstx is the line extruded z height
         ## cpt: the topcpt of lstx
-        for x in lstx_:
-            # loop through all lines, get origin and zht (relative density)
-            # zht (density) is divided by 10
-            cpt_ = []
-            for i in x:
-                try:
+        # loop through all lines, get origin and zht (relative density)
+        # zht (density) is divided by 10
+        cpt_ = []
+        for i in lstx_:
+            try:
+                if type(rs.AddPoint(0,0,0)) != type(i):
                     i = sc.doc.Objects.AddLine(i)
-                    cptlst_ = rs.PolylineVertices(i)
-                    if cptlst_[0][2] < cptlst_[1][2]:
-                        topcpt = cptlst_[1]
-                    else:
-                        topcpt = cptlst_[0]
-            
-                    #print si
-                    cpt_.append(topcpt)
-                except:
-                    pass
+                cptlst_ = rs.PolylineVertices(i)
+                if cptlst_[0][2] < cptlst_[1][2]:
+                    topcpt = cptlst_[1]
+                else:
+                    topcpt = cptlst_[0]
+        
+                #print si
+                cpt_.append(topcpt)
+            except Exception as e:
+                print str(e)
         return cpt_
     def normalize_cpt_data(self,cpt_lst_):
         ## Normalize points
@@ -70,11 +73,20 @@ class Bula_Data:
         return cpt_lst_ 
     def getpoints4lot(self,lots_,cpt_):
         ## Loop through tree lots and add the point_nodes
-        ## to each lot
-        ## bpt_lst: listof(listof(point data)
+        ## to each lot; returns lst of (listof points inside each lot)
+        ## bpt_lst,lots: listof(listof(point data) 
+        debug = sc.sticky['debug']
         lst_bpt_lst_ = []
         for j,lot in enumerate(lots_):
             boundary = lot.data.shape.bottom_crv
+            """
+            if abs(lot.data.shape.cpt[2]-0.)>0.1:
+                downdist = 0.0 - lot.data.shape.cpt[2]
+                vec = rc.Geometry.Vector3d(0,0,downdist)
+                if type(boundary)!=type(rs.AddPoint(0,0,0)):
+                    boundary = sc.doc.Objects.AddCurve(boundary)
+                boundary = rs.CopyObject(boundary,vec)
+            """   
             neighbor = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
@@ -86,7 +98,6 @@ class Bula_Data:
                     neighbor.append(cp)#,datalst[i]])
             lst_bpt_lst_.append(neighbor)
         return lst_bpt_lst_ 
-    
     def generate_bula_point(self,lots_,lst_bpt_lst_):
         ## Loop through tree lots w/ bula_pts
         ## Add them together and generate the bpt
@@ -95,16 +106,14 @@ class Bula_Data:
             ## Make a bpt for each lot
             bpt = Bula_Data(bpt_lst_)
             norm_lst = map(lambda b: b[2],bpt_lst_)
-            bpt.value = sum(norm_lst)/bpt.bpt_num
+            bpt.value = sum(norm_lst)/float(bpt.bpt_num)
             lot.data.type['bula_data'] = bpt
-            lov.append(lot.data.type['bula_data'].value)
+            #lov.append(lot.data.type['bula_data'].value)
         ## Normalize the bpt.value
-        norm_bpt_lst = self.normalize_list(lov,1.,0.08)
-        for lot,norm in zip(lots_,norm_bpt_lst):
-            lot.data.type['bula_data'].value = norm
+        #norm_bpt_lst = self.normalize_list(lov,1.,0.08)
+        #for lot,norm in zip(lots_,norm_bpt_lst):
+        #    lot.data.type['bula_data'].value = norm
         return lots_
-
-            
     def calculate_node_gfa(self,lots_):
         ##It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!
@@ -156,8 +165,8 @@ class Bula_Data:
             lot.data.type['lot_gfa'] = new_lot_gfa
         return lots_
 
-
 #debug = sc.sticky['debug']
+sc.sticky['BulaData'] = Bula_Data
 
 if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     Bula = Bula_Data()
@@ -166,11 +175,11 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     lst_bpt_lst = Bula.getpoints4lot(oldlots,norm_cpt_lst)
     lots = Bula.generate_bula_point(oldlots,lst_bpt_lst)
     
-    line_ = []
+    line = []
     for lot in oldlots:
         cp = lot.data.shape.cpt
         ht = lot.data.type['bula_data'].value
-        line = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
-        line_.append(line)
+        line_ = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
+        line.append(line_)
           
     lst_lots = oldlots
