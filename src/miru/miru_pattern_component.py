@@ -20,6 +20,7 @@ def apply_param_dictionary(node):
     try:
         P = Pattern()
         tempnode = P.apply_pattern(node,pd)
+        RhinoApp.Wait() 
     except Exception as e:
         print "Error @ Pattern.apply_pattern"
         print str(e)

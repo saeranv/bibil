@@ -369,9 +369,15 @@ class Pattern:
         def check_base_dimension(tn_,cut_axis,cut_width_):
             if "NS" in cut_axis:
                 IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
+                IsMin = tn_.data.shape.y_dist >= 39.
             else:
                 IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
-            if IsWidth:
+                IsMin = tn_.data.shape.x_dist >= 39.
+            #debug.append(tn_.data.shape.geom)
+            IsArea = tn_.data.shape.get_area() > 725.39
+            
+            print IsArea, IsWidth, IsMin
+            if IsArea and IsWidth and IsMin:
                 return tn_
             else:
                 return None
@@ -430,7 +436,8 @@ class Pattern:
                     ## Append crv
                     sc.sticky['seperation_offset_lst'].append(sep_crv)
                     valid_base.data.type["valid_seperation"] = True
-        
+                #else recurse again!
+                
         return temp_node_
     def pattern_set_height(self,temp_node_,ht_,ht_node_):
         def height_from_bula(n_):
@@ -448,30 +455,36 @@ class Pattern:
                     ht_factor = n_.data.type['bula_data'].value
                     setht = 1000.*ht_factor
                 return setht
-        def height_from_envelope(n_,PD_):
+        def height_from_envelope(n_):
             #TO['solartype'],TO['solartime']
             env = sc.sticky['envelope']
             maxht_env = 200.
+            """
             if PD_['solartype']>0:
                 starthr = PD_['solartime']
                 endhr = starthr+5.
                 crv = sc.sticky['envelope'][0].data.shape.bottom_crv
                 env = self.get_solar_zone(starthr,endhr,curve=crv,zonetype='fan')
                 env = [env]
+            """
+            env = sc.sticky['envelope']
             base_matrix = n_.data.shape.set_base_matrix()
             ptlst = map(lambda l:l[0], base_matrix)
             dir = rc.Geometry.Vector3d(0,0,1) 
             tol = sc.doc.ModelAbsoluteTolerance
             projlst = rc.Geometry.Intersect.Intersection.ProjectPointsToBreps(env,ptlst,dir,tol)
             projlst = filter(lambda pt:abs(pt[2]-200.)>0.5,projlst)
+            projlst = filter(lambda p: abs(p[2]-0)>1.,projlst)
             if projlst:
-                debug.extend(projlst)
+                #debug.extend(projlst)
                 min_index = projlst.index(min(projlst,key=lambda p:p[2]))
                 min_pt = projlst[min_index]
                 envht = min_pt[2]
             else:
-                envht = 50.
-            return envht
+                envht = 150.
+            
+            return envht-18.
+            
         debug = sc.sticky['debug']
         #print 'We are setting height!'
         overridePD = self.check_override(temp_node_)
@@ -480,17 +493,19 @@ class Pattern:
         lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
         lst_nodes = filter(lambda n:n!=None,lst_nodes)
         for n_ in lst_nodes:
+            
             overridePD = self.check_override(n_)
             if overridePD:
                 ht_ = overridePD['height']
             if type(ht_)==type('') and 'bula' in ht_:
                 ht_ = height_from_bula(n_)
+            
             elif type(ht_)==type('') and 'envelope' in ht_:
                 #ugly
-                if overridePD:
-                    ht_ = height_from_envelope(n_,overridePD)
-                else:
-                    ht_ = height_from_envelope(n_,PD)
+                #if overridePD:
+                ht_ = height_from_envelope(n_)
+                #else:
+                #    ht_ = height_from_envelope(n_)
             n_.data.shape.op_extrude(ht_)
             n_.data.type['print'] = True
         return temp_node_
@@ -655,6 +670,27 @@ class Pattern:
             norm2srfvector = self.helper_normal2extsrf(temp_node)
             temp_node = self.pattern_separate_by_dist(temp_node,separation_dist,unitdim) 
         
+        ## 5. Stepback
+        ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
+        stepback = PD['stepback_base']
+        stepback_node = PD['stepback_node']
+        if stepback != None and stepback != []:
+            setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
+            for step_data in stepback:
+                #sr: [ht,dim]
+                #fix this really bad solution
+                build_lst = temp_node.traverse_tree(lambda n: self.print_node(n),internal=False)
+                build_lst = filter(lambda n: n!=None,build_lst)
+                if self.print_node(temp_node):
+                    build_lst.append(temp_node)
+                for build_node in build_lst:
+                    try:
+                        #print 'check', build_node.data.type['label']
+                        build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
+                    except Exception as e:
+                        print "Error @ stepback"
+                        print str(e)#,sys.exc_traceback.tb_lineno
+                        
         ## 7. Extrude
         if PD['height']!=False:
             ht = PD['height']
@@ -662,7 +698,8 @@ class Pattern:
             temp_node = self.pattern_set_height(temp_node,ht,ht_label)    
             
         ## 5. Stepback
-        stepback = PD['stepback']
+        ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
+        stepback = PD['stepback_tower']
         stepback_node = PD['stepback_node']
         if stepback != None and stepback != []:
             setback_ref = temp_node.get_root().data.type.get('setback_reference_line')

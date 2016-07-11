@@ -11,7 +11,7 @@ PD_ = \
 'court':0, 'court_width':0., 'court_node':-1,'court_slice':None,\
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
-'stepback':None, 'stepback_node':-1,\
+'stepback_base':None, 'stepback_tower':None,'stepback_node':-1,\
 'separate':False,'separation_dist':0.,'dim':30.,\
 'height':False,'height_node':''} 
 """--------------------------------"""
@@ -27,7 +27,7 @@ TO['stepback_node'] = -1
 TO['separate'] = True 
 TO['separation_dist'] = 10.
 #TO['dim'] = 30. 
-TO['solartype'],TO['solartime'], TO['solarht'] = 3,10.0, 200.
+TO['solartype'],TO['solartime'], TO['solarht'] = 3,10., 200.
 TO['height'],TO['height_node'] = 'envelope', 'valid_seperation' 
 
 """----------------
@@ -41,12 +41,13 @@ TT['type_id'] = 'type_tower'
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
 TT['stepback_node'] = -1
-TT['stepback'] = [(140.,32+20.),(27.,32+14.),(12.,32+7.),(0.,32)]
+TT['stepback_base'] = [(0.,32)]
+TT['stepback_tower'] = [(18.,32+9.),(12.,32+7.)]
 ## Change this to separate PD so it can be reused for base
 TT['separate'] = True 
 TT['separation_dist'] = 20.
-TT['dim'] = 30. 
-TT['height'],TT['height_node'] = 'bula', 'valid_seperation' 
+TT['dim'] = 27.5 
+TT['height'],TT['height_node'] = 'envelope', 'valid_seperation' 
 
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
 #TT['terrace']=1.5
@@ -55,10 +56,12 @@ TT['height'],TT['height_node'] = 'bula', 'valid_seperation'
 grammar_lst.extend([TO,TT])
 
 if reset==False:
+    import rhinoscriptsyntax as rs
     sc.sticky['type_tower'] = TT
     sc.sticky['override'] = []
     sc.sticky['envelope'] = []
     for envelope_node in envelope_srfs:
+        envelope_node = rs.coercebrep(envelope_node)
         sc.sticky['envelope'].append(envelope_node)
     for overnode in override_crvs:
         # Find better way to do this.

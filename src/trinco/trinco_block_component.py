@@ -43,7 +43,7 @@ def main(lot_in_):
     generator = reduce(lambda s, a: s + a, split_nodes)
     return generator
 
-if run and lot_in!=[None]:
+if run and lot_in!=[None] and lot_in != None and lot_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
     geo_out = main(lot_in)
