@@ -26,7 +26,7 @@ TT = copy.deepcopy(PD_)
 TT['type_id'] = 'type_block'
 #TT['div_num'],TT['div_deg'],TT['div_cut'] = 1, 0, 7.
 TT['court'], TT['court_width'],TT['court_node'] = 1, 35., 0
-#TT['court_slice'] = 0.5
+TT['court_slice'] = True
 
 """--------------------------------"""
 if True:

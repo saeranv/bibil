@@ -23,7 +23,6 @@ Test Override
 TO = copy.deepcopy(PD_) 
 TO['type_id'] = 'override'
 TO['stepback_node'] = -1
-#TO['stepback'] = [(140.,32+20.),(27.,32+14.),(12.,32+7.),(0.,32)]
 TO['separate'] = True 
 TO['separation_dist'] = 10.
 #TO['dim'] = 30. 

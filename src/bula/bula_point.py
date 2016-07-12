@@ -165,13 +165,18 @@ class Bula_Data:
             lot.data.type['lot_gfa'] = new_lot_gfa
         return lots_
 
-#debug = sc.sticky['debug']
+debug = sc.sticky['debug']
+debug = []
 sc.sticky['BulaData'] = Bula_Data
 
 if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     Bula = Bula_Data()
     cpt_lst = Bula.extract_line_data(lstx)
     norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
+    lot_lst = []
+    for lot in oldlots:
+        lot_lst.extend(lot.traverse_tree(lambda n: n,internal=False))
+    oldlots = lot_lst
     lst_bpt_lst = Bula.getpoints4lot(oldlots,norm_cpt_lst)
     lots = Bula.generate_bula_point(oldlots,lst_bpt_lst)
     
@@ -181,5 +186,5 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
         ht = lot.data.type['bula_data'].value
         line_ = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
         line.append(line_)
-          
+        debug.append(lot.data.shape.geom)
     lst_lots = oldlots

@@ -47,5 +47,6 @@ if run and lot_in!=[None] and lot_in != None and lot_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
     geo_out = main(lot_in)
+    
 else:
     print 'Add inputs!'

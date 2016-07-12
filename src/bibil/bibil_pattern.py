@@ -376,7 +376,7 @@ class Pattern:
             #debug.append(tn_.data.shape.geom)
             IsArea = tn_.data.shape.get_area() > 700.
             
-            print IsArea, IsWidth, IsMin
+            #print IsArea, IsWidth, IsMin
             if IsArea and IsWidth and IsMin:
                 return tn_
             else:
@@ -416,7 +416,7 @@ class Pattern:
         topo_child_lst = temp_node_topo.traverse_tree(lambda n:n, internal=False)
         #subdivide by tower_dim
         for tnc in topo_child_lst:
-            new_subdivide_by_dim(0,tnc,cut_axis,dim,recurse=False)
+            new_subdivide_by_dim(0,tnc,cut_axis,dim,recurse=True)
         topo_grand_child_lst = temp_node_topo.traverse_tree(lambda n:n, internal=False)
         
         # Sort through subdivided bases
@@ -427,17 +427,16 @@ class Pattern:
                 valid_base = check_base_with_offset(check_base_dim,sep_lst)
                 if valid_base:# != None:
                     ## Add some tolerance to separation distance
-                    tol = 1.
-                    sep_dist -= tol
-                    sep_crv = valid_base.data.shape.op_offset_crv(sep_dist*-1,corner=2)
+                    tol = 0.5
+                    sep_dist_tol = (sep_dist - tol) * -1
+                    sep_crv = valid_base.data.shape.op_offset_crv(sep_dist_tol,corner=2)
                     ## For viz
-                    sep_crv_viz = valid_base.data.shape.op_offset_crv((sep_dist+tol)*-1,corner=2)
+                    sep_crv_viz = valid_base.data.shape.op_offset_crv(sep_dist*-1,corner=2)
                     debug.append(sep_crv_viz)
                     ## Append crv
                     sc.sticky['seperation_offset_lst'].append(sep_crv)
                     valid_base.data.type["valid_seperation"] = True
                 #else recurse again!
-                
         return temp_node_
     def pattern_set_height(self,temp_node_,ht_,ht_node_):
         def height_from_bula(n_):
@@ -552,63 +551,76 @@ class Pattern:
             else:
                 refshape_ = subdiv_.data.shape
             return refshape_  
-        def helper_court_slice(curr_node,rootshape,width_):
-            L = []
-            curr_node_ref = curr_node 
-            for i in range(2):
-                if i%2==0:
-                    axis_ = "EW"
-                else:
-                    axis_ = "NS"
-                for j in range(2):
-                    if j%2==0:dir = 1. 
-                    else: dir = 0.
-                    ratio_ = rootshape.calculate_ratio_from_dist(axis_,width_,dir)
-                    
-                    ## Construct width_reference to find small slice
-                    width_ref = ratio_
-                    if "EW" in axis_:
-                        total_dist = rootshape.y_dist
+        def court_slice(curr_node,rootshape,width_):
+            def recurse_slice(curr_node_,matrice,valid_node_lst,count):
+                print count, curr_node_
+                cmax = 1.
+                try:
+                    #Base case
+                    if len(matrice) < 0.9 or count >= cmax or curr_node_==None:
+                        return valid_node_lst
                     else:
-                        total_dist = rootshape.x_dist
-                    if width_/total_dist < width_ref: width_ref = 1.-ratio_
-                    #y_dist = rootshape.y_dist
-                    #print 'ratio',width_,axis_, round(ratio_,2)
-                    #print 'y_dist', y_dist, y_dist * ratio_
-                    ## Split the geom (use simple divide for this, is redundant)
-                    geom_lst = curr_node.data.shape.op_split(axis_,ratio_,deg=0.,split_depth=0.,split_line_ref=rootshape)    
-                    debug.extend(geom_lst)
-                    for j,geom in enumerate(geom_lst):
-                        child_node = self.helper_geom2node(geom,parent_node=curr_node,label="")
-                        cns = child_node.data.shape
-                        IsRatioX = abs(cns.x_dist/float(rootshape.x_dist)-width_ref)<=0.01
-                        IsRatioY = abs(cns.y_dist/float(rootshape.y_dist)-width_ref)<=0.01
-                        if IsRatioX or IsRatioY:
-                            L.append(copy.deepcopy(child_node))
+                        tol = 10.
+                        line = matrice.pop(0)
+                        dirvec = line[1]-line[0]
+                        dist = math.sqrt(sum(map(lambda p: p*p,dirvec)))
+                        if dist < tol: 
+                            #debug.extend(line)
+                            return recurse_slice(curr_node_,matrice,valid_node_lst,count+1)
                         else:
-                            curr_node = child_node 
-            ## Make this into separate function: clean up depth (also in spearate)
-            for i,n in enumerate(L):
-                n.depth = curr_node_ref.depth+1
-                n.parent = curr_node_ref
-                L[i] = n
-            curr_node_ref.loc = L 
-                   
+                            split_crv = rs.AddCurve(line,1)
+                            midpt = curr_node_.data.shape.get_midpoint(line)
+                            split_geoms = curr_node_.data.shape.op_split("NS",0.5,split_depth=0,split_line_ref=split_crv)
+                            invalid_node = None
+                            print 'split_geom', split_geoms
+                            for geom in split_geoms:
+                                split_node = self.helper_geom2node(geom,curr_node_)
+                                split_crv = split_node.data.shape.bottom_crv
+                                set_rel = curr_node_.data.shape.check_region(chk_offset,split_crv,tol=0.1)
+                                if abs(set_rel-0.)<0.1:
+                                    valid_node_lst.append(split_node)
+                                    debug.append(split_node.data.shape.geom)
+                                else:
+                                    invalid_node = split_node
+                            return recurse_slice(invalid_node,matrice,valid_node_lst,count+1)
+                except Exception as e:
+                    print str(e)
+                    #Base case
+                    if len(matrice) < 0.9 or count >= cmax or curr_node_==None:
+                        return valid_node_lst
+                    else:
+                        matrice.pop(0)
+                        return recurse_slice(curr_node_,matrice,valid_node_lst,count+1) 
+            offset = rootshape.op_offset_crv(width_)
+            chk_offset = rootshape.op_offset_crv(width_+(width_*0.25))
+            off_node = self.helper_geom2node(offset,curr_node)
+            shape_matrix = off_node.data.shape.set_base_matrix()
+            L = recurse_slice(curr_node,shape_matrix,[],0)
+            return L     
         debug = sc.sticky['debug']
-        lon = temp_node_.traverse_tree(lambda n: n,internal=False)  
+        lon = temp_node_.traverse_tree(lambda n: n,internal=False)
         for subdiv in lon:    
+            VL = []
             subdiv.data.shape.convert_rc('3d')
             refshape = helper_court_refcrv(court_node,subdiv)
             if slice:
                 try:
-                    helper_court_slice(subdiv,refshape,court_width)
+                    valid_nodes = court_slice(subdiv,refshape,court_width)
+                    VL.extend(valid_nodes)
+                    for i,n in enumerate(VL):
+                        n.depth = subdiv.depth+1
+                        n.parent = subdiv
+                        VL[i] = n
+                        subdiv.loc.extend(VL)
                 except Exception as e:
                     print 'Error @ court_slice', str(e)
+            
             elif court_width > 0.:
                 try:
                     subdiv.data.shape.op_offset(court_width,refshape.bottom_crv,dir="courtyard")
                 except Exception as e:
                     print 'Error @ court', str(e)
+            
         return temp_node_
     def main_pattern(self,node,PD):
         """
@@ -622,7 +634,6 @@ class Pattern:
         TOL = sc.doc.ModelAbsoluteTolerance
         
         ## 0. make a copy of the geometry
-        
         gb = node.data.shape.geom
         if node.data.shape.is_guid(gb): gb = rs.coercebrep(gb)#gb = sc.doc.Objects.AddBrep(gb)
         geo_brep = copy.copy(gb)
@@ -670,6 +681,7 @@ class Pattern:
             norm2srfvector = self.helper_normal2extsrf(temp_node)
             temp_node = self.pattern_separate_by_dist(temp_node,separation_dist,unitdim) 
         
+        
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
         stepback = PD['stepback_base']
@@ -683,6 +695,11 @@ class Pattern:
                 build_lst = filter(lambda n: n!=None,build_lst)
                 if self.print_node(temp_node):
                     build_lst.append(temp_node)
+                #BULA ORDERING
+                bula_node = temp_node.search_up_tree(lambda n: n.data.type.has_key('bula_data'))
+                if bula_node:
+                    build_lst.sort(key=lambda n: n.data.type['bula_data'].value)
+                    print map(lambda n: n.data.type['bula'].value,build_lst)
                 for build_node in build_lst:
                     try:
                         #print 'check', build_node.data.type['label']
@@ -696,6 +713,7 @@ class Pattern:
             ht = PD['height']
             ht_label = PD['height_node']
             temp_node = self.pattern_set_height(temp_node,ht,ht_label)    
+        
             
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
@@ -710,6 +728,11 @@ class Pattern:
                 build_lst = filter(lambda n: n!=None,build_lst)
                 if self.print_node(temp_node):
                     build_lst.append(temp_node)
+                #BULA ORDERING
+                #bula_node = temp_node.search_up_tree(lambda n: n.data.type.has_key('bula_data'))
+                #if bula_node:
+                #    
+                #    print map(lambda n: n.data.type['bula_data'].value,build_lst)
                 for build_node in build_lst:
                     try:
                         #print 'check', build_node.data.type['label']
@@ -718,6 +741,7 @@ class Pattern:
                         print "Error @ stepback"
                         print str(e)#,sys.exc_traceback.tb_lineno 
             
+        
         ## 5. param 1
         court = PD['court']
         court_node = PD['court_node']
@@ -757,7 +781,6 @@ class Pattern:
                 #zaxis = rc.Geometry.Vector3d(0,0,1)
                 #temp_node.data.shape.cplane.Rotate(radian_angle,zaxis)
                 temp_node = self.pattern_court(temp_node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=court_slice)            
-                #print 'tn', temp_node.traverse_tree(lambda n:n,internal=False)
             except Exception as e:
                 print "Error at pattern_court"
                 print str(e)

@@ -205,6 +205,11 @@ class Shape_3D:
                     split_line_ = helper_make_split_line_xy(ratio_,deg_,ref_shape=split_line_ref_)
                 else:
                     split_line_ = split_line_ref_
+                    if not self.is_guid(split_line_):
+                        split_line_ = sc.doc.Objects.AddCurve(split_line_)
+                    sc_ = 3,3,3
+                    line_cpt = rs.DivideCurve(split_line_,2)[1]
+                    split_line_ = rs.ScaleObject(split_line_,line_cpt,sc_)
                 #debug.append(split_line_)
                 split_surf_ = helper_make_split_surf(split_line_)
             elif axis_ == "Z":
@@ -216,6 +221,7 @@ class Shape_3D:
         
         rs.EnableRedraw(False)
         split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
+        
         try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:
@@ -340,6 +346,7 @@ class Shape_3D:
             print str(e)#sys.exc_traceback.tb_lineno 
     def check_region(self,crvA,crvB=None,tol=0.1):
             """
+            If disjoint, output 0 else returns 1.
             Disjoint    0    There is no common area between the two regions.
             Intersect   1    The two curves intersect. There is therefore no full containment relationship either way.
             AInsideB    2    Region bounded by curveA (first curve) is inside of curveB (second curve).
@@ -369,6 +376,7 @@ class Shape_3D:
         ## direction counterclockwise
         ## but can start from anywhere!
         #debug = sc.sticky['debug']
+        
         if self.base_matrix == None:
             if crv == None:
                 crv = self.bottom_crv
@@ -380,9 +388,14 @@ class Shape_3D:
                 segment = segments[i]
                 nc = segment.ToNurbsCurve()
                 end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
-                matrix.append(end_pts) 
+                matrix.append(end_pts)
             self.base_matrix = matrix
         return self.base_matrix
+    def get_midpoint(self,line):
+        #Midpoint formula: x1+x2/2, y1+y2/2
+        pt1,pt2 = line[0], line[1]
+        midpt = (line[0]+line[1])/2. #vector addition and division
+        return midpt
     def get_shape_axis(self,crv=None):
         def helper_group_parallel(AL):
             ## Identifies parallel lines and groups them
@@ -505,7 +518,7 @@ class Shape_3D:
         except Exception as e:
             print "Error @ Shape_3D.op_extrude"
             print str(e)#sys.exc_traceback.tb_lineno 
-    def op_offset_crv(self,dim,curve=None,count=0,refcpt = None,corner=1):
+    def op_offset_crv(self,dim,curve=None,count=0,refcpt=None,corner=1):
         #print 'count: ', count, 'dim: ', dim
         if count > 5. or abs(dim-0.)<=0.1:
             return None
