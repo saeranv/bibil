@@ -28,7 +28,7 @@ TO['separate'] = True
 TO['separation_dist'] = 10.
 #TO['dim'] = 30. 
 TO['solartype'],TO['solartime'], TO['solarht'] = 3,10., 200.
-TO['height'],TO['height_node'] = 'envelope', 'valid_seperation' 
+TO['height'],TO['height_node'] = 'bula', 'valid_seperation' 
 
 """----------------
 Default Tower and Podium 
@@ -41,13 +41,13 @@ TT['type_id'] = 'type_tower'
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
 TT['stepback_node'] = -1
-TT['stepback_base'] = [(0.,32)]
-TT['stepback_tower'] = [(18.,32+9.),(12.,32+7.)]
+TT['stepback_base'] = []
+TT['stepback_tower'] = [(13.5,3.)]
 ## Change this to separate PD so it can be reused for base
 TT['separate'] = True 
-TT['separation_dist'] = 20.
-TT['dim'] = 27.5 
-TT['height'],TT['height_node'] = 'envelope', 'valid_seperation' 
+TT['separation_dist'] = 25.
+TT['dim'] = 27. 
+TT['height'],TT['height_node'] = 'bula', 'valid_seperation' 
 
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
 #TT['terrace']=1.5

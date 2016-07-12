@@ -369,12 +369,12 @@ class Pattern:
         def check_base_dimension(tn_,cut_axis,cut_width_):
             if "NS" in cut_axis:
                 IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
-                IsMin = tn_.data.shape.y_dist >= 39.
+                IsMin = tn_.data.shape.y_dist >= 20.
             else:
                 IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
-                IsMin = tn_.data.shape.x_dist >= 39.
+                IsMin = tn_.data.shape.x_dist >= 20.
             #debug.append(tn_.data.shape.geom)
-            IsArea = tn_.data.shape.get_area() > 725.39
+            IsArea = tn_.data.shape.get_area() > 700.
             
             print IsArea, IsWidth, IsMin
             if IsArea and IsWidth and IsMin:
@@ -458,7 +458,7 @@ class Pattern:
         def height_from_envelope(n_):
             #TO['solartype'],TO['solartime']
             env = sc.sticky['envelope']
-            maxht_env = 200.
+            maxht_env = 150.
             """
             if PD_['solartype']>0:
                 starthr = PD_['solartime']
@@ -483,7 +483,7 @@ class Pattern:
             else:
                 envht = 150.
             
-            return envht-18.
+            return envht-13.5
             
         debug = sc.sticky['debug']
         #print 'We are setting height!'
@@ -493,13 +493,13 @@ class Pattern:
         lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
         lst_nodes = filter(lambda n:n!=None,lst_nodes)
         for n_ in lst_nodes:
-            
             overridePD = self.check_override(n_)
             if overridePD:
                 ht_ = overridePD['height']
             if type(ht_)==type('') and 'bula' in ht_:
                 ht_ = height_from_bula(n_)
-            
+                if ht_ > 150.: ht_ = 150.
+                if ht_ < 9.: ht_ = 9.
             elif type(ht_)==type('') and 'envelope' in ht_:
                 #ugly
                 #if overridePD:
