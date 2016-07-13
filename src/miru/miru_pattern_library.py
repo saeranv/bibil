@@ -21,13 +21,14 @@ grammar_lst = []
 Test Override 
 ----------------""" 
 TO = copy.deepcopy(PD_) 
-TO['type_id'] = 'override'
+TO['type_id'] = 'override_park_street'
 TO['stepback_node'] = -1
+TO['stepback_base'] = [(13.5,14.5),(0.,7.5)]
+TO['stepback_tower'] = []
 TO['separate'] = True 
-TO['separation_dist'] = 10.
-#TO['dim'] = 30. 
-TO['solartype'],TO['solartime'], TO['solarht'] = 3,10., 200.
-TO['height'],TO['height_node'] = 'bula', 'valid_seperation' 
+TO['separation_dist'] = 25.
+TO['dim'] = 27.4 
+TO['height'],TO['height_node'] = 10., 'valid_seperation' 
 
 """----------------
 Default Tower and Podium 
@@ -40,12 +41,12 @@ TT['type_id'] = 'type_tower'
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
 TT['stepback_node'] = -1
-TT['stepback_base'] = []
-TT['stepback_tower'] = [(13.5,3.)]
+TT['stepback_base'] = [(13.5,3.)]
+TT['stepback_tower'] = []
 ## Change this to separate PD so it can be reused for base
 TT['separate'] = True 
 TT['separation_dist'] = 25.
-TT['dim'] = 27. 
+TT['dim'] = 27.4 
 TT['height'],TT['height_node'] = 'bula', 'valid_seperation' 
 
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
@@ -62,6 +63,7 @@ if reset==False:
     for envelope_node in envelope_srfs:
         envelope_node = rs.coercebrep(envelope_node)
         sc.sticky['envelope'].append(envelope_node)
+    """
     for overnode in override_crvs:
         # Find better way to do this.
         for grammar in grammar_lst:
@@ -69,6 +71,6 @@ if reset==False:
             if label in overnode.data.type['label']:
                 overnode.data.type['grammar'] = grammar
                 sc.sticky['override'].append(overnode)
-            
+    """        
     o = True
     

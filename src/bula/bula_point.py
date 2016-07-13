@@ -164,6 +164,18 @@ class Bula_Data:
                 new_lot_gfa
             lot.data.type['lot_gfa'] = new_lot_gfa
         return lots_
+    def sort_by_bula(self,lots_):
+        ## Sort by Bula_data.value, from highest to lowest
+        def helper_chk_bula(lot_):
+            if lot_.data.type.has_key('bula_data'):
+                bula_val = lot_.data.type['bula_data'].value 
+            else: 
+                bula_val = 0.
+            return bula_val 
+        #print map(lambda n: n.data.type['bula_data'].value,lots_)
+        bula_sort = sorted(lots,key=lambda n: helper_chk_bula(n),reverse=True)
+        #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
+        return bula_sort
 
 debug = sc.sticky['debug']
 debug = []
@@ -187,4 +199,5 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
         line_ = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
         line.append(line_)
         debug.append(lot.data.shape.geom)
+    oldlots = Bula.sort_by_bula(oldlots)
     lst_lots = oldlots

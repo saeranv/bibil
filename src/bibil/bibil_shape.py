@@ -259,6 +259,7 @@ class Shape_3D:
                 #ghcomp.Flip(rc_cut,sc.sticky['surface_ref'])[0]
                 geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
                 lst_child.extend(geom_childs)
+                #debug.extend(geom_childs)
         except Exception as e:
             print "Error @ shape.op_split while splitting"
             print str(e)#, sys.traceback.tb_lineno 
