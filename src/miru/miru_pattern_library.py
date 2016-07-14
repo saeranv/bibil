@@ -22,8 +22,8 @@ Test Override
 ----------------""" 
 TO = copy.deepcopy(PD_) 
 TO['type_id'] = 'override_park_street'
-TO['stepback_node'] = -1
-TO['stepback_base'] = [(13.5,14.5),(0.,7.5)]
+#TO['stepback_node'] = -1
+#TO['stepback_base'] = [(13.5,14.5),(0.,7.5)]
 TO['stepback_tower'] = []
 TO['separate'] = True 
 TO['separation_dist'] = 25.
@@ -41,7 +41,7 @@ TT['type_id'] = 'type_tower'
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
 TT['stepback_node'] = -1
-TT['stepback_base'] = [(13.5,3.)]
+TT['stepback_base'] = [(13.5,3.)]#[(13.5,18.)]
 TT['stepback_tower'] = []
 ## Change this to separate PD so it can be reused for base
 TT['separate'] = True 
@@ -60,9 +60,14 @@ if reset==False:
     sc.sticky['type_tower'] = TT
     sc.sticky['override'] = []
     sc.sticky['envelope'] = []
+    sc.sticky['existing_tower'] = []
     for envelope_node in envelope_srfs:
         envelope_node = rs.coercebrep(envelope_node)
         sc.sticky['envelope'].append(envelope_node)
+    for sepcrv in override_sep:
+        sepcrv = rs.coercecurve(sepcrv)
+        sc.sticky['existing_tower'].append(sepcrv)
+        
     """
     for overnode in override_crvs:
         # Find better way to do this.

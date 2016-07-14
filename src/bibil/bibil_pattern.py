@@ -400,6 +400,8 @@ class Pattern:
         # get root node - not linked
         if not sc.sticky.has_key('seperation_offset_lst'):
             sc.sticky['seperation_offset_lst'] = []
+            existing_towers = sc.sticky['existing_tower']
+            sc.sticky['seperation_offset_lst'].extend(existing_towers)
         sep_lst = sc.sticky['seperation_offset_lst']
         ## Get normal to exterior srf
         

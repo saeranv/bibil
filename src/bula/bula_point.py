@@ -59,7 +59,7 @@ class Bula_Data:
                 #print si
                 cpt_.append(topcpt)
             except Exception as e:
-                print str(e)
+                print 'problem at line extraaxtion', str(e)
         return cpt_
     def normalize_cpt_data(self,cpt_lst_):
         ## Normalize points
@@ -90,7 +90,11 @@ class Bula_Data:
             neighbor = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
-                in_lot = int(rs.PointInPlanarClosedCurve(cp,boundary,lot.data.shape.cplane))
+                in_lot = 0
+                try:
+                    in_lot = int(rs.PointInPlanarClosedCurve(cp,boundary,lot.data.shape.cplane))
+                except:
+                    pass
                 #0 = point is outside of the curve
                 #1 = point is inside of the curve
                 #2 = point in on the curve
@@ -186,6 +190,7 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     cpt_lst = Bula.extract_line_data(lstx)
     norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
     lot_lst = []
+    
     for lot in oldlots:
         lot_lst.extend(lot.traverse_tree(lambda n: n,internal=False))
     oldlots = lot_lst
@@ -196,8 +201,12 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     for lot in oldlots:
         cp = lot.data.shape.cpt
         ht = lot.data.type['bula_data'].value
-        line_ = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
-        line.append(line_)
+        try:
+            line_ = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
+            line.append(line_)
+        except:
+            pass
         debug.append(lot.data.shape.geom)
     oldlots = Bula.sort_by_bula(oldlots)
     lst_lots = oldlots
+    
