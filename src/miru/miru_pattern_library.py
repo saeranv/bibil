@@ -28,7 +28,7 @@ TO['stepback_tower'] = []
 TO['separate'] = True 
 TO['separation_dist'] = 25.
 TO['dim'] = 27.4 
-TO['height'],TO['height_node'] = 10., 'valid_seperation' 
+TO['height'],TO['height_node'] = 'envelope', 'valid_seperation' 
 
 """----------------
 Default Tower and Podium 
@@ -68,7 +68,6 @@ if reset==False:
         sepcrv = rs.coercecurve(sepcrv)
         sc.sticky['existing_tower'].append(sepcrv)
         
-    """
     for overnode in override_crvs:
         # Find better way to do this.
         for grammar in grammar_lst:
@@ -76,6 +75,6 @@ if reset==False:
             if label in overnode.data.type['label']:
                 overnode.data.type['grammar'] = grammar
                 sc.sticky['override'].append(overnode)
-    """        
+            
     o = True
     
