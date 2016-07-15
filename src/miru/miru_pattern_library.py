@@ -45,8 +45,8 @@ TT['stepback_base'] = [(13.5,3.)]#[(13.5,18.)]
 TT['stepback_tower'] = []
 ## Change this to separate PD so it can be reused for base
 TT['separate'] = True 
-TT['separation_dist'] = 25.
-TT['dim'] = 27.4 
+TT['separation_dist'] = 15.
+TT['dim'] = 35.#27.4 
 TT['height'],TT['height_node'] = 'bula', 'valid_seperation' 
 
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0

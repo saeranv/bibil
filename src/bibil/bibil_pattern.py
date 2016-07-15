@@ -574,7 +574,7 @@ class Pattern:
                                 for geom in split_geoms:
                                     #if type(geom)!= type(rootshape.data.shape.geom):
                                     #    debug.append(geom)
-                                    split_node = self.helper_geom2node(geom,curr_node_)
+                                    split_node = self.helper_geom2node(geom,None)
                                     split_crv = split_node.data.shape.bottom_crv
                                     set_rel = curr_node_.data.shape.check_region(chk_offset,split_crv,tol=0.1)
                                     if abs(set_rel-0.)<0.1:
