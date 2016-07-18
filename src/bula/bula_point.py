@@ -100,6 +100,8 @@ class Bula_Data:
                 #2 = point in on the curve
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
+                    d = rs.AddPoint(cp[0], cp[1],0)
+                    debug.append(d)
             lst_bpt_lst_.append(neighbor)
         return lst_bpt_lst_ 
     def generate_bula_point(self,lots_,lst_bpt_lst_):
@@ -188,6 +190,7 @@ sc.sticky['BulaData'] = Bula_Data
 if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     Bula = Bula_Data()
     cpt_lst = Bula.extract_line_data(lstx)
+    #norm_cpt_lst = cpt_lst#
     norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
     lot_lst = []
     
@@ -206,7 +209,8 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
             line.append(line_)
         except:
             pass
-        debug.append(lot.data.shape.geom)
+        #debug.append(lot.data.shape.geom)
     oldlots = Bula.sort_by_bula(oldlots)
     lst_lots = oldlots
+    print 'debug', debug
     
