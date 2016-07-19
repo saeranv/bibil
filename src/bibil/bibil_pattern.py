@@ -456,7 +456,7 @@ class Pattern:
                     buladata.generate_bula_point(crvlst,inptlst)
                     ## you are now a bulalot!
                     ht_factor = n_.data.type['bula_data'].value
-                    setht = 1000.*ht_factor
+                    setht = ht_factor - 16.5#1000.*ht_factor
                 return setht
         def height_from_envelope(n_):
             #TO['solartype'],TO['solartime']
@@ -501,8 +501,8 @@ class Pattern:
                 ht_ = overridePD['height']
             if type(ht_)==type('') and 'bula' in ht_:
                 ht_ = height_from_bula(n_)
-                if ht_ > 150.: ht_ = 150.
-                if ht_ < 9.: ht_ = 9.
+                if ht_ > 150.: ht_ = 150. - 16.5
+                #if ht_ < 9.: ht_ = 9.
             elif type(ht_)==type('') and 'envelope' in ht_:
                 ht_ = height_from_envelope(n_)
             n_.data.shape.op_extrude(ht_)

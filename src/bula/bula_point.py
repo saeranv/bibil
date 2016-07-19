@@ -101,7 +101,7 @@ class Bula_Data:
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
                     d = rs.AddPoint(cp[0], cp[1],0)
-                    debug.append(d)
+                    #debug.append(d)
             lst_bpt_lst_.append(neighbor)
         return lst_bpt_lst_ 
     def generate_bula_point(self,lots_,lst_bpt_lst_):
@@ -190,10 +190,10 @@ sc.sticky['BulaData'] = Bula_Data
 if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     Bula = Bula_Data()
     cpt_lst = Bula.extract_line_data(lstx)
-    #norm_cpt_lst = cpt_lst#
-    norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
+    #norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
+    norm_cpt_lst = cpt_lst
     lot_lst = []
-    
+    #debug.extend(norm_cpt_lst)
     for lot in oldlots:
         lot_lst.extend(lot.traverse_tree(lambda n: n,internal=False))
     oldlots = lot_lst
@@ -205,7 +205,7 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
         cp = lot.data.shape.cpt
         ht = lot.data.type['bula_data'].value
         try:
-            line_ = rs.AddLine([cp[0],cp[1],ht*150.],[cp[0],cp[1],0.])
+            line_ = rs.AddLine([cp[0],cp[1],ht],[cp[0],cp[1],0.])
             line.append(line_)
         except:
             pass
