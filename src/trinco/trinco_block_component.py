@@ -14,8 +14,8 @@ def make_node_lst(copy_lot_in_,ref_block_in_):
     L = []
     for lot_geom in copy_lot_in_:
         P = Pattern()
-        p_n_ = P.helper_geom2node(ref_block_in_,None,label="block")
-        n_ = P.helper_geom2node(lot_geom,p_n_,label=label_)
+        p_n_ = P.helper_geom2node(ref_block_in_,None,label=label_)
+        n_ = P.helper_geom2node(lot_geom,p_n_,label='')
         setback_line_ = map(lambda l: rs.coercecurve(l),setback_line)
         p_n_.data.type["setback_reference_line"] = setback_line_
         L.append(n_)

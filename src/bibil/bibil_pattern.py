@@ -11,6 +11,7 @@ import copy
 import System as sys
 import math
 import ghpythonlib.components as ghcomp
+from rhinoscript.dimension import DimensionStyle
 
 """import classes"""
 Shape_3D = sc.sticky["Shape_3D"]
@@ -339,49 +340,61 @@ class Pattern:
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
     def pattern_separate_by_dist(self,temp_node_,sep_dist,dim=1.):
-        def extract_topo(n_):
+        def extract_topo(n_,ht_):
             pt = n_.data.shape.cpt
-            refpt = rs.AddPoint(pt[0],pt[1],n_.data.shape.z_dist)
+            refpt = rs.AddPoint(pt[0],pt[1],ht_)
             topcrv = n_.data.shape.get_bottom(n_.data.shape.geom,refpt)
             childn = self.helper_geom2node(topcrv,n_,"")
             n_.loc.append(childn)
             childn.data.shape.op_extrude(6.)
             return childn 
-        def new_subdivide_by_dim(count,tn_,cut_axis_,cut_width_,recurse=True):
-            ## Takes a node subdivides it along one axis according to separation distance
-            ## and dimension
-            if count <= 100:
-                if "NS" in cut_axis_:
-                    IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
+        
+        def subdivide_by_dim(temp_node_topo_,cut_axis,cut_width_first,cut_width_second):
+            def helper_subdivide_by_dim(count,tn_,cut_axis_,cut_width_,recurse=True):
+                ## Takes a node subdivides it along one axis according to separation distance
+                ## and dimension
+                if count <= 100:
+                    if "NS" in cut_axis_:
+                        IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
+                    else:
+                        IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
+                    if not IsWidth:
+                        try:
+                            cut_ratio_ = tn_.data.shape.calculate_ratio_from_dist(cut_axis_,cut_width_,0)
+                            self.pattern_divide(tn_,'simple_divide',0,axis=cut_axis_,ratio=cut_ratio_)
+                            if recurse:
+                                for tnc_ in tn_.loc:
+                                    helper_subdivide_by_dim(count+1,tnc_,cut_axis_,cut_width_)
+                        except:
+                            pass
                 else:
-                    IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
-                if not IsWidth:
-                    try:
-                        cut_ratio_ = tn_.data.shape.calculate_ratio_from_dist(cut_axis_,cut_width_,0)
-                        self.pattern_divide(tn_,'simple_divide',0,axis=cut_axis_,ratio=cut_ratio_)
-                        if recurse:
-                            for tnc_ in tn_.loc:
-                                new_subdivide_by_dim(count+1,tnc_,cut_axis_,cut_width_)
-                    except:
-                        pass
-            else:
-                print 'newsubdivide by depth > 30 recursion!'
-        def check_base_dimension(tn_,cut_axis,cut_width_):
+                    print 'newsubdivide by depth > 30 recursion!'
+            
+            #subdivide by dist
+            helper_subdivide_by_dim(0,temp_node_topo_,cut_axis,cut_width_first,recurse=True)
+            topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
+            
+            #subdivide by tower_dim
+            for tnc in topo_child_lst:
+                #debug.append(tnc.data.shape.geom)
+                helper_subdivide_by_dim(0,tnc,cut_axis,cut_width_second,recurse=True)
+            return temp_node_topo_
+        
+        def check_base_dimension(tn_,cut_axis_,cut_width_):
             if "NS" in cut_axis:
                 IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
-                IsMin = tn_.data.shape.y_dist >= 20.
+                IsMin = tn_.data.shape.y_dist >= 5.
             else:
                 IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
-                IsMin = tn_.data.shape.x_dist >= 20.
+                IsMin = tn_.data.shape.x_dist >= 5.
             #debug.append(tn_.data.shape.geom)
-            IsArea = tn_.data.shape.get_area() > 700.
-            
-            #print IsArea, IsWidth, IsMin
+            IsArea = tn_.data.shape.get_area() > 600.
             if IsArea and IsWidth and IsMin:
                 return tn_
             else:
                 return None
         def check_base_with_offset(base_,offsetlst):
+            # check if interect with tower-seperation list
             intersect_offset = False
             for offset in offsetlst:
                 crvA = offset
@@ -395,52 +408,80 @@ class Pattern:
                 return None
             else: 
                 return base_
-            
+        def set_separation_record(check_base_separation_,separation_tol_):
+            ## Add some tolerance to separation distance
+            separation_tol_ = 0.5
+            sep_dist_tol = (sep_dist - separation_tol_) * -1
+            sep_crv = check_base_separation_.data.shape.op_offset_crv(sep_dist_tol,corner=2)
+            debug.append(check_base_separation_.data.shape.bottom_crv)
+            ## For viz
+            sep_crv_viz = check_base_separation_.data.shape.op_offset_crv(sep_dist*-1,corner=2)
+            debug.append(sep_crv_viz)
+            ## Append crv
+            sc.sticky['seperation_offset_lst'].append(sep_crv)
+            check_base_separation_.data.type["valid_seperation"] = True
+        def check_shape_validity(t_,cut_axis_,dim_,sep_lst_,separation_tol_):
+            #check_base_dim = check_base_dimension(t_,cut_axis_,dim_)
+            #if check_base_dim:
+            check_base_separation = check_base_with_offset(t_,sep_lst_)
+            if check_base_separation:# != None:
+                set_separation_record(check_base_separation,separation_tol_)
         debug = sc.sticky['debug']
         # get root node - not linked
+        
+        ## Get normal to exterior srf
+        normal2srf = self.helper_normal2extsrf(temp_node_)
+        ### FIGURE OUT IF EXTENSION OR ADDITION
+        #temp_node_.data.type['print'] = True
+        temp_node_.data.type['label'] = 'base'
+        #temp_node_topo = extract_topo(temp_node_,0.)
+        temp_node_topo = temp_node_
+        
+        ## Recursively subdivide the lot crvs
+        #sep_dist = distance between towers
+        #dim = tower dimension
+        cut_axis = temp_node_.data.shape.vector2axis(normal2srf)
+        cut_width_first = sep_dist + dim
+        cut_width_second = dim
+        
+        temp_node_topo = subdivide_by_dim(temp_node_topo,cut_axis,cut_width_first,cut_width_second)
+        topo_grand_child_lst_ = temp_node_topo.traverse_tree(lambda n:n, internal=False)
+        
+        L = []
+        for tpg in topo_grand_child_lst_:
+            IsDim = check_base_dimension(tpg,cut_axis,cut_width_second)
+            if IsDim:
+               L.append(tpg) 
+        topo_grand_child_lst_ = L 
+        
+        
+        ## CUTTING 2D
+        topo_grand_child_lst__ = []
+        cut_axis = "NS" if "EW" in cut_axis else "EW"
+        for tpg in topo_grand_child_lst_:
+            tpg = subdivide_by_dim(tpg,cut_axis,cut_width_first,cut_width_second)
+            topo_grand_child_lst__.extend(tpg.traverse_tree(lambda n:n, internal=False))
+        
+        L = []
+        for tpg in topo_grand_child_lst__:
+            IsDim = check_base_dimension(tpg,cut_axis,cut_width_second)
+            if IsDim:
+               L.append(tpg) 
+        topo_grand_child_lst_ = L 
+        
+        #---
+        # Sort through subdivided bases
+        # check base dim, check base separation
+        # label bases that are valid separations
         if not sc.sticky.has_key('seperation_offset_lst'):
             sc.sticky['seperation_offset_lst'] = []
             existing_towers = sc.sticky['existing_tower']
             sc.sticky['seperation_offset_lst'].extend(existing_towers)
         sep_lst = sc.sticky['seperation_offset_lst']
-        ## Get normal to exterior srf
-        
-        normal2srf = self.helper_normal2extsrf(temp_node_)
-        cut_axis = temp_node_.data.shape.vector2axis(normal2srf)
-        cut_width = sep_dist + dim
-        temp_node_.data.type['print'] = True
-        temp_node_.data.type['label'] = 'base'
-        #debug.append(temp_node_.data.shape.geom)
-        temp_node_topo = extract_topo(temp_node_)
-        ## Subdivide the lot crvs
-        #subdivide by dist
-        new_subdivide_by_dim(0,temp_node_topo,cut_axis,cut_width,recurse=True)
-        topo_child_lst = temp_node_topo.traverse_tree(lambda n:n, internal=False)
-        #subdivide by tower_dim
-        for tnc in topo_child_lst:
-            #debug.append(tnc.data.shape.geom)
-            new_subdivide_by_dim(0,tnc,cut_axis,dim,recurse=True)
-        topo_grand_child_lst = temp_node_topo.traverse_tree(lambda n:n, internal=False)
-        
-        # Sort through subdivided bases
-        # label bases that are valid separations
-        for t in topo_grand_child_lst:
-            check_base_dim = check_base_dimension(t,cut_axis,dim)
-            if check_base_dim:
-                valid_base = check_base_with_offset(check_base_dim,sep_lst)
-                if valid_base:# != None:
-                    ## Add some tolerance to separation distance
-                    tol = 0.5
-                    sep_dist_tol = (sep_dist - tol) * -1
-                    sep_crv = valid_base.data.shape.op_offset_crv(sep_dist_tol,corner=2)
-                    debug.append(valid_base.data.shape.bottom_crv)
-                    ## For viz
-                    sep_crv_viz = valid_base.data.shape.op_offset_crv(sep_dist*-1,corner=2)
-                    debug.append(sep_crv_viz)
-                    ## Append crv
-                    sc.sticky['seperation_offset_lst'].append(sep_crv)
-                    valid_base.data.type["valid_seperation"] = True
-                #else recurse again!
+        separation_tol = 0.5
+        for t in topo_grand_child_lst_:
+            #t.data.type["valid_seperation"] = True
+            check_shape_validity(t,cut_axis,dim,sep_lst,separation_tol)    
         return temp_node_
     def pattern_set_height(self,temp_node_,ht_,ht_node_):
         def height_from_bula(n_):
@@ -449,11 +490,13 @@ class Pattern:
             bula_node = n_.search_up_tree(lambda n: n.data.type.has_key('bula_data'))
             if bula_node:
                 buladata = bula_node.data.type['bula_data']
-                crvlst = [n_]
+                nodecrvlst = [n_]
                 #make this function in bula
-                inptlst = buladata.getpoints4lot(crvlst,buladata.bpt_lst)
+                inptlst = buladata.getpoints4lot(nodecrvlst,buladata.bpt_lst)
+                print inptlst[0]
+                debug.extend(inptlst[0])
                 if inptlst != [[]]:
-                    buladata.generate_bula_point(crvlst,inptlst)
+                    buladata.generate_bula_point(nodecrvlst,inptlst)
                     ## you are now a bulalot!
                     ht_factor = n_.data.type['bula_data'].value
                     setht = ht_factor - 16.5#1000.*ht_factor
@@ -706,7 +749,8 @@ class Pattern:
             unitdim = PD['dim']
             norm2srfvector = self.helper_normal2extsrf(temp_node)
             temp_node = self.pattern_separate_by_dist(temp_node,separation_dist,unitdim) 
-    
+            
+        
         ## 7. Extrude
         if PD['height']!=False:
             ht = PD['height']

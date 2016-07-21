@@ -31,33 +31,42 @@ TO['dim'] = 27.4
 TO['height'],TO['height_node'] = 'envelope', 'valid_seperation' 
 
 """----------------
-Default Tower and Podium 
+Tower and Podium 
 ----------------""" 
-
 TT = copy.deepcopy(PD_) 
-TT['type_id'] = 'type_tower'
+TT['type_id'] = 'miru_tower_in_podium'
 #TT['div_num'],TT['div_deg'],TT['div_cut'] = 1, 0, 7.
 #TT['solartype'] = 3
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
-TT['stepback_node'] = -1
-TT['stepback_base'] = [(13.5,3.)]
-TT['stepback_tower'] = []
+#TT['stepback_node'] = -1
+#TT['stepback_base'] = [(13.5,3.)]
+#TT['stepback_tower'] = []
 ## Change this to separate PD so it can be reused for base
 TT['separate'] = True 
-TT['separation_dist'] = 25.#19.14
+TT['separation_dist'] = 25.#20m<min case
 TT['dim'] = 27.4 
 TT['height'],TT['height_node'] = 'bula', 'valid_seperation' 
 
-#TT['court'], TT['court_width'],TT['court_node'] = 1, 30., 0
-#TT['terrace']=1.5
-#TT['terrace_node']=-1
+
+"""----------------
+Tower and Park
+----------------""" 
+TP = copy.deepcopy(PD_) 
+TP['type_id'] = 'miru_tower_in_park'
+TP['separate'] = True 
+TP['separation_dist'] = 15.#25.#20m<min case
+TP['dim'] = 27.4 
+TP['height'],TP['height_node'] = 'bula', 'valid_seperation' 
+
 
 grammar_lst.extend([TO,TT])
 
 if reset==False:
     import rhinoscriptsyntax as rs
-    sc.sticky['type_tower'] = TT
+    sc.sticky['miru_tower_in_podium'] = TT
+    sc.sticky['miru_tower_in_park'] = TP
+    
     sc.sticky['override'] = []
     sc.sticky['envelope'] = []
     sc.sticky['existing_tower'] = []

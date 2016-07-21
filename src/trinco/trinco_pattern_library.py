@@ -20,17 +20,25 @@ PD_ = \
 'separate':False,'separation_dist':0.,'dim':0.,\
 'height':False,'height_node':''} 
 
-"""----------------
-TOWER ----------------""" 
+"""----------------TOWER AND PODIUM ----------------""" 
 TT = copy.deepcopy(PD_) 
-TT['type_id'] = 'type_block'
+TT['type_id'] = 'trinco_tower_in_podium'
 #TT['div_num'],TT['div_deg'],TT['div_cut'] = 1, 0, 7.
 TT['court'], TT['court_width'],TT['court_node'] = 1, 30.4,0.#39.4, 0
 TT['court_slice'] = True
-
 """--------------------------------"""
+
+"""----------------TOWER IN PARK ----------------""" 
+TP = copy.deepcopy(PD_) 
+TP['type_id'] = 'trinco_tower_in_park'
+#TT['separate'] = True 
+#TT['separation_dist'] = 25.#20m<min case
+#TT['dim'] = 27.4 
+"""--------------------------------"""
+
 if True:
-    sc.sticky['type_block'] = TT
+    sc.sticky['trinco_tower_in_podium'] = TT
+    sc.sticky['trinco_tower_in_park'] = TP
     o = True 
     #Rhino.RhinoApp.Wait()
 
