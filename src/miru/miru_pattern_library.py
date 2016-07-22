@@ -39,14 +39,14 @@ TT['type_id'] = 'miru_tower_in_podium'
 #TT['solartype'] = 3
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
-#TT['stepback_node'] = -1
-#TT['stepback_base'] = [(13.5,3.)]
-#TT['stepback_tower'] = []
+TT['stepback_node'] = -1
+TT['stepback_base'] = [(13.5,3.)]
+TT['stepback_tower'] = []
 ## Change this to separate PD so it can be reused for base
-TT['separate'] = True 
-TT['separation_dist'] = 25.#20m<min case
-TT['dim'] = 27.4 
-TT['height'],TT['height_node'] = 'bula', 'valid_seperation' 
+#TT['separate'] = True 
+#TT['separation_dist'] = 25.#20m<min case
+#TT['dim'] = 27.4 
+TT['height'],TT['height_node'] = 16.5, '' 
 
 
 """----------------
@@ -54,13 +54,15 @@ Tower and Park
 ----------------""" 
 TP = copy.deepcopy(PD_) 
 TP['type_id'] = 'miru_tower_in_park'
+TP['stepback_node'] = -1
+TP['stepback_base'] = [(0,3.)]
+TP['stepback_tower'] = []
 TP['separate'] = True 
 TP['separation_dist'] = 15.#25.#20m<min case
 TP['dim'] = 27.4 
 TP['height'],TP['height_node'] = 'bula', 'valid_seperation' 
 
-
-grammar_lst.extend([TO,TT])
+grammar_lst.extend([TO,TT,TP])
 
 if reset==False:
     import rhinoscriptsyntax as rs

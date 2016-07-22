@@ -66,7 +66,7 @@ class Pattern:
             IsDegenerate = abs(child_shape.x_dist-0.) < 0.0001 or abs(child_shape.y_dist-0.) < 0.0001
             if not IsDegenerate:
                 if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
-                    child_shape.op_extrude(12.)
+                    child_shape.op_extrude(6.)
                 child_grammar = Grammar(child_shape)
                 child_grammar.type["label"] = label
                 child_node = Tree(child_grammar,parent=parent_node,depth=tree_depth)
@@ -186,7 +186,7 @@ class Pattern:
         curr_n = tnode#tnode.traverse_tree(lambda n: n,internal=False)
         try:
             ht, dist = stepback_[0], stepback_[1]
-            print 'ht,dist', ht, dist
+            #print 'ht,dist', ht, dist
             for j,sbref in enumerate(sb_ref_):
                 # move sbref
                 move_vector= rc.Geometry.Vector3d(0,0,float(ht))
@@ -348,7 +348,6 @@ class Pattern:
             n_.loc.append(childn)
             childn.data.shape.op_extrude(6.)
             return childn 
-        
         def subdivide_by_dim(temp_node_topo_,cut_axis,cut_width_first,cut_width_second):
             def helper_subdivide_by_dim(count,tn_,cut_axis_,cut_width_,recurse=True):
                 ## Takes a node subdivides it along one axis according to separation distance
@@ -379,7 +378,6 @@ class Pattern:
                 #debug.append(tnc.data.shape.geom)
                 helper_subdivide_by_dim(0,tnc,cut_axis,cut_width_second,recurse=True)
             return temp_node_topo_
-        
         def check_base_dimension(tn_,cut_axis_,cut_width_):
             if "NS" in cut_axis:
                 IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
@@ -419,7 +417,7 @@ class Pattern:
             debug.append(sep_crv_viz)
             ## Append crv
             sc.sticky['seperation_offset_lst'].append(sep_crv)
-            check_base_separation_.data.type["valid_seperation"] = True
+            check_base_separation_.data.type["print"] = True
         def check_shape_validity(t_,cut_axis_,dim_,sep_lst_,separation_tol_):
             #check_base_dim = check_base_dimension(t_,cut_axis_,dim_)
             #if check_base_dim:
@@ -431,11 +429,15 @@ class Pattern:
         
         ## Get normal to exterior srf
         normal2srf = self.helper_normal2extsrf(temp_node_)
+        
         ### FIGURE OUT IF EXTENSION OR ADDITION
+        #if 'podium' in temp_node_.get_root().data.type['label']:
         #temp_node_.data.type['print'] = True
         temp_node_.data.type['label'] = 'base'
         #temp_node_topo = extract_topo(temp_node_,0.)
         temp_node_topo = temp_node_
+        #delete base node
+        temp_node_topo.data.type['print']=False
         
         ## Recursively subdivide the lot crvs
         #sep_dist = distance between towers
@@ -451,9 +453,10 @@ class Pattern:
         for tpg in topo_grand_child_lst_:
             IsDim = check_base_dimension(tpg,cut_axis,cut_width_second)
             if IsDim:
-               L.append(tpg) 
+                L.append(tpg)
+            else:
+                debug.append(tpg.data.shape.geom) 
         topo_grand_child_lst_ = L 
-        
         
         ## CUTTING 2D
         topo_grand_child_lst__ = []
@@ -467,6 +470,8 @@ class Pattern:
             IsDim = check_base_dimension(tpg,cut_axis,cut_width_second)
             if IsDim:
                L.append(tpg) 
+            else:
+                debug.append(tpg.data.shape.geom)
         topo_grand_child_lst_ = L 
         
         #---
@@ -498,7 +503,7 @@ class Pattern:
                     buladata.generate_bula_point(nodecrvlst,inptlst)
                     ## you are now a bulalot!
                     ht_factor = n_.data.type['bula_data'].value
-                    setht = ht_factor - 16.5#1000.*ht_factor
+                    setht = ht_factor#1000.*ht_factor
                     #debug.extend(n_.data.type['bula_data'].bpt_lst)
                 return setht
         def height_from_envelope(n_):
@@ -528,12 +533,12 @@ class Pattern:
                 envht = min_pt[2]
             else:
                 envht = 150.
-            
-            return envht-13.5
+            return envht
             
         debug = sc.sticky['debug']
         #print 'We are setting height!'
         overridePD = self.check_override(temp_node_)
+        ht_node_ = 'print'
         if overridePD!=None:
             ht_node_ = overridePD['height_node']
         lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
@@ -544,7 +549,7 @@ class Pattern:
                 ht_ = overridePD['height']
             if type(ht_)==type('') and 'bula' in ht_:
                 ht_ = height_from_bula(n_)
-                if ht_ > 150.: ht_ = 150. - 16.5
+                if ht_ > 150.: ht_ = 150.
                 #if ht_ < 9.: ht_ = 9.
             elif type(ht_)==type('') and 'envelope' in ht_:
                 ht_ = height_from_envelope(n_)
@@ -596,7 +601,7 @@ class Pattern:
             return refshape_  
         def court_slice(curr_node,rootshape,width_):
             def recurse_slice(curr_node_,matrice,valid_node_lst,count):
-                print count, curr_node_
+                #print count, curr_node_
                 cmax = 60.
                 tol = 10.
                 invalid_node = None
@@ -606,7 +611,7 @@ class Pattern:
                     return valid_node_lst
                 else:
                     for i,line in enumerate(matrice):
-                        print '  ',i
+                        #print '  ',i
                         dirvec = line[1]-line[0]
                         dist = math.sqrt(sum(map(lambda p: p*p,dirvec)))
                         if dist > tol: 
@@ -695,7 +700,7 @@ class Pattern:
 
         ## 2. make a new, fresh node
         temp_node = self.helper_geom2node(geo_brep,node)
-        
+        temp_node.data.type['print'] = True
         
         ## 3. param 2
         div_num = PD['div_num']
@@ -727,7 +732,6 @@ class Pattern:
         if overridePD!=None:
             stepback_node = overridePD['stepback_node']
             stepback = overridePD['stepback_base']
-        print 'stepback', stepback
         #if overridePD==None:
             #debug.append(temp_node.data.shape.geom)
         if stepback != None and stepback != []:
@@ -742,21 +746,18 @@ class Pattern:
                         print "Error @ stepback"
                         print str(e)#,sys.exc_traceback.tb_lineno
         
-        #debug.append(temp_node.data.shape.geom)
         ## 6. separation_distance
         if PD['separate']:
             separation_dist = PD['separation_dist']
             unitdim = PD['dim']
             norm2srfvector = self.helper_normal2extsrf(temp_node)
             temp_node = self.pattern_separate_by_dist(temp_node,separation_dist,unitdim) 
-            
-        
+            #print temp_node.data.shape.geom
         ## 7. Extrude
         if PD['height']!=False:
             ht = PD['height']
             ht_label = PD['height_node']
-            temp_node = self.pattern_set_height(temp_node,ht,ht_label)    
-        
+            temp_node = self.pattern_set_height(temp_node,ht,ht_label)
             
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]

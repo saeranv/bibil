@@ -82,6 +82,7 @@ class Bula_Data:
             neighbor = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
+                """
                 movedist = abs(lot.data.shape.cpt[2]-cp[2])
                 if abs(movedist-0.0)>0.1:
                     if lot.data.shape.cpt[2] < cp[2]:
@@ -93,6 +94,8 @@ class Bula_Data:
                     cp = sc.doc.Objects.AddPoint(cp)
                 copy_cp = rs.CopyObject(cp,vec)
                 #copy_cp = rs.coerce3dpoint() 
+                """
+                copy_cp = cp
                 in_lot = 0
                 try:
                     in_lot = int(rs.PointInPlanarClosedCurve(copy_cp,boundary,lot.data.shape.cplane))
