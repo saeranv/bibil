@@ -490,16 +490,16 @@ class Pattern:
             bula_node = n_.search_up_tree(lambda n: n.data.type.has_key('bula_data'))
             if bula_node:
                 buladata = bula_node.data.type['bula_data']
+                debug.extend(buladata.bpt_lst)
                 nodecrvlst = [n_]
                 #make this function in bula
                 inptlst = buladata.getpoints4lot(nodecrvlst,buladata.bpt_lst)
-                print inptlst[0]
-                debug.extend(inptlst[0])
                 if inptlst != [[]]:
                     buladata.generate_bula_point(nodecrvlst,inptlst)
                     ## you are now a bulalot!
                     ht_factor = n_.data.type['bula_data'].value
                     setht = ht_factor - 16.5#1000.*ht_factor
+                    #debug.extend(n_.data.type['bula_data'].bpt_lst)
                 return setht
         def height_from_envelope(n_):
             #TO['solartype'],TO['solartime']
@@ -717,7 +717,7 @@ class Pattern:
                 temp_node = self.pattern_solar_envelope_multi(temp_node,solartime,node.data,solarht)
             except Exception as e:
                 print e
-        
+                
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
         stepback = PD['stepback_base']

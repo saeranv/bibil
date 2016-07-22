@@ -79,20 +79,23 @@ class Bula_Data:
         lst_bpt_lst_ = []
         for j,lot in enumerate(lots_):
             boundary = lot.data.shape.bottom_crv
-            """
-            if abs(lot.data.shape.cpt[2]-0.)>0.1:
-                downdist = 0.0 - lot.data.shape.cpt[2]
-                vec = rc.Geometry.Vector3d(0,0,downdist)
-                if type(boundary)!=type(rs.AddPoint(0,0,0)):
-                    boundary = sc.doc.Objects.AddCurve(boundary)
-                boundary = rs.CopyObject(boundary,vec)
-            """   
             neighbor = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
+                movedist = abs(lot.data.shape.cpt[2]-cp[2])
+                if abs(movedist-0.0)>0.1:
+                    if lot.data.shape.cpt[2] < cp[2]:
+                        movedist *= -1
+                    vec = rc.Geometry.Vector3d(0,0,movedist)
+                else:
+                    vec = rc.Geometry.Vector3d(0,0,0)
+                if not lot.data.shape.is_guid(cp):
+                    cp = sc.doc.Objects.AddPoint(cp)
+                copy_cp = rs.CopyObject(cp,vec)
+                #copy_cp = rs.coerce3dpoint() 
                 in_lot = 0
                 try:
-                    in_lot = int(rs.PointInPlanarClosedCurve(cp,boundary,lot.data.shape.cplane))
+                    in_lot = int(rs.PointInPlanarClosedCurve(copy_cp,boundary,lot.data.shape.cplane))
                 except:
                     pass
                 #0 = point is outside of the curve
@@ -100,7 +103,7 @@ class Bula_Data:
                 #2 = point in on the curve
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
-                    d = rs.AddPoint(cp[0], cp[1],0)
+                    #d = rs.AddPoint(copy_cp[0], copy_cp[1],0)
                     #debug.append(d)
             lst_bpt_lst_.append(neighbor)
         return lst_bpt_lst_ 
