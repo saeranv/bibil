@@ -226,10 +226,10 @@ class Pattern:
             hnode.data.type['axis'] = haxis
             hnode.data.type['ratio'] = hratio
             return hnode
-        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol=1.):            
+        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol=2.):            
             def greater(a,b,tol):
-                checktol = abs(a-b) <= tol
-                return a >= b and not checktol
+                #withintol = abs(a-b) <= tol
+                return (a+tol) >= b# and withintol
             ss = hnode.data.shape
             grid_x, grid_y = float(div[0]), float(div[1])
             if greater(ss.y_dist,grid_y,tol):
@@ -350,11 +350,18 @@ class Pattern:
             self.pattern_divide(temp_node_topo_,"subdivide_dim",firstdiv,cut_axis,0.)
             
             ## Subdivide by small dist
-            cutwidth_second = distlst_[0] if distlst_[0] > distlst_[1] else distlst_[1]
+            cutwidth_second = distlst_[0] if distlst_[1] not in dellst_ else distlst_[1]
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
             for tnc in topo_child_lst:
-                seconddiv = [cutwidth_second,cutwidth_second]
+                seconddiv = (cutwidth_second,cutwidth_second)
+                print 'small dist', cutwidth_second
+                #cut_ratio_ = tnc.data.shape.calculate_ratio_from_dist(cut_axis,cutwidth_second,0)
                 try:
+                    #self.pattern_divide(tnc,'simple_divide',cutwidth_second,cut_axis,cut_ratio_)
+                    #for tnc_ in tnc.loc:
+                    #    ca = "EW" if cut_axis == "NS" else "NS"
+                    #    cr = tnc_.data.shape.calculate_ratio_from_dist(ca,cutwidth_second,0)
+                    #    self.pattern_divide(tnc_,'simple_divide',cutwidth_second,ca,cr)
                     self.pattern_divide(tnc,'subdivide_dim',seconddiv,cut_axis,0.)
                 except: 
                     pass
@@ -390,9 +397,14 @@ class Pattern:
             ## Check dimension then check if collision w/ offset dist
             dim_ = dstlst[0] if dstlst[1] in dellst else dstlst[1]
             # flip cut axis to check the resulting dim
+            print 'dimchk', dim_,'x,ydist', t_.data.shape.x_dist, t_.data.shape.y_dist
             IsEWDim = t_.data.shape.check_shape_dim("EW",dim_,tol=2.)
             IsNSDim = t_.data.shape.check_shape_dim("NS",dim_,tol=2.)
+            print ''
+            #debug.append(t_.data.shape.geom)
+            #debug.extend(t_.data.shape.bbpts)
             if IsEWDim and IsNSDim:
+                #debug.append(t_.data.shape.geom)
                 check_base_separation = check_base_with_offset(t_,sep_lst_)
                 if check_base_separation:# != None:
                     sep_dist_ = dstlst[0]
@@ -526,13 +538,13 @@ class Pattern:
         if node_.data.type.has_key(label) and node_.data.type[label]:
             return node_
     def concentric_divide(self,temp_node_,distlst,dellst):
-        def helper_recurse(curr_node_,rootref_,distlst_,dist_acc,dellst_,lst_ring,diffn,count):
+        def helper_recurse(curr_node_,rootref_,distlst_,dist_acc,dellst_,lst_ring,diffnarchive,count):
             dist_ = distlst_.pop(1)
             ##base case: fail chk_offset
             rootshape = 0
             if curr_node_ == None or count > 10:
-                if diffn!=None:
-                    lst_ring.append(diffn.data.shape.geom)
+                if diffnarchive!=None:
+                    lst_ring.append(diffnarchive.data.shape.geom)
                 return lst_ring
             else:
                 try:
@@ -547,14 +559,15 @@ class Pattern:
                         for cn in curr_node_.loc:
                             lst_ring.append(cn.data.shape.geom)
                     ## Check diff node dimension and store it
-                    if diff_node:
+                    if diff_node: #and dist_ not in dellst_:
+                        #print 'distchk for', dist_
                         chk_EW_dim = diff_node.data.shape.check_shape_dim("EW",dist_,min_or_max='min')
                         chk_NS_dim = diff_node.data.shape.check_shape_dim("NS",dist_,min_or_max='min') 
                         if chk_EW_dim and chk_NS_dim:
-                            diffn = diff_node
+                            diffnarchive = diff_node
                     distlst_.insert(0,dist_)
                     ## Change the relationships 
-                    return helper_recurse(diff_node,rootref_,distlst_,dist_acc+dist_,dellst_,lst_ring,diffn,count+1)
+                    return helper_recurse(diff_node,rootref_,distlst_,dist_acc+dist_,dellst_,lst_ring,diffnarchive,count+1)
                 except Exception as e:
                     pass#print 'error at concentric', str(e)
         debug = sc.sticky['debug']
@@ -564,11 +577,12 @@ class Pattern:
             ringlst = helper_recurse(subdiv,rootref,distlst,0.,dellst,[],None,0)
             ringlst = filter(lambda n: n!=None,ringlst)
             #debug.extend(ringlst)
+            subdiv.data.type['courtnode'] = True
+            #subdiv.data.type['print']= False
             for ring in ringlst:
                 childnode = self.helper_geom2node(ring,subdiv)
+                #childnode.data.type['print'] = True
                 subdiv.loc.append(childnode)
-            
-            
         return temp_node_
     def pattern_court(self,temp_node_,court_node,court_width,subdiv_num=0.,subdiv_cut=0.,subdiv_flip=False,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):

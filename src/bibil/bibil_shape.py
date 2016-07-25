@@ -300,8 +300,6 @@ class Shape_3D:
             #print str(e)#sys.exc_traceback.tb_lineno 
     def check_shape_dim(self,axis_,dim_,shape=None,min_or_max=False,tol=0.1):
         ### Checks that the shape dimension is equal to
-        ### a given dimension, within a specififed tol along 
-        ### a specified axis
         if shape==None:
             shape = self
         if "EW" in axis_:    
@@ -315,7 +313,8 @@ class Shape_3D:
             ## Check if less than max
             else:
                 IsWidth = shapedim <= (dim_+tol) 
-        else:        
+        else:
+            print 'chkshapedim',abs(shapedim-dim_), dim_,tol        
             IsWidth = abs(shapedim-dim_) <= tol
         return IsWidth
     def is_guid(self,geom):

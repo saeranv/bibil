@@ -189,6 +189,16 @@ class Bula_Data:
         #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
         return bula_sort
 
+def brute_force_reorder(oldlots_,newlots,maxrecursenum,count):
+    ## brute force bade code
+    ## "Premature optimization is the root of all evil" - Donald Knut    
+    if count >= maxrecursenum:
+        return newlots
+    else:
+        for lot in oldlots:
+            if lot.loc:
+                newlots.append(lot.loc.pop(0))
+        return brute_force_reorder(oldlots_,newlots,maxrecursenum,count+1)
 debug = sc.sticky['debug']
 debug = []
 sc.sticky['BulaData'] = Bula_Data
@@ -199,10 +209,17 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     #norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
     norm_cpt_lst = cpt_lst
     lot_lst = []
-    #debug.extend(norm_cpt_lst)
+    maxcourtslices = 0.
     for lot in oldlots:
-        lot_lst.extend(lot.traverse_tree(lambda n: n,internal=False))
+        if maxcourtslices < float(len(lot.loc)):
+            maxcourtslices = float(len(lot.loc))
+    lot_lst = brute_force_reorder(oldlots,lot_lst,maxcourtslices+1,0)
     oldlots = lot_lst
+    
+    for i,lot in enumerate(oldlots):
+        if i < 1:
+            debug.append(lot.data.shape.geom)
+    #"""
     lst_bpt_lst = Bula.getpoints4lot(oldlots,norm_cpt_lst)
     lots = Bula.generate_bula_point(oldlots,lst_bpt_lst)
     
@@ -216,7 +233,6 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
         except:
             pass
         #debug.append(lot.data.shape.geom)
-    oldlots = Bula.sort_by_bula(oldlots)
+    #oldlots = Bula.sort_by_bula(oldlots)
     lst_lots = oldlots
-    print 'debug', debug
-    
+    #print 'debug', debug

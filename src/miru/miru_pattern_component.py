@@ -38,10 +38,12 @@ def copy_node_lst(nlst,cnum):
 def main(node_in_lst):
     gen_node_lst = apply_type(node_in_lst)
     node_in_lst = gen_node_lst
-
+    #print 'len', len(node_in_lst)
+    #debug.extend(map(lambda n: n.data.shape.geom,node_in_lst))
     try:
         NL = []
         P = Pattern()
+        #debug.append(node_in_lst[1].data.shape.geom)
         for node_in_ in node_in_lst:
             if True:#try:
                 node_out_ = P.main_pattern(node_in_)
