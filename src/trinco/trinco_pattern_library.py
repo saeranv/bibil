@@ -17,8 +17,10 @@ PD_ = \
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
 'stepback_base':None,'stepback_tower':None, 'stepback_node':-1,\
-'separate':False,'separation_dist':0.,'dim':0.,\
-'height':False,'height_node':''} 
+'separate':False,\
+'height':False,\
+'dist_lst':None,'delete_dist':None,\
+'concentric_divide': False} 
 
 """----------------TOWER AND PODIUM ----------------""" 
 TT = copy.deepcopy(PD_) 
@@ -32,11 +34,16 @@ TT['height'] = 16.5
 """----------------TOWER IN PARK ----------------""" 
 TP = copy.deepcopy(PD_) 
 TP['type_id'] = 'trinco_tower_in_park'
+#TP['stepback_node'] = -1
+#TP['stepback_base'] = [(0,9.)]
+#TP['stepback_tower'] = []
+TP['concentric_divide'] = True
+TP['dist_lst'] = [25.,27.4]
+TP['delete_dist'] = [25.]
 """--------------------------------"""
 
 if True:
     sc.sticky['trinco_tower_in_podium'] = TT
     sc.sticky['trinco_tower_in_park'] = TP
-    o = True 
-    #Rhino.RhinoApp.Wait()
+    o = True
 

@@ -12,8 +12,10 @@ PD_ = \
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
 'stepback_base':None, 'stepback_tower':None,'stepback_node':-1,\
-'separate':False,'separation_dist':0.,'dim':30.,\
-'height':False,'height_node':''} 
+'separate':False,\
+'height':False,\
+'concentric_divide': False,\
+'dist_lst':None,'delete_dist':None}
 """--------------------------------"""
 
 grammar_lst = []
@@ -28,7 +30,7 @@ TO['stepback_tower'] = []
 TO['separate'] = True 
 TO['separation_dist'] = 25.
 TO['dim'] = 27.4 
-TO['height'],TO['height_node'] = 'envelope', 'valid_seperation' 
+TO['height'] = 10.
 
 """----------------
 Tower and Podium 
@@ -42,11 +44,7 @@ TT['type_id'] = 'miru_tower_in_podium'
 TT['stepback_node'] = -1
 TT['stepback_base'] = [(13.5,3.)]
 TT['stepback_tower'] = []
-## Change this to separate PD so it can be reused for base
-#TT['separate'] = True 
-#TT['separation_dist'] = 25.#20m<min case
-#TT['dim'] = 27.4 
-TT['height'],TT['height_node'] = 16.5, '' 
+TT['height'] = 16.5 
 
 
 """----------------
@@ -54,13 +52,10 @@ Tower and Park
 ----------------""" 
 TP = copy.deepcopy(PD_) 
 TP['type_id'] = 'miru_tower_in_park'
-TP['stepback_node'] = -1
-TP['stepback_base'] = [(0,3.)]
-TP['stepback_tower'] = []
 TP['separate'] = True 
-TP['separation_dist'] = 15.#25.#20m<min case
-TP['dim'] = 27.4 
-TP['height'],TP['height_node'] = 'bula', 'valid_seperation' 
+TP['dist_lst'] = [25.,27.4]
+TP['delete_dist'] = [25.]
+TP['height'] = 'bula'
 
 grammar_lst.extend([TO,TT,TP])
 

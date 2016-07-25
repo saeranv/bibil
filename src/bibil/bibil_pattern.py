@@ -17,19 +17,12 @@ from rhinoscript.dimension import DimensionStyle
 Shape_3D = sc.sticky["Shape_3D"]
 Tree = sc.sticky["Tree"] 
 Grammar = sc.sticky["Grammar"]
-
+import copy
 
 class Pattern:
     """Pattern"""
     def __init__(self):
         self.lot_lst = []
-    def apply_pattern(self,node_,pd_):
-        #print 'num', count
-        try:
-            tempnode = self.main_pattern(node_,pd_)
-            return tempnode
-        except Exception as e:
-            print str(e)
     def helper_geom2node(self,geom,parent_node,label=""):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
@@ -54,7 +47,6 @@ class Pattern:
             geom = helper_curve2srf(geom)
             cplane_ref = None
             tree_depth = 0
-            
             if parent_node: 
                 cplane_ref = parent_node.data.shape.cplane
                 tree_depth = parent_node.depth+1
@@ -198,13 +190,13 @@ class Pattern:
                     curr_n.data.shape.geom = cut_geom[0]
                     curr_n.data.shape.reset(xy_change=True)
                 except Exception as e:
-                    print "Error at shape.reset at pattern_stepback",str(e)
+                    pass#print "Error at shape.reset at pattern_stepback",str(e)
                 #debug.append(curr_n.data.shape.geom)
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
         return tnode    
-    def pattern_divide(self,node,grid_type,div,axis="NS",random_tol=0,cut_width=0,div_depth=0,ratio=None,flip=False):        
+    def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=None,twoway=False,flip=False):        
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
             #print 'divdepth, div', div_depth,',', div
             # stop subdivide
@@ -234,7 +226,7 @@ class Pattern:
             hnode.data.type['axis'] = haxis
             hnode.data.type['ratio'] = hratio
             return hnode
-        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol=0.1):            
+        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol=1.):            
             def greater(a,b,tol):
                 checktol = abs(a-b) <= tol
                 return a >= b and not checktol
@@ -251,37 +243,40 @@ class Pattern:
             hnode.data.type['axis'] = haxis
             hnode.data.type['ratio'] = hratio
             return hnode
-        def helper_simple_divide(hnode,ratio_,axis_ref="NS"):
+        def helper_simple_divide(hnode,div_,div_depth_,ratio_,axis_ref="NS"):
             hnode.data.type['axis'] = axis_ref
             hnode.data.type['ratio'] =ratio_
             return hnode
+        def helper_divide_recurse(node_,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
+            ## Split, make a node, and recurse.
+            ## div = cut num (i.e. 1,2 or [25,25] if subdivdiebydim)
+            ## divdepth = how many times you are cutting
+            ## cwidth: thickness of cut only used in split
+            ## Calculate and encode the ratio and axis data
+            if grid_type == "subdivide_depth":
+                node_ = helper_subdivide_depth(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+            elif grid_type == "subdivide_depth_same":
+                node_ = helper_subdivide_depth_same(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+            elif grid_type == "subdivide_dim":
+                node_ = helper_subdivide_dim(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+            else:#simple_divide
+                node_ = helper_simple_divide(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+            if count > 50.:
+                pass
+            elif node_.data.type['ratio'] > 0.0001:
+                loc = node_.data.shape.op_split(node_.data.type['axis'],node_.data.type['ratio'],0.,split_depth=cwidth_)
+                #debug.extend(loc)
+                for i,child_geom in enumerate(loc):
+                    child_node = self.helper_geom2node(child_geom,node_)
+                    if child_node: node_.loc.append(child_node)
+                if 'simple_divide' not in grid_type: 
+                    for nc in node_.loc:
+                        helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
         debug = sc.sticky['debug']
         if node.depth >=200: # base case 1
             print 'node.depth > 10'
         else:
-            ## Calculate and encode the ratio and axis data
-            axis_ = axis
-            if flip:
-                axis_ = "NS" if "EW" in axis else "EW"
-            if grid_type == "subdivide_depth":
-                node = helper_subdivide_depth(node,div,div_depth,ratio,axis_ref=axis_)
-            elif grid_type == "subdivide_depth_same":
-                node = helper_subdivide_depth_same(node,div,div_depth,ratio,axis_ref=axis_)
-            elif grid_type == "subdivide_dim":
-                node = helper_subdivide_dim(node,div,div_depth,ratio,axis_ref=axis_)
-            else:#simple_divide
-                node = helper_simple_divide(node,ratio,axis_ref=axis_)
-            
-            ## Split, make a node, and recurse.
-            if node.data.type['ratio'] > 0.0001:
-                loc = node.data.shape.op_split(node.data.type['axis'],node.data.type['ratio'],0.,split_depth=cut_width)
-                #debug.extend(loc)
-                for i,child_geom in enumerate(loc):
-                    child_node = self.helper_geom2node(child_geom,node)
-                    if child_node: node.loc.append(child_node)
-                if 'simple_divide' not in grid_type:
-                    for c in node.loc:
-                        self.pattern_divide(c,grid_type,div,axis_,random_tol,cut_width,div_depth+1,ratio)
+            helper_divide_recurse(node,grid_type,div,div_depth,cut_width,ratio,axis,0)
         return node
     def helper_normal2extsrf(self,temp_node_):
         def get_colinear_line(refnode_,tn_):
@@ -339,7 +334,7 @@ class Pattern:
         #debug.append(line)
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
-    def pattern_separate_by_dist(self,temp_node_,sep_dist,dim=1.):
+    def pattern_separate_by_dist(self,temp_node_,distlst,dellst):
         def extract_topo(n_,ht_):
             pt = n_.data.shape.cpt
             refpt = rs.AddPoint(pt[0],pt[1],ht_)
@@ -348,49 +343,22 @@ class Pattern:
             n_.loc.append(childn)
             childn.data.shape.op_extrude(6.)
             return childn 
-        def subdivide_by_dim(temp_node_topo_,cut_axis,cut_width_first,cut_width_second):
-            def helper_subdivide_by_dim(count,tn_,cut_axis_,cut_width_,recurse=True):
-                ## Takes a node subdivides it along one axis according to separation distance
-                ## and dimension
-                if count <= 100:
-                    if "NS" in cut_axis_:
-                        IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
-                    else:
-                        IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
-                    if not IsWidth:
-                        try:
-                            cut_ratio_ = tn_.data.shape.calculate_ratio_from_dist(cut_axis_,cut_width_,0)
-                            self.pattern_divide(tn_,'simple_divide',0,axis=cut_axis_,ratio=cut_ratio_)
-                            if recurse:
-                                for tnc_ in tn_.loc:
-                                    helper_subdivide_by_dim(count+1,tnc_,cut_axis_,cut_width_)
-                        except:
-                            pass
-                else:
-                    print 'newsubdivide by depth > 30 recursion!'
+        def subdivide_by_dim(temp_node_topo_,cut_axis,distlst_,dellst_):
+            ## Subdivide by large dist
+            cutwidth_first = distlst_[0] + distlst_[1]
+            firstdiv = (cutwidth_first,cutwidth_first)
+            self.pattern_divide(temp_node_topo_,"subdivide_dim",firstdiv,cut_axis,0.)
             
-            #subdivide by dist
-            helper_subdivide_by_dim(0,temp_node_topo_,cut_axis,cut_width_first,recurse=True)
+            ## Subdivide by small dist
+            cutwidth_second = distlst_[0] if distlst_[0] > distlst_[1] else distlst_[1]
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
-            
-            #subdivide by tower_dim
             for tnc in topo_child_lst:
-                #debug.append(tnc.data.shape.geom)
-                helper_subdivide_by_dim(0,tnc,cut_axis,cut_width_second,recurse=True)
+                seconddiv = [cutwidth_second,cutwidth_second]
+                try:
+                    self.pattern_divide(tnc,'subdivide_dim',seconddiv,cut_axis,0.)
+                except: 
+                    pass
             return temp_node_topo_
-        def check_base_dimension(tn_,cut_axis_,cut_width_):
-            if "NS" in cut_axis:
-                IsWidth = abs(tn_.data.shape.x_dist-cut_width_) <= 3.
-                IsMin = tn_.data.shape.y_dist >= 5.
-            else:
-                IsWidth = abs(tn_.data.shape.y_dist-cut_width_) <= 3.
-                IsMin = tn_.data.shape.x_dist >= 5.
-            #debug.append(tn_.data.shape.geom)
-            IsArea = tn_.data.shape.get_area() > 600.
-            if IsArea and IsWidth and IsMin:
-                return tn_
-            else:
-                return None
         def check_base_with_offset(base_,offsetlst):
             # check if interect with tower-seperation list
             intersect_offset = False
@@ -406,7 +374,7 @@ class Pattern:
                 return None
             else: 
                 return base_
-        def set_separation_record(check_base_separation_,separation_tol_):
+        def set_separation_record(check_base_separation_,sep_dist,separation_tol_):
             ## Add some tolerance to separation distance
             separation_tol_ = 0.5
             sep_dist_tol = (sep_dist - separation_tol_) * -1
@@ -418,66 +386,33 @@ class Pattern:
             ## Append crv
             sc.sticky['seperation_offset_lst'].append(sep_crv)
             check_base_separation_.data.type["print"] = True
-        def check_shape_validity(t_,cut_axis_,dim_,sep_lst_,separation_tol_):
-            #check_base_dim = check_base_dimension(t_,cut_axis_,dim_)
-            #if check_base_dim:
-            check_base_separation = check_base_with_offset(t_,sep_lst_)
-            if check_base_separation:# != None:
-                set_separation_record(check_base_separation,separation_tol_)
+        def check_shape_validity(t_,cut_axis_,dstlst,dellst,sep_lst_,separation_tol_):
+            ## Check dimension then check if collision w/ offset dist
+            dim_ = dstlst[0] if dstlst[1] in dellst else dstlst[1]
+            # flip cut axis to check the resulting dim
+            IsEWDim = t_.data.shape.check_shape_dim("EW",dim_,tol=2.)
+            IsNSDim = t_.data.shape.check_shape_dim("NS",dim_,tol=2.)
+            if IsEWDim and IsNSDim:
+                check_base_separation = check_base_with_offset(t_,sep_lst_)
+                if check_base_separation:# != None:
+                    sep_dist_ = dstlst[0]
+                    set_separation_record(check_base_separation,sep_dist_,separation_tol_)
         debug = sc.sticky['debug']
-        # get root node - not linked
-        
-        ## Get normal to exterior srf
-        normal2srf = self.helper_normal2extsrf(temp_node_)
-        
-        ### FIGURE OUT IF EXTENSION OR ADDITION
-        #if 'podium' in temp_node_.get_root().data.type['label']:
-        #temp_node_.data.type['print'] = True
-        temp_node_.data.type['label'] = 'base'
         #temp_node_topo = extract_topo(temp_node_,0.)
         temp_node_topo = temp_node_
         #delete base node
         temp_node_topo.data.type['print']=False
         
-        ## Recursively subdivide the lot crvs
-        #sep_dist = distance between towers
-        #dim = tower dimension
-        cut_axis = temp_node_.data.shape.vector2axis(normal2srf)
-        cut_width_first = sep_dist + dim
-        cut_width_second = dim
+        ## Get normal to exterior srf
+        normal2srf = self.helper_normal2extsrf(temp_node_topo)
+        cut_axis = temp_node_topo.data.shape.vector2axis(normal2srf)
         
-        temp_node_topo = subdivide_by_dim(temp_node_topo,cut_axis,cut_width_first,cut_width_second)
+        ## Recursively subdivide the lot crvs
+        temp_node_topo = subdivide_by_dim(temp_node_topo,cut_axis,distlst,dellst)
         topo_grand_child_lst_ = temp_node_topo.traverse_tree(lambda n:n, internal=False)
         
-        L = []
-        for tpg in topo_grand_child_lst_:
-            IsDim = check_base_dimension(tpg,cut_axis,cut_width_second)
-            if IsDim:
-                L.append(tpg)
-            else:
-                debug.append(tpg.data.shape.geom) 
-        topo_grand_child_lst_ = L 
-        
-        ## CUTTING 2D
-        topo_grand_child_lst__ = []
-        cut_axis = "NS" if "EW" in cut_axis else "EW"
-        for tpg in topo_grand_child_lst_:
-            tpg = subdivide_by_dim(tpg,cut_axis,cut_width_first,cut_width_second)
-            topo_grand_child_lst__.extend(tpg.traverse_tree(lambda n:n, internal=False))
-        
-        L = []
-        for tpg in topo_grand_child_lst__:
-            IsDim = check_base_dimension(tpg,cut_axis,cut_width_second)
-            if IsDim:
-               L.append(tpg) 
-            else:
-                debug.append(tpg.data.shape.geom)
-        topo_grand_child_lst_ = L 
-        
-        #---
-        # Sort through subdivided bases
-        # check base dim, check base separation
-        # label bases that are valid separations
+        # Check base dim, check base separation
+        # Llabel bases that are valid separations
         if not sc.sticky.has_key('seperation_offset_lst'):
             sc.sticky['seperation_offset_lst'] = []
             existing_towers = sc.sticky['existing_tower']
@@ -485,17 +420,17 @@ class Pattern:
         sep_lst = sc.sticky['seperation_offset_lst']
         separation_tol = 0.5
         for t in topo_grand_child_lst_:
-            #t.data.type["valid_seperation"] = True
-            check_shape_validity(t,cut_axis,dim,sep_lst,separation_tol)    
-        return temp_node_
-    def pattern_set_height(self,temp_node_,ht_,ht_node_):
+            #debug.append(t.data.shape.geom)
+            check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
+        
+        return temp_node_topo
+    def pattern_set_height(self,temp_node_,ht_):
         def height_from_bula(n_):
             bula_node,bptlst = False,False
             setht = 21. #default ht = midrise
             bula_node = n_.search_up_tree(lambda n: n.data.type.has_key('bula_data'))
             if bula_node:
                 buladata = bula_node.data.type['bula_data']
-                debug.extend(buladata.bpt_lst)
                 nodecrvlst = [n_]
                 #make this function in bula
                 inptlst = buladata.getpoints4lot(nodecrvlst,buladata.bpt_lst)
@@ -539,21 +474,20 @@ class Pattern:
         #print 'We are setting height!'
         overridePD = self.check_override(temp_node_)
         ht_node_ = 'print'
-        if overridePD!=None:
-            ht_node_ = overridePD['height_node']
         lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
         lst_nodes = filter(lambda n:n!=None,lst_nodes)
         for n_ in lst_nodes:
             overridePD = self.check_override(n_)
             if overridePD:
-                ht_ = overridePD['height']
+                setht_ = overridePD['height']
             if type(ht_)==type('') and 'bula' in ht_:
-                ht_ = height_from_bula(n_)
-                if ht_ > 150.: ht_ = 150.
-                #if ht_ < 9.: ht_ = 9.
+                setht_ = height_from_bula(n_)
+                if setht_ > 150.: setht_ = 150.
             elif type(ht_)==type('') and 'envelope' in ht_:
-                ht_ = height_from_envelope(n_)
-            n_.data.shape.op_extrude(ht_)
+                setht_ = height_from_envelope(n_)
+            else:
+                setht_ = ht_
+            n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
         return temp_node_
     def get_solar_zone(self,start_time,end_time,curve=None,zonetype='envelope'):
@@ -591,28 +525,78 @@ class Pattern:
         #debug = sc.sticky['debug']
         if node_.data.type.has_key(label) and node_.data.type[label]:
             return node_
-    def pattern_court(self,temp_node_,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=None):        
-        def helper_court_refcrv(court_node_,subdiv_):
-            if int(court_node_) == 0:
-                root = temp_node_.get_root()
-                refshape_ = root.data.shape
+    def concentric_divide(self,temp_node_,distlst,dellst):
+        def helper_recurse(curr_node_,rootref_,distlst_,dist_acc,dellst_,lst_ring,diffn,count):
+            dist_ = distlst_.pop(1)
+            ##base case: fail chk_offset
+            rootshape = 0
+            if curr_node_ == None or count > 10:
+                if diffn!=None:
+                    lst_ring.append(diffn.data.shape.geom)
+                return lst_ring
             else:
-                refshape_ = subdiv_.data.shape
+                try:
+                    shgeom = curr_node_.data.shape.geom
+                    curr_node_ = self.helper_geom2node(shgeom,rootref_)
+                    try:
+                        diff_node = self.pattern_court(curr_node_,rootshape,dist_+dist_acc,slice=True)
+                    except:
+                        pass
+                    #fig this out: diff_node.parent = curr_node_.get_root()
+                    if dist_ not in dellst_:
+                        for cn in curr_node_.loc:
+                            lst_ring.append(cn.data.shape.geom)
+                    ## Check diff node dimension and store it
+                    if diff_node:
+                        chk_EW_dim = diff_node.data.shape.check_shape_dim("EW",dist_,min_or_max='min')
+                        chk_NS_dim = diff_node.data.shape.check_shape_dim("NS",dist_,min_or_max='min') 
+                        if chk_EW_dim and chk_NS_dim:
+                            diffn = diff_node
+                    distlst_.insert(0,dist_)
+                    ## Change the relationships 
+                    return helper_recurse(diff_node,rootref_,distlst_,dist_acc+dist_,dellst_,lst_ring,diffn,count+1)
+                except Exception as e:
+                    pass#print 'error at concentric', str(e)
+        debug = sc.sticky['debug']
+        lon = temp_node_.traverse_tree(lambda n: n,internal=False)
+        rootref = temp_node_.get_root()
+        for subdiv in lon:
+            ringlst = helper_recurse(subdiv,rootref,distlst,0.,dellst,[],None,0)
+            ringlst = filter(lambda n: n!=None,ringlst)
+            #debug.extend(ringlst)
+            for ring in ringlst:
+                childnode = self.helper_geom2node(ring,subdiv)
+                subdiv.loc.append(childnode)
+            
+            
+        return temp_node_
+    def pattern_court(self,temp_node_,court_node,court_width,subdiv_num=0.,subdiv_cut=0.,subdiv_flip=False,slice=None):        
+        def helper_court_refcrv(court_node_,subdiv_):
+            if type(court_node_) == type(1) or type(court_node_) == type(1.):
+                if int(court_node_) == 0:
+                    root = temp_node_.get_root()
+                    refshape_ = root.data.shape
+                else:
+                    refshape_ = subdiv_.data.shape
+            else:
+                refshape_ = court_node_
             return refshape_  
         def court_slice(curr_node,rootshape,width_):
-            def recurse_slice(curr_node_,matrice,valid_node_lst,count):
+            def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count):
                 #print count, curr_node_
                 cmax = 60.
-                tol = 10.
+                tol = 2.
                 invalid_node = None
                 valid_node = None
                 #Base case
                 if count >= cmax or curr_node_==None:
-                    return valid_node_lst
+                    return valid_node_lst,diff
                 else:
+                    diff = curr_node_
                     for i,line in enumerate(matrice):
                         #print '  ',i
                         dirvec = line[1]-line[0]
+                        # get magnitude of line
                         dist = math.sqrt(sum(map(lambda p: p*p,dirvec)))
                         if dist > tol: 
                             split_crv = rs.AddCurve(line,1)
@@ -638,46 +622,42 @@ class Pattern:
                 # If the node has been split (invalid_node!= None)
                 # OR the node has no valid split lines (invalid_node == None)
                 # then we send it back into the recurser.
-                return recurse_slice(invalid_node,matrice,valid_node_lst,count+1) 
+                return recurse_slice(invalid_node,matrice,valid_node_lst,diff,count+1) 
             
             offset = rootshape.op_offset_crv(width_)
             chk_offset = rootshape.op_offset_crv(width_+0.21)
-            off_node = self.helper_geom2node(offset,curr_node)
-            shape_matrix = off_node.data.shape.set_base_matrix()
-            L = recurse_slice(curr_node,shape_matrix,[],0)
-            #debug.extend(map(lambda n:n.data.shape.geom,L))
-            for i,n in enumerate(L):
-                n.depth = curr_node.depth+1
-                n.parent = curr_node
-                L[i] = n
-            curr_node.loc = L
-                
+            if chk_offset:
+                off_node = self.helper_geom2node(offset,curr_node)
+                shape_matrix = off_node.data.shape.set_base_matrix()
+                L,diff = recurse_slice(curr_node,shape_matrix,[],None,0)
+                #debug.extend(map(lambda n:n.data.shape.geom,L))
+                for i,n in enumerate(L):
+                    n.depth = curr_node.depth+1
+                    n.parent = curr_node
+                    L[i] = n
+                curr_node.loc = L##<<
+            else:
+                diff = None
+            return diff
         debug = sc.sticky['debug']
+        diff = None
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
         for subdiv in lon:
             subdiv.data.shape.convert_rc('3d')
             refshape = helper_court_refcrv(court_node,subdiv)
             if slice:
                 try:
-                    court_slice(subdiv,refshape,court_width)
+                    diff = court_slice(subdiv,refshape,court_width)
                 except Exception as e:
-                    print 'Error @ court_slice', str(e)
-            
+                    pass#print 'Error @ court_slice', str(e)
             elif court_width > 0.:
                 try:
                     subdiv.data.shape.op_offset(court_width,refshape.bottom_crv,dir="courtyard")
                 except Exception as e:
                     print 'Error @ court', str(e)
             
-        return temp_node_
-    def main_pattern(self,node,PD):
-        """
-        param_dictionary
-        solar: solartype, solartime
-        divis: div_num, div_deg, div_cut
-        court: court, court_width, court_node
-        sdiv: subdiv_num, subdiv_cuttime
-        """
+        return diff
+    def main_pattern(self,node):
         debug = sc.sticky["debug"]
         debug = []
         TOL = sc.doc.ModelAbsoluteTolerance
@@ -686,6 +666,7 @@ class Pattern:
         gb = node.data.shape.geom
         if node.data.shape.is_guid(gb): gb = rs.coercebrep(gb)#gb = sc.doc.Objects.AddBrep(gb)
         geo_brep = copy.copy(gb)
+        PD = node.data.type
         
         ## 1. param 1 or param 3
         solartype = PD['solartype']
@@ -748,16 +729,24 @@ class Pattern:
         
         ## 6. separation_distance
         if PD['separate']:
-            separation_dist = PD['separation_dist']
-            unitdim = PD['dim']
+            dist_lst = PD['dist_lst']
+            del_lst = PD['delete_dist']
             norm2srfvector = self.helper_normal2extsrf(temp_node)
-            temp_node = self.pattern_separate_by_dist(temp_node,separation_dist,unitdim) 
+            temp_node = self.pattern_separate_by_dist(temp_node,dist_lst,del_lst) 
             #print temp_node.data.shape.geom
+        
+        
+        if PD['concentric_divide']:
+            dist_lst = PD['dist_lst']
+            del_dist_lst = PD['delete_dist']
+            temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst) 
+            
+        
         ## 7. Extrude
         if PD['height']!=False:
             ht = PD['height']
-            ht_label = PD['height_node']
-            temp_node = self.pattern_set_height(temp_node,ht,ht_label)
+            temp_node = self.pattern_set_height(temp_node,ht)
+            
             
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
@@ -820,7 +809,7 @@ class Pattern:
                 #radian_angle = rc.Geometry.Vector3d.VectorAngle(oldyaxis,newyaxis)
                 #zaxis = rc.Geometry.Vector3d(0,0,1)
                 #temp_node.data.shape.cplane.Rotate(radian_angle,zaxis)
-                temp_node = self.pattern_court(temp_node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=court_slice)            
+                self.pattern_court(temp_node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=court_slice)            
             except Exception as e:
                 print "Error at pattern_court"
                 print str(e)

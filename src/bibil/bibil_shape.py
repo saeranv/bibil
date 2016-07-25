@@ -114,7 +114,7 @@ class Shape_3D:
         ## if dir == 1: ratio = 0.25
         if "NS" in axis:
             total_dist = self.x_dist
-        else:# if "EW" in axis:
+        else:# if "EW" in axis
             total_dist = self.y_dist
         # Cut from bottom
         ratio = dist/float(total_dist)
@@ -297,7 +297,27 @@ class Shape_3D:
             return check_bbpts(bbpts_)
         except Exception as e:
             print "Error @ get_boundingbox"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            #print str(e)#sys.exc_traceback.tb_lineno 
+    def check_shape_dim(self,axis_,dim_,shape=None,min_or_max=False,tol=0.1):
+        ### Checks that the shape dimension is equal to
+        ### a given dimension, within a specififed tol along 
+        ### a specified axis
+        if shape==None:
+            shape = self
+        if "EW" in axis_:    
+            shapedim = self.x_dist
+        else:
+            shapedim = self.y_dist
+        if min_or_max != False:
+            ## Check if more than min
+            if 'min' in min_or_max: 
+                IsWidth = (shapedim+tol) >= dim_
+            ## Check if less than max
+            else:
+                IsWidth = shapedim <= (dim_+tol) 
+        else:        
+            IsWidth = abs(shapedim-dim_) <= tol
+        return IsWidth
     def is_guid(self,geom):
         return type(rs.AddPoint(0,0,0)) == type(geom)     
     def convert_rc(self,dim=None):
