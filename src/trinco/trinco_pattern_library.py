@@ -20,6 +20,7 @@ PD_ = \
 'separate':False,\
 'height':False,\
 'dist_lst':None,'delete_dist':None,\
+'stepback_ref':None,\
 'concentric_divide': False} 
 
 """----------------TOWER AND PODIUM ----------------""" 
@@ -37,6 +38,7 @@ TP['type_id'] = 'trinco_tower_in_park'
 #TP['stepback_node'] = -1
 #TP['stepback_base'] = [(0,9.)]
 #TP['stepback_tower'] = []
+TP['stepback_ref'] = [(0,9.)]
 TP['concentric_divide'] = True
 TP['dist_lst'] = [25.,27.4]
 TP['delete_dist'] = [25.]

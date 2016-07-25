@@ -15,6 +15,7 @@ PD_ = \
 'separate':False,\
 'height':False,\
 'concentric_divide': False,\
+'stepback_ref':None,\
 'dist_lst':None,'delete_dist':None}
 """--------------------------------"""
 
@@ -42,9 +43,8 @@ TT['type_id'] = 'miru_tower_in_podium'
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
 TT['stepback_node'] = -1
-TT['stepback_base'] = [(13.5,3.)]
-TT['stepback_tower'] = []
-TT['height'] = 16.5 
+TT['stepback_base'] = [(13.5,9.)]
+TT['height'] = 16.5
 
 
 """----------------

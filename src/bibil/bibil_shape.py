@@ -314,7 +314,6 @@ class Shape_3D:
             else:
                 IsWidth = shapedim <= (dim_+tol) 
         else:
-            print 'chkshapedim',abs(shapedim-dim_), dim_,tol        
             IsWidth = abs(shapedim-dim_) <= tol
         return IsWidth
     def is_guid(self,geom):
