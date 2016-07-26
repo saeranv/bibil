@@ -430,7 +430,7 @@ class Pattern:
         sep_lst = sc.sticky['seperation_offset_lst']
         separation_tol = 0.5
         for t in topo_grand_child_lst_:
-            debug.append(t.data.shape.geom)
+            #debug.append(t.data.shape.geom)
             check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
         
         return temp_node_topo
@@ -502,9 +502,9 @@ class Pattern:
             ydist = rs.Distance(n_.data.shape.cpt,ypt)
             mdist = rs.Distance(n_.data.shape.cpt,mpt)
             if ydist < mdist:
-                maxht = 150.
+                maxht = 211.5# 70 storeys
             else:
-                maxht = 100.
+                maxht = 121.5 # 40 storeys
             
             if setht_ > maxht:
                 setht_ = maxht

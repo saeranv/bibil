@@ -55,8 +55,8 @@ Tower and Park
 TP = copy.deepcopy(PD_) 
 TP['type_id'] = 'miru_tower_in_park'
 TP['separate'] = True 
-TP['dist_lst'] = [25.,27.4]
-TP['delete_dist'] = [25.]
+TP['dist_lst'] = [29.5,27.4]
+TP['delete_dist'] = [29.5]
 TP['height'] = 'bula'
 
 grammar_lst.extend([TO,TT,TP])
