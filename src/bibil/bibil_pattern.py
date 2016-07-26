@@ -362,8 +362,8 @@ class Pattern:
                 seconddiv = (cutwidth_second,cutwidth_second)
                 try:
                     self.pattern_divide(tnc,'subdivide_dim',seconddiv,cut_axis,0.)
-                except: 
-                    pass
+                except Exception as e: 
+                    print 'error at subbydim', str(e)
             return temp_node_topo_
         def check_base_with_offset(base_,offsetlst):
             # check if interect with tower-seperation list
