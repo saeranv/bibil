@@ -187,14 +187,16 @@ class Pattern:
                 try:
                     cut_geom = curr_n.data.shape.op_split("EW",0.5,deg=0.,\
                     split_depth=float(dist),split_line_ref=sbref_crv)
-                    curr_n.data.shape.geom = cut_geom[0]
-                    curr_n.data.shape.reset(xy_change=True)
+                    if cut_geom:
+                        curr_n.data.shape.geom = cut_geom[0]
+                        curr_n.data.shape.reset(xy_change=True)
                 except Exception as e:
-                    pass#print "Error at shape.reset at pattern_stepback",str(e)
-                #debug.append(curr_n.data.shape.geom)
+                    print "Error at shape.reset at pattern_stepback",str(e)
+            #debug.append(curr_n.data.shape.geom)
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
+        #debug.append(tnode.data.shape.geom)
         return tnode    
     def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=None,twoway=False,flip=False):        
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
@@ -226,10 +228,10 @@ class Pattern:
             hnode.data.type['axis'] = haxis
             hnode.data.type['ratio'] = hratio
             return hnode
-        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol=2.):            
+        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol=1.):            
             def greater(a,b,tol):
-                #withintol = abs(a-b) <= tol
-                return (a+tol) >= b# and withintol
+                checktol = abs(a-b) <= tol
+                return a >= b and not checktol
             ss = hnode.data.shape
             grid_x, grid_y = float(div[0]), float(div[1])
             if greater(ss.y_dist,grid_y,tol):
@@ -348,20 +350,17 @@ class Pattern:
             cutwidth_first = distlst_[0] + distlst_[1]
             firstdiv = (cutwidth_first,cutwidth_first)
             self.pattern_divide(temp_node_topo_,"subdivide_dim",firstdiv,cut_axis,0.)
-            
             ## Subdivide by small dist
-            cutwidth_second = distlst_[0] if distlst_[1] not in dellst_ else distlst_[1]
+            #cutwidth_second = distlst_[0] if distlst_[1] in dellst_ else distlst_[0]#distlst_[0] if distlst_[0] > distlst_[1] else distlst_[1]
+            # can't cut smaller height?
+            if distlst_[0] < distlst_[1]:
+                cutwidth_second = distlst_[1]
+            else:
+                cutwidth_second = distlst_[0]
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
             for tnc in topo_child_lst:
                 seconddiv = (cutwidth_second,cutwidth_second)
-                print 'small dist', cutwidth_second
-                #cut_ratio_ = tnc.data.shape.calculate_ratio_from_dist(cut_axis,cutwidth_second,0)
                 try:
-                    #self.pattern_divide(tnc,'simple_divide',cutwidth_second,cut_axis,cut_ratio_)
-                    #for tnc_ in tnc.loc:
-                    #    ca = "EW" if cut_axis == "NS" else "NS"
-                    #    cr = tnc_.data.shape.calculate_ratio_from_dist(ca,cutwidth_second,0)
-                    #    self.pattern_divide(tnc_,'simple_divide',cutwidth_second,ca,cr)
                     self.pattern_divide(tnc,'subdivide_dim',seconddiv,cut_axis,0.)
                 except: 
                     pass
@@ -397,14 +396,9 @@ class Pattern:
             ## Check dimension then check if collision w/ offset dist
             dim_ = dstlst[0] if dstlst[1] in dellst else dstlst[1]
             # flip cut axis to check the resulting dim
-            print 'dimchk', dim_,'x,ydist', t_.data.shape.x_dist, t_.data.shape.y_dist
             IsEWDim = t_.data.shape.check_shape_dim("EW",dim_,tol=2.)
             IsNSDim = t_.data.shape.check_shape_dim("NS",dim_,tol=2.)
-            print ''
-            #debug.append(t_.data.shape.geom)
-            #debug.extend(t_.data.shape.bbpts)
             if IsEWDim and IsNSDim:
-                #debug.append(t_.data.shape.geom)
                 check_base_separation = check_base_with_offset(t_,sep_lst_)
                 if check_base_separation:# != None:
                     sep_dist_ = dstlst[0]
@@ -537,14 +531,17 @@ class Pattern:
         #debug = sc.sticky['debug']
         if node_.data.type.has_key(label) and node_.data.type[label]:
             return node_
-    def concentric_divide(self,temp_node_,distlst,dellst):
-        def helper_recurse(curr_node_,rootref_,distlst_,dist_acc,dellst_,lst_ring,diffnarchive,count):
+    def concentric_divide(self,temp_node_,distlst,dellst,ROOTREF):
+        def helper_recurse(curr_node_,rootref_,distlst_,dist_acc,dellst_,lst_ring,diffn,count):
             dist_ = distlst_.pop(1)
             ##base case: fail chk_offset
-            rootshape = 0
+            if ROOTREF:
+                rootshape = ROOTREF
+            else:
+                rootshape = 0
             if curr_node_ == None or count > 10:
-                if diffnarchive!=None:
-                    lst_ring.append(diffnarchive.data.shape.geom)
+                if diffn!=None:
+                    lst_ring.append(diffn.data.shape.geom)
                 return lst_ring
             else:
                 try:
@@ -559,15 +556,14 @@ class Pattern:
                         for cn in curr_node_.loc:
                             lst_ring.append(cn.data.shape.geom)
                     ## Check diff node dimension and store it
-                    if diff_node: #and dist_ not in dellst_:
-                        #print 'distchk for', dist_
+                    if diff_node:
                         chk_EW_dim = diff_node.data.shape.check_shape_dim("EW",dist_,min_or_max='min')
                         chk_NS_dim = diff_node.data.shape.check_shape_dim("NS",dist_,min_or_max='min') 
                         if chk_EW_dim and chk_NS_dim:
-                            diffnarchive = diff_node
+                            diffn = diff_node
                     distlst_.insert(0,dist_)
                     ## Change the relationships 
-                    return helper_recurse(diff_node,rootref_,distlst_,dist_acc+dist_,dellst_,lst_ring,diffnarchive,count+1)
+                    return helper_recurse(diff_node,rootref_,distlst_,dist_acc+dist_,dellst_,lst_ring,diffn,count+1)
                 except Exception as e:
                     pass#print 'error at concentric', str(e)
         debug = sc.sticky['debug']
@@ -577,12 +573,11 @@ class Pattern:
             ringlst = helper_recurse(subdiv,rootref,distlst,0.,dellst,[],None,0)
             ringlst = filter(lambda n: n!=None,ringlst)
             #debug.extend(ringlst)
-            subdiv.data.type['courtnode'] = True
-            #subdiv.data.type['print']= False
             for ring in ringlst:
                 childnode = self.helper_geom2node(ring,subdiv)
-                #childnode.data.type['print'] = True
                 subdiv.loc.append(childnode)
+            
+            
         return temp_node_
     def pattern_court(self,temp_node_,court_node,court_width,subdiv_num=0.,subdiv_cut=0.,subdiv_flip=False,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):
@@ -639,6 +634,7 @@ class Pattern:
                 return recurse_slice(invalid_node,matrice,valid_node_lst,diff,count+1) 
             
             offset = rootshape.op_offset_crv(width_)
+            #debug.append(rootshape.bottom_crv)
             chk_offset = rootshape.op_offset_crv(width_+0.21)
             if chk_offset:
                 off_node = self.helper_geom2node(offset,curr_node)
@@ -718,15 +714,53 @@ class Pattern:
             except Exception as e:
                 print e
                 
+        ## 6. separation_distance
+        if PD['separate']:
+            dist_lst = PD['dist_lst']
+            del_lst = PD['delete_dist']
+            norm2srfvector = self.helper_normal2extsrf(temp_node)
+            temp_node = self.pattern_separate_by_dist(temp_node,dist_lst,del_lst) 
+            #print temp_node.data.shape.geom
+        
+        ROOTREF = None
+        if PD['stepback_ref']:
+            root = temp_node.get_root()
+            stepback = PD['stepback_ref']
+            stepback_node = -1
+            if stepback != None and stepback != []:
+                setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
+                step_data = stepback[0]
+                build_node = self.pattern_stepback(root,step_data,stepback_node,setback_ref)
+                ROOTREF = Shape_3D(build_node.data.shape.geom,cplane=build_node.data.shape.cplane)
+            if stepback != None and stepback != []:
+                setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
+                step_data = stepback[0]
+                build_lst = temp_node.traverse_tree(lambda n: n,internal=False)#self.print_node(n),internal=False)
+                for build_node in build_lst:
+                    try:
+                        build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
+                    except:
+                        pass
+                    
+        if PD['concentric_divide']:
+            dist_lst = PD['dist_lst']
+            del_dist_lst = PD['delete_dist']
+            temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst,ROOTREF) 
+            
+        ## 7. Extrude
+        if PD['height']!=False:
+            ht = PD['height']
+            temp_node = self.pattern_set_height(temp_node,ht)
+            
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
         stepback = PD['stepback_base']
         stepback_node = PD['stepback_node']
         
-        overridePD = self.check_override(temp_node)
-        if overridePD!=None:
-            stepback_node = overridePD['stepback_node']
-            stepback = overridePD['stepback_base']
+        #overridePD = self.check_override(temp_node)
+        #if overridePD!=None:
+        #    stepback_node = overridePD['stepback_node']
+        #    stepback = overridePD['stepback_base']
         #if overridePD==None:
             #debug.append(temp_node.data.shape.geom)
         if stepback != None and stepback != []:
@@ -739,51 +773,7 @@ class Pattern:
                         build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
                     except Exception as e:
                         print "Error @ stepback"
-                        print str(e)#,sys.exc_traceback.tb_lineno
-        
-        ## 6. separation_distance
-        if PD['separate']:
-            dist_lst = PD['dist_lst']
-            del_lst = PD['delete_dist']
-            norm2srfvector = self.helper_normal2extsrf(temp_node)
-            temp_node = self.pattern_separate_by_dist(temp_node,dist_lst,del_lst) 
-            #print temp_node.data.shape.geom
-        
-        
-        if PD['concentric_divide']:
-            dist_lst = PD['dist_lst']
-            del_dist_lst = PD['delete_dist']
-            temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst) 
-            
-        
-        ## 7. Extrude
-        if PD['height']!=False:
-            ht = PD['height']
-            temp_node = self.pattern_set_height(temp_node,ht)
-            
-            
-        ## 5. Stepback
-        ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
-        stepback = PD['stepback_tower']
-        stepback_node = PD['stepback_node']
-        if stepback != None and stepback != []:
-            setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
-            for step_data in stepback:
-                #sr: [ht,dim]
-                #fix this really bad solution
-                build_lst = temp_node.traverse_tree(lambda n: self.print_node(n),internal=False)
-                build_lst = filter(lambda n: n!=None,build_lst)
-                if self.print_node(temp_node):
-                    build_lst.append(temp_node)
-                
-                for build_node in build_lst:
-                    try:
-                        #print 'check', build_node.data.type['label']
-                        build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
-                    except Exception as e:
-                        print "Error @ stepback"
-                        print str(e)#,sys.exc_traceback.tb_lineno 
-            
+                        print str(e)#,sys.exc_traceback.tb_lineno    
         
         ## 5. param 1
         court = PD['court']
