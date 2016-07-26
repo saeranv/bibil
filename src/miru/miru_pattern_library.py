@@ -42,9 +42,11 @@ TT['type_id'] = 'miru_tower_in_podium'
 #TT['solartype'] = 3
 #TT['solartime'], TT['solarht'] = 11.5, 15.
 ##TT['height'] = 12.
+#TT['court'], TT['court_width'],TT['court_node'] = 1, 24.5,0.#39.4, 0
+#TT['court_slice'] = True
 TT['stepback_node'] = -1
-TT['stepback_base'] = [(13.5,9.)]
-TT['height'] = 16.5
+TT['stepback_base'] = [(13.5,3.)]
+#TT['height'] = 16.5
 
 
 """----------------
@@ -67,6 +69,11 @@ if reset==False:
     sc.sticky['override'] = []
     sc.sticky['envelope'] = []
     sc.sticky['existing_tower'] = []
+    
+    dpt_yonge = rs.coerce3dpoint(dpt_yonge)
+    dpt_mount = rs.coerce3dpoint(dpt_mount)
+    sc.sticky['bula_transit'] = [dpt_yonge,dpt_mount]
+    
     for envelope_node in envelope_srfs:
         envelope_node = rs.coercebrep(envelope_node)
         sc.sticky['envelope'].append(envelope_node)
@@ -82,5 +89,6 @@ if reset==False:
                 overnode.data.type['grammar'] = grammar
                 sc.sticky['override'].append(overnode)
             
+    #print sc.sticky['existing_tower']
     o = True
     

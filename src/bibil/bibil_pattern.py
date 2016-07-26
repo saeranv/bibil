@@ -192,7 +192,7 @@ class Pattern:
                         curr_n.data.shape.reset(xy_change=True)
                 except Exception as e:
                     print "Error at shape.reset at pattern_stepback",str(e)
-            #debug.append(curr_n.data.shape.geom)
+            
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
@@ -376,10 +376,7 @@ class Pattern:
                 if abs(setrel-0.)>0.1:
                     intersect_offset = True
                     break
-            if intersect_offset:
-                return None
-            else: 
-                return base_
+            return not intersect_offset
         def set_separation_record(check_base_separation_,sep_dist,separation_tol_):
             ## Add some tolerance to separation distance
             separation_tol_ = 0.5
@@ -399,10 +396,18 @@ class Pattern:
             IsEWDim = t_.data.shape.check_shape_dim("EW",dim_,tol=2.)
             IsNSDim = t_.data.shape.check_shape_dim("NS",dim_,tol=2.)
             if IsEWDim and IsNSDim:
-                check_base_separation = check_base_with_offset(t_,sep_lst_)
-                if check_base_separation:# != None:
+                exist_lst = sc.sticky['existing_tower']
+                check_separation_new = check_base_with_offset(t_,sep_lst_)
+                check_separation_exist = check_base_with_offset(t_,exist_lst)
+                #print 'new', check_separation_new
+                #print 'exis', check_separation_exist
+                IsIntersect = check_separation_new and check_separation_exist
+                #print IsIntersect
+                #print ''
+                #print len(exist_lst)
+                if IsIntersect == True:# != None:
                     sep_dist_ = dstlst[0]
-                    set_separation_record(check_base_separation,sep_dist_,separation_tol_)
+                    set_separation_record(t_,sep_dist_,separation_tol_)
         debug = sc.sticky['debug']
         #temp_node_topo = extract_topo(temp_node_,0.)
         temp_node_topo = temp_node_
@@ -421,12 +426,11 @@ class Pattern:
         # Llabel bases that are valid separations
         if not sc.sticky.has_key('seperation_offset_lst'):
             sc.sticky['seperation_offset_lst'] = []
-            existing_towers = sc.sticky['existing_tower']
-            sc.sticky['seperation_offset_lst'].extend(existing_towers)
+        
         sep_lst = sc.sticky['seperation_offset_lst']
         separation_tol = 0.5
         for t in topo_grand_child_lst_:
-            #debug.append(t.data.shape.geom)
+            debug.append(t.data.shape.geom)
             check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
         
         return temp_node_topo
@@ -482,6 +486,8 @@ class Pattern:
         ht_node_ = 'print'
         lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
         lst_nodes = filter(lambda n:n!=None,lst_nodes)
+        ypt = sc.sticky['bula_transit'][0]
+        mpt = sc.sticky['bula_transit'][1]
         for n_ in lst_nodes:
             overridePD = self.check_override(n_)
             if overridePD:
@@ -493,6 +499,16 @@ class Pattern:
                 setht_ = height_from_envelope(n_)
             else:
                 setht_ = ht_
+            ydist = rs.Distance(n_.data.shape.cpt,ypt)
+            mdist = rs.Distance(n_.data.shape.cpt,mpt)
+            if ydist < mdist:
+                maxht = 150.
+            else:
+                maxht = 100.
+            
+            if setht_ > maxht:
+                setht_ = maxht
+            
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
         return temp_node_
@@ -718,7 +734,7 @@ class Pattern:
         if PD['separate']:
             dist_lst = PD['dist_lst']
             del_lst = PD['delete_dist']
-            norm2srfvector = self.helper_normal2extsrf(temp_node)
+            #norm2srfvector = self.helper_normal2extsrf(temp_node)
             temp_node = self.pattern_separate_by_dist(temp_node,dist_lst,del_lst) 
             #print temp_node.data.shape.geom
         
@@ -765,6 +781,8 @@ class Pattern:
             #debug.append(temp_node.data.shape.geom)
         if stepback != None and stepback != []:
             setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
+            #print temp_node.loc
+            #debug.append(temp_node.data.shape.geom)
             for step_data in stepback:
                 build_lst = temp_node.traverse_tree(lambda n: n,internal=False)#self.print_node(n),internal=False)
                 for build_node in build_lst:

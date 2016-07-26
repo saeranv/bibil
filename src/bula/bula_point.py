@@ -208,14 +208,15 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     cpt_lst = Bula.extract_line_data(lstx)
     #norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
     norm_cpt_lst = cpt_lst
-    lot_lst = []
-    maxcourtslices = 0.
-    for lot in oldlots:
-        if maxcourtslices < float(len(lot.loc)):
-            maxcourtslices = float(len(lot.loc))
-    lot_lst = brute_force_reorder(oldlots,lot_lst,maxcourtslices+1,0)
-    oldlots = lot_lst
     
+    if 'podium' in oldlots[0].get_root().data.type['label']:
+        lot_lst = []
+        maxcourtslices = 0.
+        for lot in oldlots:
+            if maxcourtslices < float(len(lot.loc)):
+                maxcourtslices = float(len(lot.loc))
+        lot_lst = brute_force_reorder(oldlots,lot_lst,maxcourtslices+1,0)
+        oldlots = lot_lst
     for i,lot in enumerate(oldlots):
         if i < 1:
             debug.append(lot.data.shape.geom)
