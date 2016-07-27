@@ -46,7 +46,7 @@ TT['type_id'] = 'miru_tower_in_podium'
 #TT['court_slice'] = True
 TT['stepback_node'] = -1
 TT['stepback_base'] = [(13.5,(stepback*2.))]
-TT['height'] = 'envelope'
+TT['height'] = 16.5
 
 """----------------
 Tower and Park
@@ -85,7 +85,7 @@ if reset==False:
     for sepcrv in override_sep:
         sepcrv = rs.coercecurve(sepcrv)
         sc.sticky['existing_tower'].append(sepcrv)
-    """
+    
     for overnode in override_crvs:
         # Find better way to do this.
         for grammar in grammar_lst:
@@ -94,7 +94,7 @@ if reset==False:
                 overnode.data.type['grammar'] = grammar
                 sc.sticky['override'].append(overnode)
             
-    """
+    
     #print sc.sticky['existing_tower']
     o = True
     

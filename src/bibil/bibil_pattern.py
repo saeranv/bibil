@@ -543,14 +543,10 @@ class Pattern:
             else:
                 maxht = sc.sticky['max_ht_mount']# 40 storeys
             
-            solaroverride = type(ht_) == type('') and 'envelope' in ht_
+            
             if maxht != None and setht_ > maxht:
-                if solaroverride == False:
-                    setht_ = maxht
-            if 'podium' in n_.get_root().data.type['label']:
-                setht_ = 16.5
-                
-            print ht_, setht_
+                setht_ = maxht
+            
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
         return temp_node_
