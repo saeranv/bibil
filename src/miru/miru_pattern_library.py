@@ -58,8 +58,10 @@ TP['dist_lst'] = [new_separation,27.4]
 TP['delete_dist'] = [new_separation]
 if sky_topo == 0:
     TP['height'] = 'bula'
-else:
+elif sky_topo == 1:
     TP['height'] = 'envelope'
+else:#sky_topo == 2:
+    TP['height'] = 'fortyfive'
 grammar_lst.extend([TO,TT,TP])
 
 if reset==False:
@@ -85,6 +87,8 @@ if reset==False:
     for sepcrv in override_sep:
         sepcrv = rs.coercecurve(sepcrv)
         sc.sticky['existing_tower'].append(sepcrv)
+    
+    sc.sticky['fortyfive_srf'] = rs.coercebrep(fortyfiveangle_srf)
     
     for overnode in override_crvs:
         # Find better way to do this.

@@ -487,9 +487,9 @@ class Pattern:
                     setht = ht_factor#1000.*ht_factor
                     #debug.extend(n_.data.type['bula_data'].bpt_lst)
                 return setht
-        def height_from_envelope(n_):
+        def height_from_envelope(n_,envref=None):
             #TO['solartype'],TO['solartime']
-            env = sc.sticky['envelope']
+            #env = sc.sticky['envelope']
             maxht_env = 150.
             """
             if PD_['solartype']>0:
@@ -499,7 +499,10 @@ class Pattern:
                 env = self.get_solar_zone(starthr,endhr,curve=crv,zonetype='fan')
                 env = [env]
             """
-            env = sc.sticky['envelope']
+            if envref == None:
+                env = sc.sticky['envelope']
+            else:
+                env = envref
             base_matrix = n_.data.shape.set_base_matrix()
             ptlst = map(lambda l:l[0], base_matrix)
             dir = rc.Geometry.Vector3d(0,0,1) 
@@ -508,12 +511,13 @@ class Pattern:
             projlst = filter(lambda pt:abs(pt[2]-200.)>0.5,projlst)
             projlst = filter(lambda p: abs(p[2]-0)>1.,projlst)
             if projlst:
-                #debug.extend(projlst)
+                debug.extend(projlst)
                 min_index = projlst.index(min(projlst,key=lambda p:p[2]))
                 min_pt = projlst[min_index]
                 envht = min_pt[2]
             else:
                 envht = 150.
+            print 'envht', envht
             return envht
             
         debug = sc.sticky['debug']
@@ -526,7 +530,7 @@ class Pattern:
         mpt = sc.sticky['bula_transit'][1]
         for n_ in lst_nodes:
             overridePD = self.check_override(n_)
-            
+            print 'ht', ht_
             if overridePD:
                 #print overridePD['height']
                 ht_ = overridePD['height']
@@ -534,6 +538,9 @@ class Pattern:
                 setht_ = height_from_bula(n_)
             elif type(ht_)==type('') and 'envelope' in ht_:
                 setht_ = height_from_envelope(n_)
+            elif type(ht_)==type('') and 'fortyfive' in ht_:
+                fortyfive = sc.sticky['fortfive_srf']
+                setht_ = height_from_envelope(n_,env=fortyfive)
             else:
                 setht_ = ht_
             ydist = rs.Distance(n_.data.shape.cpt,ypt)
@@ -543,9 +550,13 @@ class Pattern:
             else:
                 maxht = sc.sticky['max_ht_mount']# 40 storeys
             
-            
-            if maxht != None and setht_ > maxht:
+            IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
+            IsPodium = 'podium' in n_.get_root().data.type['label']
+            IsMaxht = maxht != None and setht_ > maxht
+            if not IsSolarEnv and IsMaxht:
                 setht_ = maxht
+            if IsPodium:
+                setht_ = 16.5
             
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
