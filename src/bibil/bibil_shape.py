@@ -315,6 +315,7 @@ class Shape_3D:
                 IsWidth = shapedim <= (dim_+tol) 
         else:
             IsWidth = abs(shapedim-dim_) <= tol
+            #print shapedim, dim_
         return IsWidth
     def is_guid(self,geom):
         return type(rs.AddPoint(0,0,0)) == type(geom)     

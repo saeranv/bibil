@@ -31,7 +31,7 @@ TO['stepback_tower'] = []
 TO['separate'] = True 
 TO['separation_dist'] = 25.
 TO['dim'] = 27.4 
-TO['height'] = 10.
+TO['height'] = 'envelope'
 
 """----------------
 Tower and Podium 
@@ -45,9 +45,8 @@ TT['type_id'] = 'miru_tower_in_podium'
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 24.5,0.#39.4, 0
 #TT['court_slice'] = True
 TT['stepback_node'] = -1
-TT['stepback_base'] = [(13.5,3.)]
-#TT['height'] = 16.5
-
+TT['stepback_base'] = [(13.5,(stepback*2.))]
+TT['height'] = 'envelope'
 
 """----------------
 Tower and Park
@@ -55,17 +54,23 @@ Tower and Park
 TP = copy.deepcopy(PD_) 
 TP['type_id'] = 'miru_tower_in_park'
 TP['separate'] = True 
-TP['dist_lst'] = [29.5,27.4]
-TP['delete_dist'] = [29.5]
-TP['height'] = 'bula'
-
+TP['dist_lst'] = [new_separation,27.4]
+TP['delete_dist'] = [new_separation]
+if sky_topo == 0:
+    TP['height'] = 'bula'
+else:
+    TP['height'] = 'envelope'
 grammar_lst.extend([TO,TT,TP])
 
 if reset==False:
     import rhinoscriptsyntax as rs
+    sc.sticky['max_ht_yonge'] = max_yonge 
+    sc.sticky['max_ht_mount'] = max_mount
+    sc.sticky['min_ht'] = max_north
+
+    
     sc.sticky['miru_tower_in_podium'] = TT
     sc.sticky['miru_tower_in_park'] = TP
-    
     sc.sticky['override'] = []
     sc.sticky['envelope'] = []
     sc.sticky['existing_tower'] = []
@@ -80,7 +85,7 @@ if reset==False:
     for sepcrv in override_sep:
         sepcrv = rs.coercecurve(sepcrv)
         sc.sticky['existing_tower'].append(sepcrv)
-        
+    """
     for overnode in override_crvs:
         # Find better way to do this.
         for grammar in grammar_lst:
@@ -89,6 +94,7 @@ if reset==False:
                 overnode.data.type['grammar'] = grammar
                 sc.sticky['override'].append(overnode)
             
+    """
     #print sc.sticky['existing_tower']
     o = True
     

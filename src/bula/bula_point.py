@@ -207,9 +207,8 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
     Bula = Bula_Data()
     cpt_lst = Bula.extract_line_data(lstx)
     #norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
-    norm_cpt_lst = cpt_lst
-    
-    if 'podium' in oldlots[0].get_root().data.type['label']:
+    norm_cpt_lst = cpt_lst    
+    if 'park' in oldlots[0].get_root().data.type['label']:
         lot_lst = []
         maxcourtslices = 0.
         for lot in oldlots:
@@ -221,10 +220,12 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
         if i < 1:
             debug.append(lot.data.shape.geom)
     #"""
+        
     lst_bpt_lst = Bula.getpoints4lot(oldlots,norm_cpt_lst)
     lots = Bula.generate_bula_point(oldlots,lst_bpt_lst)
     
     line = []
+    newlots = []
     for lot in oldlots:
         cp = lot.data.shape.cpt
         ht = lot.data.type['bula_data'].value
@@ -233,7 +234,10 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
             line.append(line_)
         except:
             pass
+        #if 'podium' in lot.get_root().data.type['label']:
+        #newlots.extend(lot)
+        newlots.extend(lot.traverse_tree(lambda n: n,internal=False))
         #debug.append(lot.data.shape.geom)
     #oldlots = Bula.sort_by_bula(oldlots)
-    lst_lots = oldlots
+    lst_lots = newlots#oldlots
     #print 'debug', debug
