@@ -28,7 +28,7 @@ TT = copy.deepcopy(PD_)
 TT['type_id'] = 'trinco_tower_in_podium'
 TT['court'], TT['court_width'],TT['court_node'] = 1, 24.5,0.#39.4, 0
 TT['court_slice'] = True
-TT['height'] = 16.5
+TT['height'] = sc.sticky['ht_podium']
 """--------------------------------"""
 
 """----------------TOWER IN PARK ----------------""" 
@@ -39,7 +39,7 @@ TP['type_id'] = 'trinco_tower_in_park'
 #TP['stepback_tower'] = []
 TP['stepback_ref'] = [(0,(stepback*2.) + (stepback_acc*2.))]
 TP['concentric_divide'] = True
-TP['dist_lst'] = [new_separation,27.4]
+TP['dist_lst'] = [new_separation,27.4]###
 TP['delete_dist'] = [new_separation]
 """--------------------------------"""
 

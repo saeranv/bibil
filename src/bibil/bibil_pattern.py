@@ -70,7 +70,7 @@ class Pattern:
             if stype_ == 3:
                 noderoot = node_.get_root()
                 basecrv = copy.copy(noderoot.data.shape.bottom_crv)
-                #debug.append(basecrv)
+                ###debug.append(basecrv)
             else:
                 basecrv = copy.copy(node_.data.shape.bottom_crv)
             # Move up to lot_node height
@@ -102,7 +102,7 @@ class Pattern:
             se = node_0.data.shape.op_solar_envelope(start,end,se_crv)
             sebrep = helper_intersect_solar(se,node_0,seht)
             #print 'solarbrep', sebrep
-            #debug.append(sebrep)
+            ###debug.append(sebrep)
             return sebrep
         except Exception as e:
             print "Error @ pattern_solar_env_uni", str(e)
@@ -142,7 +142,7 @@ class Pattern:
                 rs.CapPlanarHoles(srf)
                 srf = rs.coercegeometry(srf)
                 TOL = sc.doc.ModelAbsoluteTolerance
-                #debug.append(srf)
+                ###debug.append(srf)
                 try: 
                     se =  rc.Geometry.Brep.CreateBooleanIntersection(se,srf,TOL)[0]
                 except: 
@@ -196,7 +196,7 @@ class Pattern:
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
-        #debug.append(tnode.data.shape.geom)
+        ###debug.append(tnode.data.shape.geom)
         return tnode    
     def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=None,twoway=False,flip=False):        
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
@@ -276,11 +276,11 @@ class Pattern:
             elif node_.data.type['ratio'] > 0.0001:
                 #node_.data.type['ratio'] = 1. - node_.data.type['ratio']
                 loc = node_.data.shape.op_split(node_.data.type['axis'],node_.data.type['ratio'],0.,split_depth=cwidth_)
-                #debug.extend(loc)
+                ###debug.extend(loc)
                 #print len(loc)
                 for i,child_geom in enumerate(loc):
                     #print 'child nodes'
-                    #debug.append(child_geom)
+                    ###debug.append(child_geom)
                     child_node = self.helper_geom2node(child_geom,node_)
                     #print child_node.data.shape.x_dist
                     #print child_node.data.shape.y_dist
@@ -322,7 +322,7 @@ class Pattern:
             for line in ref_base:
                 newline = map(lambda p: [p[0],p[1],newht],line)
                 refcrv = rs.coercecurve(rs.AddLine(newline[0],newline[1]))
-                #debug.append(refcrv)
+                ##debug.append(refcrv)
                 for nline in n_matrix:
                     pt_0 = foo_colinear(refcrv,nline[0],tol=0.5)
                     pt_1 = foo_colinear(refcrv,nline[1],tol=0.5)
@@ -348,7 +348,7 @@ class Pattern:
         ref_node = temp_node_.get_root()
         parallel2refext = get_colinear_line(ref_node,temp_node_)
         #line = rs.AddLine(parallel2refext[0],parallel2refext[1])
-        #debug.append(line)
+        ##debug.append(line)
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
     def pattern_separate_by_dist(self,temp_node_,distlst,dellst):
@@ -386,7 +386,7 @@ class Pattern:
             for offset in offsetlst:
                 crvA = offset
                 crvB = base_.data.shape.bottom_crv
-                #debug.append(offset)
+                ##debug.append(offset)
                 setrel = base_.data.shape.check_region(crvA,crvB,tol=0.1)
                 #If not disjoint
                 if abs(setrel-0.)>0.1:
@@ -398,7 +398,7 @@ class Pattern:
             separation_tol_ = 0.5
             sep_dist_tol = (sep_dist - separation_tol_) * -1
             sep_crv = check_base_separation_.data.shape.op_offset_crv(sep_dist_tol,corner=2)
-            debug.append(check_base_separation_.data.shape.bottom_crv)
+            #debug.append(check_base_separation_.data.shape.bottom_crv)
             ## For viz
             sep_crv_viz = check_base_separation_.data.shape.op_offset_crv(sep_dist*-1,corner=2)
             debug.append(sep_crv_viz)
@@ -451,7 +451,7 @@ class Pattern:
             gsh = map(lambda n:n.data.shape.geom,g)
             #debug.extend(gsh)
             #print 'test'
-            #print g
+            #print 'g'
             EL.extend(g)
         topo_grand_child_lst_ = EL
         #except:
@@ -485,7 +485,7 @@ class Pattern:
                     ## you are now a bulalot!
                     ht_factor = n_.data.type['bula_data'].value
                     setht = ht_factor#1000.*ht_factor
-                    #debug.extend(n_.data.type['bula_data'].bpt_lst)
+                    ##debug.extend(n_.data.type['bula_data'].bpt_lst)
                 return setht
         def height_from_envelope(n_,envref=None):
             #TO['solartype'],TO['solartime']
@@ -511,7 +511,7 @@ class Pattern:
             projlst = filter(lambda pt:abs(pt[2]-200.)>0.5,projlst)
             projlst = filter(lambda p: abs(p[2]-0)>1.,projlst)
             if projlst:
-                debug.extend(projlst)
+                #debug.extend(projlst)
                 min_index = projlst.index(min(projlst,key=lambda p:p[2]))
                 min_pt = projlst[min_index]
                 envht = min_pt[2]
@@ -556,7 +556,7 @@ class Pattern:
             if not IsSolarEnv and IsMaxht:
                 setht_ = maxht
             if IsPodium:
-                setht_ = 16.5
+                setht_ = sc.sticky['ht_podium']
             
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
@@ -637,7 +637,7 @@ class Pattern:
         for subdiv in lon:
             ringlst = helper_recurse(subdiv,rootref,distlst,0.,dellst,[],None,0)
             ringlst = filter(lambda n: n!=None,ringlst)
-            #debug.extend(ringlst)
+            ##debug.extend(ringlst)
             for ring in ringlst:
                 childnode = self.helper_geom2node(ring,subdiv)
                 subdiv.loc.append(childnode)
@@ -679,7 +679,7 @@ class Pattern:
                                 split_geoms = curr_node_.data.shape.op_split("NS",0.5,split_depth=0,split_line_ref=split_crv)
                                 for geom in split_geoms:
                                     #if type(geom)!= type(rootshape.data.shape.geom):
-                                    #    debug.append(geom)
+                                    #    ##debug.append(geom)
                                     split_node = self.helper_geom2node(geom,None)
                                     split_crv = split_node.data.shape.bottom_crv
                                     set_rel = curr_node_.data.shape.check_region(chk_offset,split_crv,tol=0.1)
@@ -699,13 +699,13 @@ class Pattern:
                 return recurse_slice(invalid_node,matrice,valid_node_lst,diff,count+1) 
             
             offset = rootshape.op_offset_crv(width_)
-            #debug.append(rootshape.bottom_crv)
+            ###debug.append(rootshape.bottom_crv)
             chk_offset = rootshape.op_offset_crv(width_+0.21)
             if chk_offset:
                 off_node = self.helper_geom2node(offset,curr_node)
                 shape_matrix = off_node.data.shape.set_base_matrix()
                 L,diff = recurse_slice(curr_node,shape_matrix,[],None,0)
-                #debug.extend(map(lambda n:n.data.shape.geom,L))
+                ###debug.extend(map(lambda n:n.data.shape.geom,L))
                 for i,n in enumerate(L):
                     n.depth = curr_node.depth+1
                     n.parent = curr_node
@@ -753,7 +753,7 @@ class Pattern:
                 geo_brep = self.pattern_solar_envelope_uni(node,solartime,solarht,solartype)
             except Exception as e:
                     print "Error @ solartype 1 or 3", str(e)
-
+                    
         ## 2. make a new, fresh node
         temp_node = self.helper_geom2node(geo_brep,node)
         temp_node.data.type['print'] = True
@@ -778,7 +778,8 @@ class Pattern:
                 temp_node = self.pattern_solar_envelope_multi(temp_node,solartime,node.data,solarht)
             except Exception as e:
                 print e
-                
+        
+             
         ## 6. separation_distance
         if PD['separate']:
             dist_lst = PD['dist_lst']
@@ -837,11 +838,11 @@ class Pattern:
         #    stepback_node = overridePD['stepback_node']
         #    stepback = overridePD['stepback_base']
         #if overridePD==None:
-            #debug.append(temp_node.data.shape.geom)
+            ###debug.append(temp_node.data.shape.geom)
         if stepback != None and stepback != []:
             setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
             #print temp_node.loc
-            #debug.append(temp_node.data.shape.geom)
+            ###debug.append(temp_node.data.shape.geom)
             for step_data in stepback:
                 build_lst = temp_node.traverse_tree(lambda n: n,internal=False)#self.print_node(n),internal=False)
                 for build_node in build_lst:
@@ -866,7 +867,7 @@ class Pattern:
         if terrace > 0.:
             lon = temp_node.traverse_tree(lambda n: n,internal=False)
             for i,subdiv in enumerate(lon):
-                #debug.append(subdiv.data.shape.geom)
+                ###debug.append(subdiv.data.shape.geom)
                 #tcrv = subdiv.data.shape.bottom_crv
                 # 2. offset
                 #if debug_print:

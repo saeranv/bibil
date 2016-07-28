@@ -45,11 +45,11 @@ def main(node_in_lst):
         P = Pattern()
         #debug.append(node_in_lst[1].data.shape.geom)
         for node_in_ in node_in_lst:
-            if True:#try:
+            try:
                 node_out_ = P.main_pattern(node_in_)
                 RhinoApp.Wait() 
-            #except Exception as e:
-            #    print "Error @ Pattern.main_pattern"
+            except Exception as e:
+                print "Error @ Pattern.main_pattern"
             NL.append(node_out_)
         return NL
     except Exception as e:
