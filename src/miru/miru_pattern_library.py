@@ -1,3 +1,11 @@
+"""
+Miru Grammar
+This module defines the shape grammar rules for specific
+building typologies.  
+
+
+"""
+
 import copy
 import scriptcontext as sc
 
@@ -21,19 +29,6 @@ PD_ = \
 
 grammar_lst = []
 sc.sticky['ht_podium'] = ht_podium
-
-"""----------------
-Test Override 
-----------------""" 
-TO = copy.deepcopy(PD_) 
-TO['type_id'] = 'override_park_street'
-#TO['stepback_node'] = -1
-#TO['stepback_base'] = [(13.5,14.5),(0.,7.5)]
-TO['stepback_tower'] = []
-TO['separate'] = True 
-TO['separation_dist'] = 25.
-TO['dim'] = 27.4 
-TO['height'] = 'envelope'
 
 """----------------
 Tower and Podium 
@@ -64,6 +59,20 @@ elif sky_topo == 1:
     TP['height'] = 'envelope'
 else:#sky_topo == 2:
     TP['height'] = 'fortyfive'
+
+"""----------------
+Solar Access Type Override 
+----------------""" 
+TO = copy.deepcopy(PD_) 
+TO['type_id'] = 'override_park_street'
+#TO['stepback_node'] = -1
+#TO['stepback_base'] = [(13.5,14.5),(0.,7.5)]
+TO['stepback_tower'] = []
+TO['separate'] = True 
+TO['separation_dist'] = 25.
+TO['dim'] = 27.4 
+TO['height'] = 'envelope'
+
 grammar_lst.extend([TO,TT,TP])
 
 if reset==False:
