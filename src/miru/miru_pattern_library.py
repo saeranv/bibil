@@ -51,14 +51,16 @@ Tower and Park
 TP = copy.deepcopy(PD_) 
 TP['type_id'] = 'miru_tower_in_park'
 TP['separate'] = True 
-TP['dist_lst'] = [new_separation,27.4]###
+TP['dist_lst'] = [new_separation,27.4]
 TP['delete_dist'] = [new_separation]
 if sky_topo == 0:
     TP['height'] = 'bula'
 elif sky_topo == 1:
     TP['height'] = 'envelope'
-else:#sky_topo == 2:
-    TP['height'] = 'fortyfive'
+elif sky_topo == 2:
+    TP['height'] = 'angle_srf'
+else:
+    TP['height'] = 'intersect_srf'
 
 """----------------
 Solar Access Type Override 
@@ -81,25 +83,27 @@ if reset==False:
     sc.sticky['max_ht_mount'] = max_mount
     sc.sticky['min_ht'] = max_north
 
-    
     sc.sticky['miru_tower_in_podium'] = TT
     sc.sticky['miru_tower_in_park'] = TP
     sc.sticky['override'] = []
     sc.sticky['envelope'] = []
+    sc.sticky['angle_srf'] = []
     sc.sticky['existing_tower'] = []
     
     dpt_yonge = rs.coerce3dpoint(dpt_yonge)
     dpt_mount = rs.coerce3dpoint(dpt_mount)
     sc.sticky['bula_transit'] = [dpt_yonge,dpt_mount]
     
-    for envelope_node in envelope_srfs:
+    for envelope_node in solar_srfs:
         envelope_node = rs.coercebrep(envelope_node)
         sc.sticky['envelope'].append(envelope_node)
     for sepcrv in override_sep:
         sepcrv = rs.coercecurve(sepcrv)
         sc.sticky['existing_tower'].append(sepcrv)
+    for angle_plane in angle_srf:
+        angle_plane = rs.coercebrep(angle_plane)
+        sc.sticky['angle_srf'].append(angle_plane)
     
-    sc.sticky['fortyfive_srf'] = rs.coercebrep(fortyfiveangle_srf)
     
     for overnode in override_crvs:
         # Find better way to do this.

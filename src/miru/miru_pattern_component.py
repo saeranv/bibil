@@ -45,10 +45,10 @@ def main(node_in_lst):
         for node_in_ in node_in_lst:
             try:
                 node_out_ = P.main_pattern(node_in_)
+                NL.append(node_out_)
                 RhinoApp.Wait() 
             except Exception as e:
                 print "Error @ Pattern.main_pattern"
-            NL.append(node_out_)
         return NL
     except Exception as e:
         print e

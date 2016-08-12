@@ -503,6 +503,7 @@ class Pattern:
                 env = sc.sticky['envelope']
             else:
                 env = envref
+            
             base_matrix = n_.data.shape.set_base_matrix()
             ptlst = map(lambda l:l[0], base_matrix)
             dir = rc.Geometry.Vector3d(0,0,1) 
@@ -530,7 +531,7 @@ class Pattern:
         mpt = sc.sticky['bula_transit'][1]
         for n_ in lst_nodes:
             overridePD = self.check_override(n_)
-            print 'ht', ht_
+            #print 'ht', ht_
             if overridePD:
                 #print overridePD['height']
                 ht_ = overridePD['height']
@@ -538,11 +539,13 @@ class Pattern:
                 setht_ = height_from_bula(n_)
             elif type(ht_)==type('') and 'envelope' in ht_:
                 setht_ = height_from_envelope(n_)
-            elif type(ht_)==type('') and 'fortyfive' in ht_:
-                fortyfive = sc.sticky['fortfive_srf']
-                setht_ = height_from_envelope(n_,env=fortyfive)
+            elif type(ht_)==type('') and 'angle_srf' in ht_:
+                angle_srf = sc.sticky['angle_srf']
+                setht_ = height_from_envelope(n_,envref=angle_srf)
             else:
                 setht_ = ht_
+            
+            ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
             ydist = rs.Distance(n_.data.shape.cpt,ypt)
             mdist = rs.Distance(n_.data.shape.cpt,mpt)
             if ydist < mdist:
@@ -822,12 +825,13 @@ class Pattern:
             dist_lst = PD['dist_lst']
             del_dist_lst = PD['delete_dist']
             temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst,ROOTREF) 
-            
+        
         ## 7. Extrude
         if PD['height']!=False:
             ht = PD['height']
             temp_node = self.pattern_set_height(temp_node,ht)
-            
+        
+        
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
         stepback = PD['stepback_base']
