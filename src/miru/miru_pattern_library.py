@@ -77,7 +77,7 @@ TO['height'] = 'envelope'
 
 grammar_lst.extend([TO,TT,TP])
 
-if reset==False:
+if run:
     import rhinoscriptsyntax as rs
     sc.sticky['max_ht_yonge'] = max_yonge 
     sc.sticky['max_ht_mount'] = max_mount
@@ -115,5 +115,5 @@ if reset==False:
             
     
     #print sc.sticky['existing_tower']
-    o = True
+    o = run
     

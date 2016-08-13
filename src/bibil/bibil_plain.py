@@ -10,13 +10,11 @@ import copy
 """import classes"""
 Pattern = sc.sticky["Pattern"]
 
-def make_node_lst(copy_lot_in_,ref_block_in_): 
+def make_node_lst(copy_lot_in_): 
     L = []
     for lot_geom in copy_lot_in_:
         P = Pattern()
         n_ = P.helper_geom2node(lot_geom,None,label=label_)
-        setback_line_ = map(lambda l: rs.coercecurve(l),setback_line)
-        n_.data.type["setback_reference_line"] = setback_line_
         L.append(n_)
     return L
     
@@ -36,6 +34,20 @@ def copy_node_lst(nlst):
     for n in nlst:
         L.append(copy.deepcopy(n))
     return L
+
+def solver_test(nlst_):
+    P = Pattern()
+    dist_lst = [10,30]
+    del_lst = [10]
+    for n_ in nlst_:
+        P.pattern_divide(n_,"subdivide_depth",1,axis="NS",cut_width=6.)
+        childlst = n_.traverse_tree(lambda n:n,internal=False)
+        for n__ in childlst:
+            P.pattern_court(n__,-1,10.,0,0,False,slice=True) 
+            #P.pattern_separate_by_dist(n__,dist_lst,del_lst) 
+            
+    return nlst_               
+               
         
 def main(lot_in_):
     ### Grid_Subdivide: (listof node) int int -> (listof node))
@@ -44,15 +56,15 @@ def main(lot_in_):
     ###to the int int dimensions.
     sc.sticky['seperation_offset_lst'] = []
     lot_in_ = copy_node_lst(lot_in_)     
-    lst_node = make_node_lst(lot_in_,ref_block_in)
-    split_nodes = split_node_lst(lst_node)
-    generator = reduce(lambda s, a: s + a, split_nodes)
+    lst_node = make_node_lst(lot_in_)
+    generator = solver_test(lst_node)
+    #split_nodes = split_node_lst(lst_node)
+    #generator = reduce(lambda s, a: s + a, split_nodes)
     return generator
 
 if run and lot_in!=[None] and lot_in != None and lot_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    geo_out = main(lot_in)
+    node_out = main(lot_in)
 else:
     print 'Add inputs!'
-print geo_out

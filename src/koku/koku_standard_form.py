@@ -19,8 +19,7 @@ for i in range(100):
     y = (C - A*x)/B
     L.append(rs.AddPoint(x,y,0))
     print 'x', x, 'y', y
-
-
+    
 ## Question: convert standard form
 ## to parametric form by finding the 
 ## base points (A,B is not 0], and dir vector by moving

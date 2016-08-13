@@ -10,7 +10,7 @@ import copy
 """import classes"""
 Pattern = sc.sticky["Pattern"]
 
-def make_node_lst(copy_lot_in_,ref_block_in_): 
+def make_node_lst(copy_lot_in_): 
     L = []
     for lot_geom in copy_lot_in_:
         P = Pattern()
@@ -72,7 +72,7 @@ def main(lot_in_):
     ###to the int int dimensions.
     sc.sticky['seperation_offset_lst'] = []
     lot_in_ = copy_node_lst(lot_in_)     
-    lst_node = make_node_lst(lot_in_,ref_block_in)
+    lst_node = make_node_lst(lot_in_)
     lst_dim_x = get_park_dim(lst_node,park_max,park_percent,park_line)
     brep_lst = make_park_brep(lst_dim_x,park_line,lst_node)
     print brep_lst
