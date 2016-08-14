@@ -40,7 +40,7 @@ def solver_test(nlst_):
     dist_lst = [10,30]
     del_lst = [10]
     for n_ in nlst_:
-        P.pattern_divide(n_,"subdivide_depth",1,axis="NS",cut_width=6.)
+        #P.pattern_divide(n_,"subdivide_depth",1,axis="NS",cut_width=6.)
         childlst = n_.traverse_tree(lambda n:n,internal=False)
         for n__ in childlst:
             P.pattern_court(n__,-1,10.,0,0,False,slice=True) 
@@ -54,12 +54,11 @@ def main(lot_in_):
     ### Purpose: This component consumes a list of node lots and two int and 
     ###generates a list of mutated nodes, with the lots subdivided according
     ###to the int int dimensions.
-    sc.sticky['seperation_offset_lst'] = []
     lot_in_ = copy_node_lst(lot_in_)     
     lst_node = make_node_lst(lot_in_)
-    generator = solver_test(lst_node)
-    #split_nodes = split_node_lst(lst_node)
-    #generator = reduce(lambda s, a: s + a, split_nodes)
+    split_nodes = split_node_lst(lst_node)
+    generator = reduce(lambda s, a: s + a, split_nodes)
+    generator = solver_test(generator)
     return generator
 
 if run and lot_in!=[None] and lot_in != None and lot_in != []:

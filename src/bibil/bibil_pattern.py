@@ -178,7 +178,7 @@ class Pattern:
         curr_n = tnode#tnode.traverse_tree(lambda n: n,internal=False)
         try:
             ht, dist = stepback_[0], stepback_[1]
-            #print 'ht,dist', ht, dist
+            dist = dist *2.
             for j,sbref in enumerate(sb_ref_):
                 # move sbref
                 move_vector= rc.Geometry.Vector3d(0,0,float(ht))
@@ -192,7 +192,6 @@ class Pattern:
                         curr_n.data.shape.reset(xy_change=True)
                 except Exception as e:
                     print "Error at shape.reset at pattern_stepback",str(e)
-            
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
@@ -340,6 +339,7 @@ class Pattern:
             up_vec = rc.Geometry.Vector3d(0,0,1)
             cross = rc.Geometry.Vector3d.CrossProduct(ccw_vec,up_vec)
             return cross
+        
         ## Takes a node and finds the vector perpendicular to the surface
         ## pointing inward, relative to the rootnode surface
         ## This should be abstracted and moved to shape class
@@ -795,10 +795,10 @@ class Pattern:
         if PD['stepback_ref']:
             stepback = PD['stepback_ref']
             stepback_node = -1
-            print 'root'
+            #print 'root'
             root = temp_node
-            print root.data.shape.x_dist
-            print root.data.shape.y_dist
+            #print root.data.shape.x_dist
+            #print root.data.shape.y_dist
             if stepback != None and stepback != []:
                 try:
                     #root = temp_node.get_root()

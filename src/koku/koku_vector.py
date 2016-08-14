@@ -178,7 +178,7 @@ if True:
     ## cross product test
     vector_v = Vector(['4','6','5.5'])#[8.462,7.893,-8.187])
     vector_w = Vector(['6.984','-5.975','4.778'])
-    print vector_v.cross_product(vector_w),'\n'
+    #print vector_v.cross_product(vector_w),'\n'
     """
     ## area parallelogram test
     vector_v = Vector([-8.987,-9.838,5.031])

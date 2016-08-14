@@ -35,13 +35,19 @@ class Plane(object):
             n = self.normal_vector.coord
             c = self.constant_term
             basepoint_coords = ['0']*self.dimension
-
+            
+            ## Find the first scalar coefficient that is not zero
+            ## to use as divisor to find the value of x,y,z of
+            ## of basepoint
+            ## Ax + By + Cz = D
+            ## if A != 0; x = D/A, y = 0, z = 0
+            ## if B != 0; x = 0, y = D/B, z = 0
             initial_index = Plane.first_nonzero_index(n)
             initial_coefficient = n[initial_index]
-
             basepoint_coords[initial_index] = c/initial_coefficient
+            # Now make the basepoint a vector
             self.basepoint = Vector(basepoint_coords)
-
+            
         except Exception as e:
             if str(e) == Plane.NO_NONZERO_ELTS_FOUND_MSG:
                 self.basepoint = None
@@ -49,7 +55,8 @@ class Plane(object):
                 raise e
 
     def __str__(self):
-
+        ### This function goves is the coefficients (A,B,C)
+        ### which is calculated from the basepoints.. somehow
         num_decimal_places = 3
 
         def write_coefficient(coefficient, is_initial_term=False):
@@ -65,19 +72,18 @@ class Plane(object):
                 output += '+'
             if not is_initial_term:
                 output += ' '
-            output += '{}'.format(abs(coefficient))
+            output += str(abs(coefficient))
 
             return output
 
         n = self.normal_vector.coord
-
         try:
             initial_index = Plane.first_nonzero_index(n)
             terms = []
             for i in range(self.dimension):
                 if round(n[i], num_decimal_places) != 0:
                     init=(i==initial_index)
-                    var = 'x_{}'.format(i+1)
+                    var = 'n_'+str(i+1)
                     coef = write_coefficient(n[i],is_initial_term=init)
                     coef_w_var = coef + var
                     terms.append(coef_w_var)
@@ -92,7 +98,7 @@ class Plane(object):
         constant = round(self.constant_term, num_decimal_places)
         if constant % 1 == 0:
             constant = int(constant)
-        output += ' = {}'.format(constant)
+        output += ' = '+str(constant)
 
         return output
 
@@ -116,7 +122,7 @@ class Plane(object):
             
     def __eq__(self,p):
         """
-        Planes are equal when they are parallel and are
+        Planes are equal when they are parallel and
         their basis points are located in the same
         plane of origin. Check this by checking to see
         if line made by two basis points is perpendicular
@@ -151,15 +157,16 @@ class Plane(object):
             
 class MyDecimal(Decimal):
     def is_near_zero(self, eps=1e-10):
-        return abs(self) < eps
+        return float(self) < eps
 
 
 
 ### Plane tests
-"""
+
 ##init test
-plane_0 = Plane(Vector([0,0,1]),3)
-#print plane_0
+plane_0 = Plane(Vector([3,4,1]),40)
+print plane_0
+"""
 ### Plane parallel
 plane_0 = Plane(Vector([-0.412,3.806,0.728]),-3.46)
 plane_1 = Plane(Vector([1.03,-9.515,-1.82]),8.65)
@@ -175,11 +182,11 @@ plane_1 = Plane(Vector([-2.642,2.875,-2.404]),-2.443)
 print '\ntest 3'
 print plane_1 == plane_0
 print plane_1.is_parallel(plane_0)
-"""
+
 plane_0 = Plane(Vector(['1','2','3']),'5')
 plane_1 = Plane(Vector(['2','4','6']),'10')
 print plane_0
 print '\ntest 3'
 #print plane_1 == plane_0
 #print plane_1.is_parallel(plane_0)
-
+"""

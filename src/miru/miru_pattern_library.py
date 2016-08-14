@@ -42,7 +42,7 @@ TT['type_id'] = 'miru_tower_in_podium'
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 24.5,0.#39.4, 0
 #TT['court_slice'] = True
 TT['stepback_node'] = -1
-TT['stepback_base'] = [(13.5,(stepback*2.))]
+TT['stepback_base'] = [(13.5,(stepback))]
 TT['height'] = sc.sticky['ht_podium']
 
 """----------------
@@ -103,7 +103,6 @@ if run:
     for angle_plane in angle_srf:
         angle_plane = rs.coercebrep(angle_plane)
         sc.sticky['angle_srf'].append(angle_plane)
-    
     
     for overnode in override_crvs:
         # Find better way to do this.

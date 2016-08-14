@@ -252,7 +252,7 @@ class Shape_3D:
                 c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
                 rc_cut = rs.ExtrudeSurface(split_surf,c)
                 rc_cut = rs.MoveObject(rc_cut,normal_b)
-                #debug.append(rc_cut)
+                debug.append(rc_cut)
                 #debug.append(split_surf)
                 lst_child = []
                 rc_geom,rc_cut = rs.coercebrep(self.geom),rs.coercebrep(rc_cut)
@@ -386,6 +386,9 @@ class Shape_3D:
                 return 0
             else:
                 return 1
+    def get_in_out_vector(self,pt_0,pt_1):
+        pass
+    
     def set_base_matrix(self,crv=None):
         ## Breaks up geometry into:
         ##[ [[vector1a,vector1b],  // line 1

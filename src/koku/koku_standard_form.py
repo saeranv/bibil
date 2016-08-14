@@ -4,9 +4,12 @@ Playing around with standard form of a line Ax + By = C
 
 import rhinoscriptsyntax as rs
 
-A = 10
-B = 12
-C = 500
+A = 4
+B = 4
+#C = 100
+
+sc = 5.#scalara multiplier
+b = rs.AddLine([A*sc,B*sc,0],[0,0,0])
 
 L = []
 # Standard form of this line is
@@ -18,8 +21,14 @@ for i in range(100):
     x = i
     y = (C - A*x)/B
     L.append(rs.AddPoint(x,y,0))
-    print 'x', x, 'y', y
-    
+    if abs(x-0)<0.001 or abs(y-0)<0.001:
+        print 'x', x, 'y', y
+
+yint = C/float(A)
+print 'yint', yint
+
+#Therefore C = yint * A or xint * B
+
 ## Question: convert standard form
 ## to parametric form by finding the 
 ## base points (A,B is not 0], and dir vector by moving
@@ -48,4 +57,4 @@ for i in range(100):
     L.append(rs.AddPoint(x,y,0))
     print x,y
 """
-o = L
+a = L

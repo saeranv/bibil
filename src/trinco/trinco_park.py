@@ -44,19 +44,45 @@ def get_park_dim(node_lst_,p_max,p_percent,ln):
         dim_x_lst.append(dim_x)
     return dim_x_lst
 
+def extrude_srf_xy(split_line,split_depth):
+    split_path = rs.AddCurve([[0,0,0],[0,0,20.]],1)    
+    split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line,split_path))
+            
+    nc = split_line.ToNurbsCurve()
+    end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
+    dir_vector = end_pts[1] - end_pts[0]
+    z_vector = rs.VectorCreate([0,0,0],[0,0,1])
+    # create forward and backwards vector using crossproduct
+    normal_f = rs.VectorCrossProduct(dir_vector,z_vector)
+    normal_b = rs.VectorCrossProduct(z_vector,dir_vector) 
+    
+    sc_ = split_depth,split_depth,split_depth
+    
+    normal_f.Unitize()
+    normal_b.Unitize()
+    normal_b = map(lambda v: v*split_depth/2.,normal_b)
+    
+    c = rs.AddCurve([rs.AddPoint(0,0,0),rs.AddPoint(normal_f[0],normal_f[1],normal_f[2])],0)
+    c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
+    rc_cut = rs.ExtrudeSurface(split_surf,c)
+    debug.append(rc_cut)
+
 def make_park_brep(lst_dim_x_,park_line_,lst_node_):
+    ## This function inputs the park_line, list of x dimensions
+    ## and the nodes to calculate the park size
+    ## and then generates it using the pattern stepback
+    ## function
     brep_lst_= []
+    park_line_ = rs.coercecurve(park_line_)    
     for n_,dx_ in zip(lst_node_,lst_dim_x_):
         P = Pattern()
-        stepback_node = -1
-        stepback_ref = None
-        stepback_data = [(0.,dx_)]
-        try:
-            park_node = P.pattern_stepback(n_,step_data,stepback_node,setback_ref)
-            park_nodes = park_node.traverse_tree(lambda n: n,internal=False)
-            
-        except Exception as e:
-            print str(e)#,sys.exc_traceback.tb_lineno    
+        extrude_srf_xy(park_line_,dx_)
+        #if True:#try:
+            #park_node = P.pattern_stepback(n_,step_data,stepback_node,setback_ref)
+            #brep_lst_.append(park_node)
+            #park_nodes = park_node.traverse_tree(lambda n: n,internal=False)
+        #except Exception as e:
+        #    print str(e)#,sys.exc_traceback.tb_lineno    
         
     return brep_lst_
 def copy_node_lst(nlst):
@@ -70,18 +96,18 @@ def main(lot_in_):
     ### Purpose: This component consumes a list of node lots and two int and 
     ###generates a list of mutated nodes, with the lots subdivided according
     ###to the int int dimensions.
-    sc.sticky['seperation_offset_lst'] = []
+    
     lot_in_ = copy_node_lst(lot_in_)     
     lst_node = make_node_lst(lot_in_)
     lst_dim_x = get_park_dim(lst_node,park_max,park_percent,park_line)
-    brep_lst = make_park_brep(lst_dim_x,park_line,lst_node)
-    print brep_lst
-    split_nodes = split_node_lst(lst_node)
-    try:
-        split_nodes = reduce(lambda s, a: s + a, split_nodes)
-    except: 
-        pass
-    return split_nodes
+    lst_node = make_park_brep(lst_dim_x,park_line,lst_node)
+    #print brep_lst
+    #split_nodes = split_node_lst(lst_node)
+    #try:
+    #    split_nodes = reduce(lambda s, a: s + a, split_nodes)
+    #except: 
+    #    pass
+    return lst_node
 
 if run and lot_in!=[None] and lot_in != None and lot_in != []:
     sc.sticky["debug"] = []
@@ -89,3 +115,5 @@ if run and lot_in!=[None] and lot_in != None and lot_in != []:
     park_out = main(lot_in)
 else:
     print 'Add inputs!'
+    
+print debug
