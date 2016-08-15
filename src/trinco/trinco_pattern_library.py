@@ -38,7 +38,7 @@ TP['type_id'] = 'trinco_tower_in_park'
 #TP['stepback_base'] = [(0,9.)]
 #TP['stepback_tower'] = []
 TP['stepback_ref'] = [(0,stepback + stepback_acc)]
-TP['concentric_divide'] = True
+#TP['concentric_divide'] = True
 TP['dist_lst'] = [new_separation,27.4]###
 TP['delete_dist'] = [new_separation]
 """--------------------------------"""

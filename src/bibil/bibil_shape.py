@@ -253,7 +253,7 @@ class Shape_3D:
                 c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
                 rc_cut = rs.ExtrudeSurface(split_surf,c)
                 rc_cut = rs.MoveObject(rc_cut,normal_b)
-                debug.append(rc_cut)
+                #debug.append(rc_cut)
                 #debug.append(split_surf)
                 lst_child = []
                 rc_geom,rc_cut = rs.coercebrep(self.geom),rs.coercebrep(rc_cut)

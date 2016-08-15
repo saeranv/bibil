@@ -88,9 +88,9 @@ def main(lot_in_):
     ### Purpose: This component consumes a list of node lots and two int and 
     ###generates a list of mutated nodes, with the lots subdivided according
     ###to the int int dimensions.
-    
-    lot_in_ = copy_node_lst(lot_in_)     
+    lot_in_ = copy_node_lst(lot_in_)
     lst_node = make_node_lst(lot_in_)
+    
     lst_dim_x = get_park_dim(lst_node,park_max,park_percent,park_line)
     lst_node,park,lot = make_park_node(lst_dim_x,park_line,lst_node)
     return lst_node, park, lot

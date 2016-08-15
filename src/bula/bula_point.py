@@ -214,8 +214,8 @@ if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
         for lot in oldlots:
             if maxcourtslices < float(len(lot.loc)):
                 maxcourtslices = float(len(lot.loc))
-        lot_lst = brute_force_reorder(oldlots,lot_lst,maxcourtslices+1,0)
-        oldlots = lot_lst
+        #lot_lst = brute_force_reorder(oldlots,lot_lst,maxcourtslices+1,0)
+        #oldlots = lot_lst
     for i,lot in enumerate(oldlots):
         if i < 1:
             debug.append(lot.data.shape.geom)

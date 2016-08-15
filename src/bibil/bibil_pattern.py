@@ -787,6 +787,7 @@ class Pattern:
              
         ## 6. separation_distance
         if PD['separate']:
+            print 'sep'
             dist_lst = PD['dist_lst']
             del_lst = PD['delete_dist']
             #norm2srfvector = self.helper_normal2extsrf(temp_node)
