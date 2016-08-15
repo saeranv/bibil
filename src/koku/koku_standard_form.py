@@ -39,7 +39,7 @@ If we move Ax + By = C to the origin point, then
 any point x,y is a direction vector for the line. 
 
 Therefore, the normal to the line is [B,-A].
-That is how you fin dthe direction vector and normal from
+That is how you find the direction vector and normal from
 standard form.
 
 """

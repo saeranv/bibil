@@ -29,10 +29,11 @@ class Shape_3D:
         self.bottom_crv = None
         self.primary_axis_vector = None
         self.base_matrix = None
-        try:
-            self.reset(xy_change=True)
-        except Exception as e:
-            print str(e), "Error at Shape.reset()"
+        if geom!=None:
+            try:
+                self.reset(xy_change=True)
+            except Exception as e:
+                print str(e), "Error at Shape.reset()"
     def reset(self,xy_change=True):
         def get_dim_bbox(b):
             ## counterclockwise, start @ bottom SW  
@@ -386,9 +387,71 @@ class Shape_3D:
                 return 0
             else:
                 return 1
-    def get_in_out_vector(self,pt_0,pt_1):
-        pass
-    
+    def get_normal_point_inwards(self,refline_):
+        ## Input a reference line and self.shape.polygon
+        ## Returns the normal vector pointing
+        ## into the polygon
+        z_vector = rs.VectorCreate([0,0,0],[0,0,1]) 
+        ## Make sure the line is CCW, else reverse order
+        IsCCW = self.check_vertex_order(refline=refline_)
+        end_pts = self.get_endpt4line(refline_)
+        if not IsCCW:
+            end_pts = [end_pts[1],end_pts[0]]
+        #To check the CCW dir
+        #debug.append(n_.data.shape.get_endpt4line(park_line_)[0])
+        
+        # Get direction vector and take cross-product
+        dir_vector = end_pts[1] - end_pts[0]
+        # Create to_inner vector using crossproduct
+        # CCW dir_vector X z_vector = to_inner vector 
+        to_inner = rs.VectorCrossProduct(dir_vector,z_vector) 
+        return to_inner
+    def check_vertex_order(self,refline=None):
+        ### Check if the shape is counter-clockwise
+        ### This is achieved by walking the polygon, 
+        ### and then summing the crossproduct
+        ### of each adjacent vectors. If the resulting crossproduct sum
+        ### is positive, then according to the RHR it is CCW else it 
+        ### is negative. If refline provided, we make a triangle
+        ### with refline and cpt  
+        ### Ref: http://stackoverflow.com/posts/1167206/revisions
+        if refline!=None:
+            endpts_lst = []
+            linepts = self.get_endpt4line(refline)
+            # Make triangle
+            endpts_lst.append([self.cpt,linepts[0]])
+            endpts_lst.append(linepts)
+            endpts_lst.append([linepts[1],self.cpt])    
+        else:
+            #need to test this!
+            print 'First time testing the vertex order for polygon'
+            print 'double check this at def check_vertex_order'
+            endpts_lst = self.set_base_matrix()
+        
+        ## Loop through and take the crossproduct of edge
+        i = 0
+        sum_of_cross_product = 0.
+        while i < (len(endpts_lst)-1):
+            curr_edgepts = endpts_lst[i]
+            next_edgepts = endpts_lst[i+1]
+            
+            curr_edgevector = curr_edgepts[1]-curr_edgepts[0]   
+            next_edgevector = next_edgepts[1]-curr_edgepts[0]
+            cp = rs.VectorCrossProduct(curr_edgevector,next_edgevector) 
+            sum_of_cross_product += cp[2]
+            i+=1
+        
+        #if positive, then according to RHR, vertices are CCW
+        if sum_of_cross_product > 0.:
+            return True
+        else:
+            return False
+    def get_endpt4line(self,line_):
+        if self.is_guid(line_):
+            line_ = rs.coercecurve(line_)
+        nc = line_.ToNurbsCurve()
+        end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
+        return end_pts
     def set_base_matrix(self,crv=None):
         ## Breaks up geometry into:
         ##[ [[vector1a,vector1b],  // line 1

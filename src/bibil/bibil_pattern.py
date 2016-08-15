@@ -416,6 +416,8 @@ class Pattern:
             except:
                 pass
             #print IsNSDim, IsEWDim
+            
+            #debug.append(t_.data.shape.geom)
             if IsEWDim and IsNSDim:
                 exist_lst = sc.sticky['existing_tower']
                 check_separation_new = check_base_with_offset(t_,sep_lst_)
@@ -825,7 +827,7 @@ class Pattern:
             dist_lst = PD['dist_lst']
             del_dist_lst = PD['delete_dist']
             temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst,ROOTREF) 
-        
+            
         ## 7. Extrude
         if PD['height']!=False:
             ht = PD['height']

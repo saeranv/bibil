@@ -19,17 +19,6 @@ def make_node_lst(copy_lot_in_):
         if lot_area >= park_max:
             L.append(n_)
     return L
-    
-def split_node_lst(node_lst_):
-    for lot_node in node_lst_:
-        P = Pattern()
-        axis_ = "NS"
-        #debug.extend(lot_node.data.shape.bbpts)
-        lot_node.data.shape.convert_rc()
-        P.pattern_divide(lot_node,"subdivide_depth",depth,axis=axis_,cut_width=street_dim,flip=flip_axis)
-        #P.pattern_divide(lot_node,"subdivide_depth_same",depth,axis=axis_,cut_width=street_dim,flip=flip_axis)
-        #lot_node.make_tree_3D(lot_node,"subdivide_dim",(18,18),axis=axis_,random_tol=0,cut_width=street_dim)
-        yield lot_node.traverse_tree(lambda n:n,internal=False)
 
 def get_park_dim(node_lst_,p_max,p_percent,ln):
     dim_x_lst = []
@@ -44,47 +33,50 @@ def get_park_dim(node_lst_,p_max,p_percent,ln):
         dim_x_lst.append(dim_x)
     return dim_x_lst
 
-def extrude_srf_xy(split_line,split_depth):
+def extrude_srf_xy(n_,split_line,split_depth):        
+    ## Modified from op_split method in bibil.ahape
     split_path = rs.AddCurve([[0,0,0],[0,0,20.]],1)    
-    split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line,split_path))
-            
-    nc = split_line.ToNurbsCurve()
-    end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
-    dir_vector = end_pts[1] - end_pts[0]
-    z_vector = rs.VectorCreate([0,0,0],[0,0,1])
-    # create forward and backwards vector using crossproduct
-    normal_f = rs.VectorCrossProduct(dir_vector,z_vector)
-    normal_b = rs.VectorCrossProduct(z_vector,dir_vector) 
+    split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line,split_path))        
     
-    sc_ = split_depth,split_depth,split_depth
+    ## Get vector pointing inwards
+    ## Unitize and multiply by dimension x
+    inner_norm = n_.data.shape.get_normal_point_inwards(split_line)
+    inner_norm.Unitize()
+    inner_norm = map(lambda v: v*split_depth,inner_norm)
     
-    normal_f.Unitize()
-    normal_b.Unitize()
-    normal_b = map(lambda v: v*split_depth/2.,normal_b)
-    
-    c = rs.AddCurve([rs.AddPoint(0,0,0),rs.AddPoint(normal_f[0],normal_f[1],normal_f[2])],0)
-    c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
+    c = rs.AddCurve([rs.AddPoint(0,0,0),rs.AddPoint(inner_norm[0],inner_norm[1],inner_norm[2])],0)
     rc_cut = rs.ExtrudeSurface(split_surf,c)
-    debug.append(rc_cut)
-
-def make_park_brep(lst_dim_x_,park_line_,lst_node_):
+    return rc_cut
+    
+def make_park_node(lst_dim_x_,park_line_,lst_node_):
     ## This function inputs the park_line, list of x dimensions
     ## and the nodes to calculate the park size
-    ## and then generates it using the pattern stepback
-    ## function
-    brep_lst_= []
+    ## and then generates the park geometry polygon
+    TOL = sc.doc.ModelAbsoluteTolerance
+    park_node_lst = []
+    park_brep_lst,lot_brep_lst = [],[]
+    
     park_line_ = rs.coercecurve(park_line_)    
     for n_,dx_ in zip(lst_node_,lst_dim_x_):
         P = Pattern()
-        extrude_srf_xy(park_line_,dx_)
-        #if True:#try:
-            #park_node = P.pattern_stepback(n_,step_data,stepback_node,setback_ref)
-            #brep_lst_.append(park_node)
-            #park_nodes = park_node.traverse_tree(lambda n: n,internal=False)
-        #except Exception as e:
-        #    print str(e)#,sys.exc_traceback.tb_lineno    
+        park_brep = extrude_srf_xy(n_,park_line_,dx_)
+        park_node = P.helper_geom2node(park_brep,None)
+        park_node_lst.append(park_node)   
+        ## diff from lot
+        park_node.data.shape.op_extrude(20.)
+        park = park_node.data.shape.bottom_crv
+        lot = n_.data.shape.bottom_crv
+        if n_.data.shape.is_guid(park):
+            park = rs.coercecurve(park)
+        if n_.data.shape.is_guid(lot):
+            lot = rs.coercecurve(park)
+        park_brep_lst.append(park)
+        lot_brep_lst.append(lot)
         
-    return brep_lst_
+    return park_node_lst, park_brep_lst, lot_brep_lst
+
+
+
 def copy_node_lst(nlst):
     L = []
     for n in nlst:
@@ -100,20 +92,12 @@ def main(lot_in_):
     lot_in_ = copy_node_lst(lot_in_)     
     lst_node = make_node_lst(lot_in_)
     lst_dim_x = get_park_dim(lst_node,park_max,park_percent,park_line)
-    lst_node = make_park_brep(lst_dim_x,park_line,lst_node)
-    #print brep_lst
-    #split_nodes = split_node_lst(lst_node)
-    #try:
-    #    split_nodes = reduce(lambda s, a: s + a, split_nodes)
-    #except: 
-    #    pass
-    return lst_node
+    lst_node,park,lot = make_park_node(lst_dim_x,park_line,lst_node)
+    return lst_node, park, lot
 
 if run and lot_in!=[None] and lot_in != None and lot_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    park_out = main(lot_in)
+    park_node,park,lot = main(lot_in)
 else:
     print 'Add inputs!'
-    
-print debug
