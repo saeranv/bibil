@@ -413,12 +413,13 @@ class Pattern:
             try:
                 IsEWDim = t_.data.shape.check_shape_dim("EW",dim_,tol=2.)
                 IsNSDim = t_.data.shape.check_shape_dim("NS",dim_,tol=2.)
+                IsMinArea = t_.data.shape.get_area() >= 740.
             except:
                 pass
             #print IsNSDim, IsEWDim
             
             #debug.append(t_.data.shape.geom)
-            if IsEWDim and IsNSDim:
+            if IsEWDim and IsNSDim and IsMinArea:
                 exist_lst = sc.sticky['existing_tower']
                 check_separation_new = check_base_with_offset(t_,sep_lst_)
                 check_separation_exist = check_base_with_offset(t_,exist_lst)
@@ -547,6 +548,10 @@ class Pattern:
             else:
                 setht_ = ht_
             
+            angle_srf = sc.sticky['angle_srf']
+            setht_angle = height_from_envelope(n_,envref=angle_srf)
+            
+            
             ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
             ydist = rs.Distance(n_.data.shape.cpt,ypt)
             mdist = rs.Distance(n_.data.shape.cpt,mpt)
@@ -555,13 +560,21 @@ class Pattern:
             else:
                 maxht = sc.sticky['max_ht_mount']# 40 storeys
             
-            IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
+            #IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
             IsPodium = 'podium' in n_.get_root().data.type['label']
             IsMaxht = maxht != None and setht_ > maxht
-            if not IsSolarEnv and IsMaxht:
+            
+            print setht_
+            print setht_angle
+            
+            if IsMaxht:
                 setht_ = maxht
+            if setht_ > setht_angle:
+                setht_ = setht_angle 
             if IsPodium:
                 setht_ = sc.sticky['ht_podium']
+            
+            
             
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
@@ -787,7 +800,6 @@ class Pattern:
              
         ## 6. separation_distance
         if PD['separate']:
-            print 'sep'
             dist_lst = PD['dist_lst']
             del_lst = PD['delete_dist']
             #norm2srfvector = self.helper_normal2extsrf(temp_node)
