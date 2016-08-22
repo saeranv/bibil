@@ -48,7 +48,7 @@ class Vector(object):
         ### change in all coordinates
         mag_lst = map(lambda c: c*c,self.coord) 
         sum_ = reduce(lambda i,j: i+j, mag_lst)
-        return sum_**Decimal(.5)
+        return sum_**Decimal('.5')
     def normalized(self):
         ### Purpose: find the direction of vector aka 
         ### return the unit vector
@@ -93,9 +93,12 @@ class Vector(object):
         ### checks if abs angle is 0 or 180
         ### returns True; else if all False returns False.
         ### self -> boolean
+        print 'testvector parral'
+        print self.is_zero()
+        print self.angle(v)
         return self.is_zero() or v.is_zero()\
-        or self.angle(v) == Decimal(0.) \
-        or self.angle(v) == Decimal(180.)
+        or self.angle(v) == Decimal('0.') \
+        or self.angle(v) == Decimal('180.')
     def is_orthogonal(self,v,tolerance=1e-10):
         ### Purpose: Checks if vector is perpendicular
         ### examines if dot product == 0. (cos(theta) == 0

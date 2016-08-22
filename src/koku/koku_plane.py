@@ -26,7 +26,9 @@ class Plane(object):
 
         if not constant_term:
             constant_term = Decimal('0')
-        self.constant_term = Decimal(constant_term)
+            self.constant_term = constant_term
+        else:
+            self.constant_term = Decimal(constant_term)
 
         self.set_basepoint()
 
@@ -114,11 +116,11 @@ class Plane(object):
         Planes are parallel when the normals are parallel.
         Check for parallelity by comparing the normals.
         """
-        try:
+        if True:#try:
             bool_ = self.normal_vector.is_parallel(p.normal_vector)
             return bool_
-        except Exception as e:
-            print "Error checking plane parallel: ", str(e)
+        #except Exception as e:
+        #    print "Error checking plane parallel: ", str(e)
             
     def __eq__(self,p):
         """
@@ -139,7 +141,7 @@ class Plane(object):
                 else:
                     diff = self.constant_term - p.constant_term
                     return MyDecimal(diff).is_near_zero()
-            # Else check if other normal is zero
+            # If self vector NOT zero vector, heck if other normal is zero
             elif p.normal_vector.is_zero():
                 return False
             # Check if parallel
@@ -148,6 +150,8 @@ class Plane(object):
                 testvec = self.basepoint.minus(p.basepoint)
                 # Check the dot product to see if zero = ortho
                 # to the normal vectors
+                # Because plane equality occurs when basis points are
+                # in the same plane of origin
                 return testvec.is_orthogonal(self.normal_vector)
             else:
                 return False
@@ -164,29 +168,38 @@ class MyDecimal(Decimal):
 ### Plane tests
 
 ##init test
-plane_0 = Plane(Vector([3,4,1]),40)
-print plane_0
-"""
+#plane_0 = Plane(Vector([3,4,1]),40)
+#print plane_0
 ### Plane parallel
-plane_0 = Plane(Vector([-0.412,3.806,0.728]),-3.46)
-plane_1 = Plane(Vector([1.03,-9.515,-1.82]),8.65)
+"""
+plane_0 = Plane(Vector(["-0.412","3.806","0.728"]),"-3.46")
+plane_1 = Plane(Vector(["1.03","-9.515","-1.82"]),"8.65")
 print 'test 1'
-print plane_1 == plane_0
-plane_0 = Plane(Vector([2.611,5.528,0.283]),4.6)
-plane_1 = Plane(Vector([7.715,8.306,5.342]),3.76)
+print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
+"""
+plane_0 = Plane(Vector(['2.611','5.528','0.283']),'4.6')
+plane_1 = Plane(Vector(['7.715','8.306','5.342']),'3.76')
 print '\ntest 2'
-print plane_1 == plane_0
-print plane_1.is_parallel(plane_0)
-plane_0 = Plane(Vector([-7.926,8.625,-7.212]),-7.952)
-plane_1 = Plane(Vector([-2.642,2.875,-2.404]),-2.443)
+#print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
+plane_a = Plane(Vector(['1','1','1']),'0')
+plane_b = Plane(Vector(['2','3','0.6']),'5')
+print plane_a.is_parallel(plane_b)
+"""
+"""
+"""
+plane_0 = Plane(Vector(['-7.926','8.625','-7.212']),'-7.952')
+plane_1 = Plane(Vector(['-2.642','2.875','-2.404']),'-2.443')
 print '\ntest 3'
-print plane_1 == plane_0
-print plane_1.is_parallel(plane_0)
 
+print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
+"""
+"""
 plane_0 = Plane(Vector(['1','2','3']),'5')
 plane_1 = Plane(Vector(['2','4','6']),'10')
-print plane_0
-print '\ntest 3'
-#print plane_1 == plane_0
-#print plane_1.is_parallel(plane_0)
+print '\ntest 4'
+print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
 """
