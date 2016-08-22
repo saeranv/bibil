@@ -1,0 +1,35 @@
+from pprint import pprint
+import foursquare
+import requests
+import time
+
+client_id = "SSXBOIXYWTBW2B3T1BFOQ0QT1L4DQUEWS0I52J1WZ0NRHUUB"
+client_secret = "JQP502DOEGJ5MQATJ3HRPLWHSHO2YRRPNXOWH0Q3Q2LCR11Y"
+url = 'https://api.foursquare.com/v2/venues/search?ll=51.519752,-0.071894'
+
+def get_fs_data(count):
+    r = requests.get(url, auth=(client_id,client_secret))
+    fs = r.json()
+    venue_lst = fs['response']['groups'][0]['items']      
+    
+    fout = file('fs_pop_curr_%d.txt' %count,'w')
+    for v in venue_lst:
+        name = v['name']
+        num_total = v['stats']['checkinsCount']
+        str_info = '%s:%d' % (name,num_total)
+        fout.write('%d,%s,%d' % (num_total, name, count)) 
+        fout.write('\n')
+    fout.close()
+    return str_info
+
+count = 1
+while count != 0:
+    str_info = get_fs_data(count)
+    count += 1
+    time.sleep(1)
+
+    
+
+
+
+        
