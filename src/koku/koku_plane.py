@@ -160,7 +160,7 @@ class Plane(object):
             
             
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=1e-10):
+    def is_near_zero(self, eps=Decimal(str(1e-10))):
         return float(self) < eps
 
 
@@ -180,14 +180,10 @@ print 'is parallel', plane_1.is_parallel(plane_0)
 """
 plane_0 = Plane(Vector(['2.611','5.528','0.283']),'4.6')
 plane_1 = Plane(Vector(['7.715','8.306','5.342']),'3.76')
-print '\ntest 2'
-#print 'is eq', plane_1 == plane_0
+#print '\ntest 2'
+print 'is eq', plane_1 == plane_0
 print 'is parallel', plane_1.is_parallel(plane_0)
-plane_a = Plane(Vector(['1','1','1']),'0')
-plane_b = Plane(Vector(['2','3','0.6']),'5')
-print plane_a.is_parallel(plane_b)
-"""
-"""
+
 """
 plane_0 = Plane(Vector(['-7.926','8.625','-7.212']),'-7.952')
 plane_1 = Plane(Vector(['-2.642','2.875','-2.404']),'-2.443')
