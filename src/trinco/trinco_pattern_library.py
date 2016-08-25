@@ -47,4 +47,3 @@ if True:
     sc.sticky['trinco_tower_in_podium'] = TT
     sc.sticky['trinco_tower_in_park'] = TP
     o = True
-
