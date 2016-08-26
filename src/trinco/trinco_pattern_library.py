@@ -37,8 +37,8 @@ TP['type_id'] = 'trinco_tower_in_park'
 #TP['stepback_node'] = -1
 #TP['stepback_base'] = [(0,9.)]
 #TP['stepback_tower'] = []
-TP['stepback_ref'] = [(0,(stepback*2.) + (stepback_acc*2.))]
-TP['concentric_divide'] = True
+TP['stepback_ref'] = [(0,stepback + stepback_acc)]
+#TP['concentric_divide'] = True
 TP['dist_lst'] = [new_separation,27.4]###
 TP['delete_dist'] = [new_separation]
 """--------------------------------"""
@@ -47,4 +47,3 @@ if True:
     sc.sticky['trinco_tower_in_podium'] = TT
     sc.sticky['trinco_tower_in_park'] = TP
     o = True
-

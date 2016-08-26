@@ -6,6 +6,7 @@ author: Saeran Vasanthakumar
 import rhinoscriptsyntax as rs
 import Rhino as rc
 import scriptcontext as sc
+import copy
 
 """import classes"""
 Pattern = sc.sticky["Pattern"]
@@ -32,12 +33,19 @@ def split_node_lst(node_lst_):
         #lot_node.make_tree_3D(lot_node,"subdivide_dim",(18,18),axis=axis_,random_tol=0,cut_width=street_dim)
         yield lot_node.traverse_tree(lambda n:n,internal=False)
         
+def copy_node_lst(nlst):
+    L = []
+    for n in nlst:
+        L.append(copy.deepcopy(n))
+    return L
+        
 def main(lot_in_):
     ### Grid_Subdivide: (listof node) int int -> (listof node))
     ### Purpose: This component consumes a list of node lots and two int and 
     ###generates a list of mutated nodes, with the lots subdivided according
     ###to the int int dimensions.
-    sc.sticky['seperation_offset_lst'] = []     
+    sc.sticky['seperation_offset_lst'] = []
+    lot_in_ = copy_node_lst(lot_in_)     
     lst_node = make_node_lst(lot_in_,ref_block_in)
     split_nodes = split_node_lst(lst_node)
     generator = reduce(lambda s, a: s + a, split_nodes)

@@ -29,17 +29,15 @@ def apply_type(copy_node_):
         node.data.type.update(copytype)
         L.append(node)
     return L
-def copy_node_lst(nlst,cnum):
-    i = 0
-    while i < cnum:
-        yield copy.deepcopy(nlst[i])
-        i += 1
+def copy_node_lst(nlst):
+    L = []
+    for n in nlst:
+        L.append(copy.deepcopy(n))
+    return L
 
 def main(node_in_lst):
     gen_node_lst = apply_type(node_in_lst)
-    node_in_lst = gen_node_lst
-    #print 'len', len(node_in_lst)
-    #debug.extend(map(lambda n: n.data.shape.geom,node_in_lst))
+    node_in_lst = copy_node_lst(gen_node_lst)
     try:
         NL = []
         P = Pattern()
@@ -47,10 +45,10 @@ def main(node_in_lst):
         for node_in_ in node_in_lst:
             try:
                 node_out_ = P.main_pattern(node_in_)
+                NL.append(node_out_)
                 RhinoApp.Wait() 
             except Exception as e:
                 print "Error @ Pattern.main_pattern"
-            NL.append(node_out_)
         return NL
     except Exception as e:
         print e

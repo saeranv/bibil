@@ -178,7 +178,7 @@ class Pattern:
         curr_n = tnode#tnode.traverse_tree(lambda n: n,internal=False)
         try:
             ht, dist = stepback_[0], stepback_[1]
-            #print 'ht,dist', ht, dist
+            dist = dist *2.
             for j,sbref in enumerate(sb_ref_):
                 # move sbref
                 move_vector= rc.Geometry.Vector3d(0,0,float(ht))
@@ -192,7 +192,6 @@ class Pattern:
                         curr_n.data.shape.reset(xy_change=True)
                 except Exception as e:
                     print "Error at shape.reset at pattern_stepback",str(e)
-            
         except Exception as e:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
@@ -340,6 +339,7 @@ class Pattern:
             up_vec = rc.Geometry.Vector3d(0,0,1)
             cross = rc.Geometry.Vector3d.CrossProduct(ccw_vec,up_vec)
             return cross
+        
         ## Takes a node and finds the vector perpendicular to the surface
         ## pointing inward, relative to the rootnode surface
         ## This should be abstracted and moved to shape class
@@ -413,10 +413,13 @@ class Pattern:
             try:
                 IsEWDim = t_.data.shape.check_shape_dim("EW",dim_,tol=2.)
                 IsNSDim = t_.data.shape.check_shape_dim("NS",dim_,tol=2.)
+                IsMinArea = t_.data.shape.get_area() >= 740.
             except:
                 pass
             #print IsNSDim, IsEWDim
-            if IsEWDim and IsNSDim:
+            
+            #debug.append(t_.data.shape.geom)
+            if IsEWDim and IsNSDim and IsMinArea:
                 exist_lst = sc.sticky['existing_tower']
                 check_separation_new = check_base_with_offset(t_,sep_lst_)
                 check_separation_exist = check_base_with_offset(t_,exist_lst)
@@ -503,6 +506,7 @@ class Pattern:
                 env = sc.sticky['envelope']
             else:
                 env = envref
+            
             base_matrix = n_.data.shape.set_base_matrix()
             ptlst = map(lambda l:l[0], base_matrix)
             dir = rc.Geometry.Vector3d(0,0,1) 
@@ -530,7 +534,7 @@ class Pattern:
         mpt = sc.sticky['bula_transit'][1]
         for n_ in lst_nodes:
             overridePD = self.check_override(n_)
-            print 'ht', ht_
+            #print 'ht', ht_
             if overridePD:
                 #print overridePD['height']
                 ht_ = overridePD['height']
@@ -538,11 +542,17 @@ class Pattern:
                 setht_ = height_from_bula(n_)
             elif type(ht_)==type('') and 'envelope' in ht_:
                 setht_ = height_from_envelope(n_)
-            elif type(ht_)==type('') and 'fortyfive' in ht_:
-                fortyfive = sc.sticky['fortfive_srf']
-                setht_ = height_from_envelope(n_,env=fortyfive)
+            elif type(ht_)==type('') and 'angle_srf' in ht_:
+                angle_srf = sc.sticky['angle_srf']
+                setht_ = height_from_envelope(n_,envref=angle_srf)
             else:
                 setht_ = ht_
+            
+            angle_srf = sc.sticky['angle_srf']
+            setht_angle = height_from_envelope(n_,envref=angle_srf)
+            
+            
+            ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
             ydist = rs.Distance(n_.data.shape.cpt,ypt)
             mdist = rs.Distance(n_.data.shape.cpt,mpt)
             if ydist < mdist:
@@ -550,13 +560,21 @@ class Pattern:
             else:
                 maxht = sc.sticky['max_ht_mount']# 40 storeys
             
-            IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
+            #IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
             IsPodium = 'podium' in n_.get_root().data.type['label']
             IsMaxht = maxht != None and setht_ > maxht
-            if not IsSolarEnv and IsMaxht:
+            
+            print setht_
+            print setht_angle
+            
+            if IsMaxht:
                 setht_ = maxht
+            if setht_ > setht_angle:
+                setht_ = setht_angle 
             if IsPodium:
                 setht_ = sc.sticky['ht_podium']
+            
+            
             
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
@@ -792,10 +810,10 @@ class Pattern:
         if PD['stepback_ref']:
             stepback = PD['stepback_ref']
             stepback_node = -1
-            print 'root'
+            #print 'root'
             root = temp_node
-            print root.data.shape.x_dist
-            print root.data.shape.y_dist
+            #print root.data.shape.x_dist
+            #print root.data.shape.y_dist
             if stepback != None and stepback != []:
                 try:
                     #root = temp_node.get_root()
@@ -827,7 +845,8 @@ class Pattern:
         if PD['height']!=False:
             ht = PD['height']
             temp_node = self.pattern_set_height(temp_node,ht)
-            
+        
+        
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
         stepback = PD['stepback_base']

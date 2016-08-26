@@ -48,7 +48,7 @@ class Vector(object):
         ### change in all coordinates
         mag_lst = map(lambda c: c*c,self.coord) 
         sum_ = reduce(lambda i,j: i+j, mag_lst)
-        return sum_**Decimal(.5)
+        return sum_**Decimal('.5')
     def normalized(self):
         ### Purpose: find the direction of vector aka 
         ### return the unit vector
@@ -56,7 +56,7 @@ class Vector(object):
         ### of the vector
         try:
             magnitude = self.magnitude()
-            return self.times_scalar(Decimal(1.)/magnitude)
+            return self.times_scalar(Decimal('1.')/magnitude)
         except ZeroDivisionError:
             ## raise genertic Exception class with custom arg
             raise Exception(self.CANNOT_NORMALIZE_ZERO_VECTOR_MSG)
@@ -73,7 +73,8 @@ class Vector(object):
         try:
             unitdotprod = self.normalized().dot_product(v.normalized())
             rad = acos(unitdotprod)
-            angle = Decimal(rad) if units == 'rad' else Decimal(rad*(180./pi))
+            deg = str(rad*(180./pi)) #because 180 deg == pi
+            angle = Decimal(rad) if units == 'rad' else Decimal(deg)
             return angle
         except Exception as e:
             ## Pass generic Exception type as e variable 
@@ -85,7 +86,8 @@ class Vector(object):
                 raise Exception('Cannot compute an angle with the zero vector')
             else:
                 print 'def angle error', str(e)
-    def is_zero(self,tolerance=1e-10):
+        
+    def is_zero(self,tolerance=Decimal(str(1e-10))):
         return self.magnitude() < tolerance
     def is_parallel(self,v):
         ### Purpose: Checks if vector is parallel
@@ -94,9 +96,9 @@ class Vector(object):
         ### returns True; else if all False returns False.
         ### self -> boolean
         return self.is_zero() or v.is_zero()\
-        or self.angle(v) == Decimal(0.) \
-        or self.angle(v) == Decimal(180.)
-    def is_orthogonal(self,v,tolerance=1e-10):
+        or self.angle(v) == Decimal('0.') \
+        or self.angle(v) == Decimal('180.')
+    def is_orthogonal(self,v,tolerance=Decimal(str(1e-10))):
         ### Purpose: Checks if vector is perpendicular
         ### examines if dot product == 0. (cos(theta) == 0
         ### returns True or False
@@ -168,7 +170,7 @@ class Vector(object):
         return self.area_of_parallelogram(w)/Decimal('2.0')
 
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=1e-10):
+    def is_near_zero(self, eps=Decimal(str(1e-10))):
         return abs(self) < eps
 
 if True:
@@ -178,7 +180,7 @@ if True:
     ## cross product test
     vector_v = Vector(['4','6','5.5'])#[8.462,7.893,-8.187])
     vector_w = Vector(['6.984','-5.975','4.778'])
-    print vector_v.cross_product(vector_w),'\n'
+    #print vector_v.cross_product(vector_w),'\n'
     """
     ## area parallelogram test
     vector_v = Vector([-8.987,-9.838,5.031])

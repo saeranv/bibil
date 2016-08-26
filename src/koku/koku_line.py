@@ -16,7 +16,6 @@ getcontext().prec = 30
 class Line(object):
 
     NO_NONZERO_ELTS_FOUND_MSG = 'No nonzero elements found'
-
     def __init__(self, normal_vector=None, constant_term=None):
         """
         ### Purpose: generates line object
@@ -53,7 +52,13 @@ class Line(object):
             n = self.normal_vector.coord
             c = self.constant_term
             basepoint_coords = ['0']*self.dimension
-            # get the first nonzero coefficient of the line            
+            
+            ## Find the first scalar coefficient that is not zero
+            ## to use as divisor to find the value of x,y,z of
+            ## of basepoint
+            ## Ax + By = C
+            ## if A != 0; x = C/A, y = 0
+            ## if B != 0; x = 0, y = C/B
             initial_index = Line.first_nonzero_index(n)
             initial_coefficient = n[initial_index]
             basepoint_coords[initial_index] = c/initial_coefficient
@@ -65,9 +70,7 @@ class Line(object):
             else:
                 raise e
     def __str__(self):
-
         num_decimal_places = 3
-
         def write_coefficient(coefficient, is_initial_term=False):
             coefficient = round(coefficient, num_decimal_places)
             if coefficient % 1 == 0:
@@ -81,24 +84,27 @@ class Line(object):
                 output += '+'
             if not is_initial_term:
                 output += ' '
-            output += '{}'.format(abs(coefficient))
+            output += str(abs(coefficient))
 
             return output
 
         n = self.normal_vector.coord
-
         try:
+            
             initial_index = Line.first_nonzero_index(n)
             terms = []
             for i in range(self.dimension):
+                ## If normal A,B,C... is not equal to zero
                 if round(n[i], num_decimal_places) != 0:
+                    ## True if it is initial index 
                     init=(i==initial_index)
-                    var = 'x_{}'.format(i+1)
+                    var = 'n_' + str(i+1) #n1,n2,n3
                     coef = write_coefficient(n[i],is_initial_term=init)
                     coef_w_var = coef + var
                     terms.append(coef_w_var)
             output = ' '.join(terms)
-
+        
+        
         except Exception as e:
             if str(e) == self.NO_NONZERO_ELTS_FOUND_MSG:
                 output = '0'
@@ -106,20 +112,21 @@ class Line(object):
                 print e.message, \
                     'Error on line {}'.format(sys.exc_info()[-1].tb_lineno)
                 raise e
+        
         constant = round(self.constant_term, num_decimal_places)
         if constant % 1 == 0:
             constant = int(constant)
-        output += ' = {}'.format(constant)
+        output += ' = ' + str(constant)
 
         return output
-
     @staticmethod
     def first_nonzero_index(iterable):
         for k, item in enumerate(iterable):
             if not MyDecimal(item).is_near_zero():
                 return k
+        #print Line.NO_NONZERO_ELTS_FOUND_MSG
         raise Exception(Line.NO_NONZERO_ELTS_FOUND_MSG)
-
+    
     def is_parallel(self,line):
         """
         Input line and self. Checks if the normal vectors 
@@ -130,7 +137,6 @@ class Line(object):
             return bool_
         except Exception as e:
             print "Error checking line parallel: ", str(e)
-           
     def __eq__(self,line):
         """
         Input line and self. Line is equal if parallel 
@@ -189,14 +195,13 @@ class Line(object):
                 return None
       
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=1e-10):
-        return abs(self) < eps
-
+    def is_near_zero(self, eps=0.0000000001):
+        return float(self) < eps
 
 """
 ## testing __init__ for line
-line_0 = Line(Vector([3,4]),3.)
-print "Init:", line_0
+line_0 = Line(Vector([3,4]),100)
+print "Init:",line_0
 ## testing parallel for line
 line_0 = Line(Vector([4.046,2.836]),1.21)
 line_1 = Line(Vector([10.115,7.09]),3.025)

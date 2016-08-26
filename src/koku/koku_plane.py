@@ -26,7 +26,9 @@ class Plane(object):
 
         if not constant_term:
             constant_term = Decimal('0')
-        self.constant_term = Decimal(constant_term)
+            self.constant_term = constant_term
+        else:
+            self.constant_term = Decimal(constant_term)
 
         self.set_basepoint()
 
@@ -35,13 +37,19 @@ class Plane(object):
             n = self.normal_vector.coord
             c = self.constant_term
             basepoint_coords = ['0']*self.dimension
-
+            
+            ## Find the first scalar coefficient that is not zero
+            ## to use as divisor to find the value of x,y,z of
+            ## of basepoint
+            ## Ax + By + Cz = D
+            ## if A != 0; x = D/A, y = 0, z = 0
+            ## if B != 0; x = 0, y = D/B, z = 0
             initial_index = Plane.first_nonzero_index(n)
             initial_coefficient = n[initial_index]
-
             basepoint_coords[initial_index] = c/initial_coefficient
+            # Now make the basepoint a vector
             self.basepoint = Vector(basepoint_coords)
-
+            
         except Exception as e:
             if str(e) == Plane.NO_NONZERO_ELTS_FOUND_MSG:
                 self.basepoint = None
@@ -49,7 +57,8 @@ class Plane(object):
                 raise e
 
     def __str__(self):
-
+        ### This function goves is the coefficients (A,B,C)
+        ### which is calculated from the basepoints.. somehow
         num_decimal_places = 3
 
         def write_coefficient(coefficient, is_initial_term=False):
@@ -65,19 +74,18 @@ class Plane(object):
                 output += '+'
             if not is_initial_term:
                 output += ' '
-            output += '{}'.format(abs(coefficient))
+            output += str(abs(coefficient))
 
             return output
 
         n = self.normal_vector.coord
-
         try:
             initial_index = Plane.first_nonzero_index(n)
             terms = []
             for i in range(self.dimension):
                 if round(n[i], num_decimal_places) != 0:
                     init=(i==initial_index)
-                    var = 'x_{}'.format(i+1)
+                    var = 'n_'+str(i+1)
                     coef = write_coefficient(n[i],is_initial_term=init)
                     coef_w_var = coef + var
                     terms.append(coef_w_var)
@@ -92,7 +100,7 @@ class Plane(object):
         constant = round(self.constant_term, num_decimal_places)
         if constant % 1 == 0:
             constant = int(constant)
-        output += ' = {}'.format(constant)
+        output += ' = '+str(constant)
 
         return output
 
@@ -108,15 +116,15 @@ class Plane(object):
         Planes are parallel when the normals are parallel.
         Check for parallelity by comparing the normals.
         """
-        try:
+        if True:#try:
             bool_ = self.normal_vector.is_parallel(p.normal_vector)
             return bool_
-        except Exception as e:
-            print "Error checking plane parallel: ", str(e)
+        #except Exception as e:
+        #    print "Error checking plane parallel: ", str(e)
             
     def __eq__(self,p):
         """
-        Planes are equal when they are parallel and are
+        Planes are equal when they are parallel and
         their basis points are located in the same
         plane of origin. Check this by checking to see
         if line made by two basis points is perpendicular
@@ -133,7 +141,7 @@ class Plane(object):
                 else:
                     diff = self.constant_term - p.constant_term
                     return MyDecimal(diff).is_near_zero()
-            # Else check if other normal is zero
+            # If self vector NOT zero vector, heck if other normal is zero
             elif p.normal_vector.is_zero():
                 return False
             # Check if parallel
@@ -142,6 +150,8 @@ class Plane(object):
                 testvec = self.basepoint.minus(p.basepoint)
                 # Check the dot product to see if zero = ortho
                 # to the normal vectors
+                # Because plane equality occurs when basis points are
+                # in the same plane of origin
                 return testvec.is_orthogonal(self.normal_vector)
             else:
                 return False
@@ -150,36 +160,42 @@ class Plane(object):
             
             
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=1e-10):
-        return abs(self) < eps
+    def is_near_zero(self, eps=Decimal(str(1e-10))):
+        return float(self) < eps
 
 
 
 ### Plane tests
-"""
+
 ##init test
-plane_0 = Plane(Vector([0,0,1]),3)
+#plane_0 = Plane(Vector([3,4,1]),40)
 #print plane_0
 ### Plane parallel
-plane_0 = Plane(Vector([-0.412,3.806,0.728]),-3.46)
-plane_1 = Plane(Vector([1.03,-9.515,-1.82]),8.65)
+"""
+plane_0 = Plane(Vector(["-0.412","3.806","0.728"]),"-3.46")
+plane_1 = Plane(Vector(["1.03","-9.515","-1.82"]),"8.65")
 print 'test 1'
-print plane_1 == plane_0
-plane_0 = Plane(Vector([2.611,5.528,0.283]),4.6)
-plane_1 = Plane(Vector([7.715,8.306,5.342]),3.76)
-print '\ntest 2'
-print plane_1 == plane_0
-print plane_1.is_parallel(plane_0)
-plane_0 = Plane(Vector([-7.926,8.625,-7.212]),-7.952)
-plane_1 = Plane(Vector([-2.642,2.875,-2.404]),-2.443)
+print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
+"""
+plane_0 = Plane(Vector(['2.611','5.528','0.283']),'4.6')
+plane_1 = Plane(Vector(['7.715','8.306','5.342']),'3.76')
+#print '\ntest 2'
+print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
+
+"""
+plane_0 = Plane(Vector(['-7.926','8.625','-7.212']),'-7.952')
+plane_1 = Plane(Vector(['-2.642','2.875','-2.404']),'-2.443')
 print '\ntest 3'
-print plane_1 == plane_0
-print plane_1.is_parallel(plane_0)
+
+print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
+"""
 """
 plane_0 = Plane(Vector(['1','2','3']),'5')
 plane_1 = Plane(Vector(['2','4','6']),'10')
-print plane_0
-print '\ntest 3'
-#print plane_1 == plane_0
-#print plane_1.is_parallel(plane_0)
-
+print '\ntest 4'
+print 'is eq', plane_1 == plane_0
+print 'is parallel', plane_1.is_parallel(plane_0)
+"""

@@ -42,7 +42,7 @@ TT['type_id'] = 'miru_tower_in_podium'
 #TT['court'], TT['court_width'],TT['court_node'] = 1, 24.5,0.#39.4, 0
 #TT['court_slice'] = True
 TT['stepback_node'] = -1
-TT['stepback_base'] = [(13.5,(stepback*2.))]
+TT['stepback_base'] = [(13.5,(stepback))]
 TT['height'] = sc.sticky['ht_podium']
 
 """----------------
@@ -51,14 +51,16 @@ Tower and Park
 TP = copy.deepcopy(PD_) 
 TP['type_id'] = 'miru_tower_in_park'
 TP['separate'] = True 
-TP['dist_lst'] = [new_separation,27.4]###
+TP['dist_lst'] = [new_separation,27.4]
 TP['delete_dist'] = [new_separation]
 if sky_topo == 0:
     TP['height'] = 'bula'
 elif sky_topo == 1:
     TP['height'] = 'envelope'
-else:#sky_topo == 2:
-    TP['height'] = 'fortyfive'
+elif sky_topo == 2:
+    TP['height'] = 'angle_srf'
+else:
+    TP['height'] = 'intersect_srf'
 
 """----------------
 Solar Access Type Override 
@@ -75,31 +77,32 @@ TO['height'] = 'envelope'
 
 grammar_lst.extend([TO,TT,TP])
 
-if reset==False:
+if run:
     import rhinoscriptsyntax as rs
     sc.sticky['max_ht_yonge'] = max_yonge 
     sc.sticky['max_ht_mount'] = max_mount
     sc.sticky['min_ht'] = max_north
 
-    
     sc.sticky['miru_tower_in_podium'] = TT
     sc.sticky['miru_tower_in_park'] = TP
     sc.sticky['override'] = []
     sc.sticky['envelope'] = []
+    sc.sticky['angle_srf'] = []
     sc.sticky['existing_tower'] = []
     
     dpt_yonge = rs.coerce3dpoint(dpt_yonge)
     dpt_mount = rs.coerce3dpoint(dpt_mount)
     sc.sticky['bula_transit'] = [dpt_yonge,dpt_mount]
     
-    for envelope_node in envelope_srfs:
+    for envelope_node in solar_srfs:
         envelope_node = rs.coercebrep(envelope_node)
         sc.sticky['envelope'].append(envelope_node)
     for sepcrv in override_sep:
         sepcrv = rs.coercecurve(sepcrv)
         sc.sticky['existing_tower'].append(sepcrv)
-    
-    sc.sticky['fortyfive_srf'] = rs.coercebrep(fortyfiveangle_srf)
+    for angle_plane in angle_srf:
+        angle_plane = rs.coercebrep(angle_plane)
+        sc.sticky['angle_srf'].append(angle_plane)
     
     for overnode in override_crvs:
         # Find better way to do this.
@@ -111,5 +114,5 @@ if reset==False:
             
     
     #print sc.sticky['existing_tower']
-    o = True
+    o = run
     
