@@ -16,6 +16,7 @@ PD_ = \
 'flip':False,\
 'div_num':0, 'div_deg':0, 'div_cut':0,\
 'div_ratio':0.,\
+'div_type': 'simple'
 'court':0, 'court_width':0., 'court_node':-1,'court_slice':None,\
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\

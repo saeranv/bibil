@@ -781,15 +781,16 @@ class Pattern:
         div_deg = PD['div_deg']
         div_cut = PD['div_cut']
         div_ratio = PD['div_ratio']
+        div_type = PD['div_type']
+        div_axis = PD['axis']
         flip = PD['flip']
         
         if div_num > 0:
             try:
-                temp_node = self.pattern_divide(node,temp_node,div_num,div_deg,div_cut,div_ratio,flip)
+                temp_node = self.pattern_divide(temp_node,div_type,div_num,div_axis,div_cut,ratio=div_ratio,flip=flip)
             except Exception as e:
                 print "Error @ main_pattern @ pattern_divide"
-                print e
-             
+                print str(e)
         ## 4. param 3
         if solartype == 2: # multi_cell
             try:
