@@ -530,17 +530,17 @@ class Pattern:
         ht_node_ = 'print'
         lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
         lst_nodes = filter(lambda n:n!=None,lst_nodes)
-        ypt = sc.sticky['bula_transit'][0]
-        mpt = sc.sticky['bula_transit'][1]
+        #ypt = sc.sticky['bula_transit'][0]
+        #mpt = sc.sticky['bula_transit'][1]
         for n_ in lst_nodes:
             overridePD = self.check_override(n_)
             #print 'ht', ht_
             if overridePD:
                 #print overridePD['height']
                 ht_ = overridePD['height']
-            if type(ht_)==type('') and 'bula' in ht_:
-                setht_ = height_from_bula(n_)
-            elif type(ht_)==type('') and 'envelope' in ht_:
+            #if type(ht_)==type('') and 'bula' in ht_:
+            #    setht_ = height_from_bula(n_)
+            if type(ht_)==type('') and 'envelope' in ht_:
                 setht_ = height_from_envelope(n_)
             elif type(ht_)==type('') and 'angle_srf' in ht_:
                 angle_srf = sc.sticky['angle_srf']
@@ -548,13 +548,16 @@ class Pattern:
             else:
                 setht_ = ht_
             
-            angle_srf = sc.sticky['angle_srf']
-            setht_angle = height_from_envelope(n_,envref=angle_srf)
+            #angle_srf = sc.sticky['angle_srf']
+            #setht_angle = height_from_envelope(n_,envref=angle_srf)
             
             
             ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
-            ydist = rs.Distance(n_.data.shape.cpt,ypt)
-            mdist = rs.Distance(n_.data.shape.cpt,mpt)
+            #ydist = rs.Distance(n_.data.shape.cpt,ypt)
+            #mdist = rs.Distance(n_.data.shape.cpt,mpt)
+            """
+            ydist = 121
+            mdist = 121
             if ydist < mdist:
                 maxht = sc.sticky['max_ht_yonge']# 70 storeys
             else:
@@ -563,10 +566,10 @@ class Pattern:
             #IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
             IsPodium = 'podium' in n_.get_root().data.type['label']
             IsMaxht = maxht != None and setht_ > maxht
-            
-            print setht_
-            print setht_angle
-            
+            """
+            #print setht_
+            #print setht_angle
+            """
             if IsMaxht:
                 setht_ = maxht
             if setht_ > setht_angle:
@@ -574,7 +577,7 @@ class Pattern:
             if IsPodium:
                 setht_ = sc.sticky['ht_podium']
             
-            
+            """
             
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
@@ -599,6 +602,7 @@ class Pattern:
         overnode.data.type['grammar'] = grammar
         sc.sticky['override'].append(overnode)
         """
+        """
         #debug = sc.sticky['debug']
         lstoverride = sc.sticky['override']
         theoverride = None
@@ -610,6 +614,8 @@ class Pattern:
                 theoverride = overnode.data.type['grammar']
                 break
         return theoverride
+        """
+        return False
     def print_node(self,node_,label='print'):
         #debug = sc.sticky['debug']
         if node_.data.type.has_key(label) and node_.data.type[label]:
