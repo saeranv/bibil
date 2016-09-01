@@ -177,22 +177,19 @@ plane_1 = Plane(Vector(["1.03","-9.515","-1.82"]),"8.65")
 print 'test 1'
 print 'is eq', plane_1 == plane_0
 print 'is parallel', plane_1.is_parallel(plane_0)
-"""
+
 plane_0 = Plane(Vector(['2.611','5.528','0.283']),'4.6')
 plane_1 = Plane(Vector(['7.715','8.306','5.342']),'3.76')
-#print '\ntest 2'
+print '\ntest 2'
 print 'is eq', plane_1 == plane_0
 print 'is parallel', plane_1.is_parallel(plane_0)
 
-"""
 plane_0 = Plane(Vector(['-7.926','8.625','-7.212']),'-7.952')
 plane_1 = Plane(Vector(['-2.642','2.875','-2.404']),'-2.443')
 print '\ntest 3'
-
 print 'is eq', plane_1 == plane_0
 print 'is parallel', plane_1.is_parallel(plane_0)
-"""
-"""
+
 plane_0 = Plane(Vector(['1','2','3']),'5')
 plane_1 = Plane(Vector(['2','4','6']),'10')
 print '\ntest 4'
