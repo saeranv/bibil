@@ -197,7 +197,7 @@ class Pattern:
             print "Error at Pattern.stepback"
         ###debug.append(tnode.data.shape.geom)
         return tnode    
-    def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=None,twoway=False,flip=False):        
+    def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=0.,twoway=False,flip=False):        
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
             #print 'divdepth, div', div_depth,',', div
             # stop subdivide
@@ -205,12 +205,12 @@ class Pattern:
                 haxis,hratio = axis_ref,0.
             # start subdivide
             elif int(div_depth) == 0 and int(div) > 0:
-                haxis,hratio = axis_ref,0.5
+                haxis,hratio = axis_ref,ratio_
             # alternate subdivide by axis
             elif "NS" in hnode.parent.data.type['axis']:
-                haxis,hratio = "EW",0.5
+                haxis,hratio = "EW",ratio_
             elif "EW" in hnode.parent.data.type['axis']:
-                haxis,hratio = "NS",0.5
+                haxis,hratio = "NS",ratio_
             hnode.data.type['axis'] = haxis
             hnode.data.type['ratio'] = hratio
             return hnode
@@ -220,7 +220,7 @@ class Pattern:
                 haxis,hratio = axis_ref,0.
             # alternate subdivide by axis
             elif float(div_depth) < 0.5 and int(div) > 0.01:
-                haxis,hratio = axis_ref,0.5
+                haxis,hratio = axis_ref,ratio_
             # alternate subdivide by axis
             else:
                 haxis,hratio = node.parent.data.type['axis'],0.5
@@ -258,10 +258,6 @@ class Pattern:
             return hnode
         def helper_divide_recurse(node_,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
             ## Split, make a node, and recurse.
-            ## div = cut num (i.e. 1,2 or [25,25] if subdivdiebydim)
-            ## divdepth = how many times you are cutting
-            ## cwidth: thickness of cut only used in split
-            ## Calculate and encode the ratio and axis data
             if grid_type == "subdivide_depth":
                 node_ = helper_subdivide_depth(node_,div_,div_depth_,ratio_,axis_ref=axis_)
             elif grid_type == "subdivide_depth_same":
@@ -270,7 +266,7 @@ class Pattern:
                 node_ = helper_subdivide_dim(node_,div_,div_depth_,ratio_,axis_ref=axis_)
             else:#simple_divide
                 node_ = helper_simple_divide(node_,div_,div_depth_,ratio_,axis_ref=axis_)
-            if count > 50.:
+            if count >=200.:
                 pass
             elif node_.data.type['ratio'] > 0.0001:
                 #node_.data.type['ratio'] = 1. - node_.data.type['ratio']
@@ -289,7 +285,7 @@ class Pattern:
                 for nc in node_.loc:
                     helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
         debug = sc.sticky['debug']
-        if node.depth >=200 or 'simple' in grid_type: # base case 1
+        if node.depth >=200: # base case 1
             print 'node.depth > 10'
         else:
             helper_divide_recurse(node,grid_type,div,div_depth,cut_width,ratio,axis,0)

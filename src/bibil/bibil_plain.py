@@ -17,11 +17,11 @@ Grammar = sc.sticky["Grammar"]
 def copy_node_lst(nlst):
     L = []
     for n in nlst:
-        L.append(copy.deepcopy(n))
-    return L
+        #L.append(copy.deepcopy(n))
+        yield copy.deepcopy(n)
 
 def make_node_lst(copy_node_in_): 
-    L = []
+    #L = []
     P = Pattern()
     ref_geom = rs.coercebrep(rs.AddBox([[0,0,0],[0,1,0],[-1,1,0],[-1,0,0],\
                                         [0,0,1],[0,1,1],[-1,1,1],[-1,0,1]]))
@@ -34,8 +34,9 @@ def make_node_lst(copy_node_in_):
             n_ = node_geom
         else:
             n_ = P.helper_geom2node(node_geom,None,label=label_)
-        L.append(n_)
-    return L
+        yield n_
+        #L.append(n_)
+        #return L
 
 def node2pattern(lst_node_,rule_in_):
     def type2node(copy_node_,type_):
@@ -47,7 +48,7 @@ def node2pattern(lst_node_,rule_in_):
     ## Applies pattern based on types
     ## outputs node    
     P = Pattern()
-    NL = []
+    #NL = []
     for node_ in lst_node_:
         ## Apply type to node
         node_ = type2node(node_,rule_in_)
@@ -55,17 +56,19 @@ def node2pattern(lst_node_,rule_in_):
         if True:#try:
             node_out_ = P.main_pattern(node_)
             nlst = node_out_.traverse_tree(lambda n:n,internal=False)
-            NL.extend(nlst)
+            #NL.extend(nlst)
             RhinoApp.Wait() 
+        yield nlst
         #except Exception as e:
         #    print "Error @ Pattern.main_pattern"
-    return NL
+        #return NL
 
 def main(node_in_,rule_in):
     ### Grid_Subdivide: (listof node) int int -> (listof node))
     node_in_ = copy_node_lst(node_in_)     
     lst_node = make_node_lst(node_in_)
     lst_node = node2pattern(lst_node,rule_in)
+    lst_node = reduce(lambda x,y:x+y,lst_node)
     return lst_node
 
 node_in = filter(lambda n: n!=None,node_in)

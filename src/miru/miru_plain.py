@@ -34,7 +34,7 @@ R = copy.deepcopy(PD_)
 R['div_num'] = divide_num
 R['div_deg'] = 0.
 R['div_cut'] = divide_cut
-R['div_ratio'] = 0.5
+R['div_ratio'] = divide_ratio
 R['div_type'] = divide_type
 R['axis'] = axis
 
