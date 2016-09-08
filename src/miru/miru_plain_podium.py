@@ -28,7 +28,7 @@ PD_ = \
 """--------------------------------"""
 
 """----------------
-DIVIDE GRAMMAR
+COURT GRAMMAR
 ----------------""" 
 R = copy.deepcopy(PD_)
 R['court'] = 1
@@ -36,10 +36,6 @@ R['court_width'] = podium_depth
 R['court_node'] = node_depth
 R['court_slice']= True
 R['height'] = podium_ht
-R['dist_lst'] = [20.,25.]###
-R['delete_dist'] = [20.]
-R['stepback_node'] = -1
-R['stepback_base'] = [(13.5,(6.))]
 
 if True:
     rule = [R]

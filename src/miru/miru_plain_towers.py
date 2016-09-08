@@ -34,7 +34,7 @@ TP = copy.deepcopy(PD_)
 TP['separate'] = True 
 TP['dist_lst'] = [25.,27.]
 TP['delete_dist'] = [25.]
-TP['concentric_divide'] = True
+#TP['concentric_divide'] = True
 TP['height'] = 90.
 
 

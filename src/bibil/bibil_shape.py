@@ -373,7 +373,8 @@ class Shape_3D:
             AInsideB    2    Region bounded by curveA (first curve) is inside of curveB (second curve).
             BInsideA    3    Region bounded by curveB (second curve) is inside of curveA (first curve).
             """
-            disjoint = rc.Geometry.RegionContainment.Disjoint 
+            disjoint = rc.Geometry.RegionContainment.Disjoint
+            intersect = rc.Geometry.RegionContainment.MutualIntersection
             #add the rest
             if crvB == None:
                 crvB = self.bottom_crv
@@ -385,6 +386,8 @@ class Shape_3D:
             setrel = rc.Geometry.Curve.PlanarClosedCurveRelationship (crvA,crvB,refplane,tol)
             if disjoint == setrel:
                 return 0
+            elif intersect == setrel:
+                return 2
             else:
                 return 1
     def get_normal_point_inwards(self,refline_):
@@ -500,11 +503,11 @@ class Shape_3D:
                         if currdir.IsParallelTo(refdir) != 0 and not CULLDICT.has_key(currdist):
                             power_lst.append(currdist)
                             CULLDICT[currdist] = True
-                if power_lst:
+                if power_lst != []:
                     power_lst.sort(reverse=True)
                     power_num = reduce(lambda x,y: x+y,power_lst)
                 else:
-                    power_num = 0
+                    power_num = 0.
                 lop.append(power_num)
             return lop
         
@@ -516,9 +519,13 @@ class Shape_3D:
             if crv==None:
                 crv = self.bottom_crv
             axis_matrix = self.set_base_matrix(crv)
-            axis_power_lst = helper_group_parallel(axis_matrix)
-            pa_index = axis_power_lst.index(max(axis_power_lst))
-            pa_vector = axis_matrix[pa_index][1]-axis_matrix[pa_index][0]
+            if axis_matrix != []:
+                axis_power_lst = helper_group_parallel(axis_matrix)
+                pa_index = axis_power_lst.index(max(axis_power_lst))
+                pa_vector = axis_matrix[pa_index][1]-axis_matrix[pa_index][0]
+            else:
+                #degenerate crv
+                pa_vector = None
             self.primary_axis_vector = pa_vector
             return self.primary_axis_vector
         except Exception as e:
@@ -532,7 +539,6 @@ class Shape_3D:
             z_pt_ = rc.Geometry.Vector3d(0,0,1)
             ## construct x_pt_ using the communitive property of crossproduct
             x_pt_ = rc.Geometry.Vector3d.CrossProduct(y_pt_,z_pt_)
-            
             return o_pt_,x_pt_,y_pt_
         try:
             if self.is_guid(g):
@@ -543,7 +549,13 @@ class Shape_3D:
             nc = self.bottom_crv.ToNurbsCurve()
             planar_pts = [nc.Points[i].Location for i in xrange(nc.Points.Count)]
             primary_axis_vector = self.get_shape_axis(self.bottom_crv)
-            o_pt,x_pt,y_pt = helper_define_axis_pts(primary_axis_vector)
+            if primary_axis_vector:
+                o_pt,x_pt,y_pt = helper_define_axis_pts(primary_axis_vector)
+            else:
+                #degenerate shape
+                o_pt = rc.Geometry.Point3d(0,0,0)
+                x_pt = rc.Geometry.Point3d(1,0,0)
+                y_pt = rc.Geometry.Point3d(0,1,0)
             cplane = rc.Geometry.Plane(o_pt,x_pt,y_pt)
             return cplane
         except Exception as e:

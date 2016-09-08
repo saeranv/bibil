@@ -385,7 +385,7 @@ class Pattern:
                 ##debug.append(offset)
                 setrel = base_.data.shape.check_region(crvA,crvB,tol=0.1)
                 #If not disjoint
-                if abs(setrel-0.)>0.1:
+                if not abs(setrel-0.)<0.1:
                     intersect_offset = True
                     break
             return not intersect_offset
@@ -465,7 +465,6 @@ class Pattern:
         separation_tol = 0.5
         for t in topo_grand_child_lst_:
             #debug.append(t.data.shape.geom)
-            
             check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
         
         return temp_node_topo
@@ -606,7 +605,7 @@ class Pattern:
         for overnode in lstoverride:
             crvB = overnode.data.shape.bottom_crv
             setrel = node_.data.shape.check_region(crvA,crvB,tol=0.5)
-            if abs(setrel-0.)>0.1:
+            if not abs(setrel-0.)<0.1:
                 theoverride = overnode.data.type['grammar']
                 break
         return theoverride
@@ -678,7 +677,7 @@ class Pattern:
         def court_slice(curr_node,rootshape,width_):
             def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count):
                 #print count, curr_node_
-                cmax = 60.
+                cmax = 10.
                 tol = 2.
                 invalid_node = None
                 valid_node = None
@@ -686,37 +685,70 @@ class Pattern:
                 if count >= cmax or curr_node_==None:
                     return valid_node_lst,diff
                 else:
-                    diff = curr_node_
+                    #diff = curr_node_
+                    print '--', len(matrice)
                     for i,line in enumerate(matrice):
-                        #print '  ',i
+                        print ' i ',i
                         dirvec = line[1]-line[0]
                         # get magnitude of line
                         dist = math.sqrt(sum(map(lambda p: p*p,dirvec)))
                         if dist > tol: 
                             split_crv = rs.AddCurve(line,1)
+                            sc_ = 15.,15.,0.
                             midpt = curr_node_.data.shape.get_midpoint(line)
-                            try:
+                            split_crv = rs.ScaleObject(split_crv,midpt,sc_)
+                            if True:#try:
                                 split_geoms = curr_node_.data.shape.op_split("NS",0.5,split_depth=0,split_line_ref=split_crv)
-                                for geom in split_geoms:
+                                s__ = []
+                                for i_,geom in enumerate(split_geoms):
                                     #if type(geom)!= type(rootshape.data.shape.geom):
                                     #    ##debug.append(geom)
                                     split_node = self.helper_geom2node(geom,None)
-                                    split_crv = split_node.data.shape.bottom_crv
-                                    set_rel = curr_node_.data.shape.check_region(chk_offset,split_crv,tol=0.1)
+                                    split_crv_off = split_node.data.shape.bottom_crv
+                                    s__.append(split_crv_off)
+                                    set_rel = curr_node_.data.shape.check_region(chk_offset,split_crv_off,tol=0.1)
                                     if abs(set_rel-0.)<0.1:
+                                        #if set_rel is 0, then geom is outside crv
                                         valid_node = split_node
+                                    #elif abs(set_rel-2.)<0.1:
+                                    #    invalid_node = split_node
+                                    #    if i_ == 1:
+                                    #        try:
+                                    #            L_,diff_ = recurse_slice(self.helper_geom2node(split_geoms[0],None),shape_matrix,[],None,0)
+                                    #            debug.extend(map(lambda n:n.data.shape.geom,L_))
+                                    #        except: pass
+                                        #print 'sr', set_rel
                                     else:
+                                        #if set_rel is one, then geom is inside 
+                                        # or intersects the curve
                                         invalid_node = split_node
-                            except:
-                                pass## Split fail, so test the next line split
+                            #except Exception as e:
+                            #    #pass## Split fail, so test the next line split    
+                            #    print str(e)
                         if invalid_node != None and valid_node != None:
                             valid_node_lst.append(valid_node)
                             matrice.pop(i)
+                            print 'break---'
                             break
+                        matrice_max = i == len(matrice)-1 
+                        if matrice_max == True:
+                            # We have tried all the lines in the shape, and none of them have produced a 
+                            # split geometry
+                            print 'matrice max reached val', valid_node, invalid_node
+                            #matrice.pop(i)
+                            print 'set rel', set_rel
+                            #debug.append(split_crv_off)
+                            debug.append(chk_offset)
+                            #debug.append(split_crv)
+                            #debug.append(invalid_node.data.shape.geom)
+                            if len(matrice) == 1:
+                                #debug.extend(s__)
+                                debug.append(split_crv)
+                            #debug.append(curr_node_.data.shape.geom)
                 # If the node has been split (invalid_node!= None)
                 # OR the node has no valid split lines (invalid_node == None)
                 # then we send it back into the recurser.
-                return recurse_slice(invalid_node,matrice,valid_node_lst,diff,count+1) 
+                return recurse_slice(invalid_node,matrice,valid_node_lst,curr_node_,count+1) 
             
             offset = rootshape.op_offset_crv(width_)
             ###debug.append(rootshape.bottom_crv)
