@@ -36,6 +36,9 @@ R['court_width'] = podium_depth
 R['court_node'] = node_depth
 R['court_slice']= True
 R['height'] = podium_ht
+R['stepback_node'] = -1
+R['stepback_base'] = [(13.5,(3.))]
+R['stepback_ref'] = stepback_ref
 
 if True:
     rule = [R]

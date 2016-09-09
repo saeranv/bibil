@@ -176,7 +176,8 @@ class Pattern:
         ##stepback_: height,recess distance 
         debug = sc.sticky['debug']
         curr_n = tnode#tnode.traverse_tree(lambda n: n,internal=False)
-        try:
+        if True:#try:
+            print stepback_
             ht, dist = stepback_[0], stepback_[1]
             dist = dist *2.
             for j,sbref in enumerate(sb_ref_):
@@ -184,17 +185,17 @@ class Pattern:
                 move_vector= rc.Geometry.Vector3d(0,0,float(ht))
                 sbref_crv = sc.doc.Objects.AddCurve(sbref)
                 sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
-                try:
+                if True:#try:
                     cut_geom = curr_n.data.shape.op_split("EW",0.5,deg=0.,\
                     split_depth=float(dist),split_line_ref=sbref_crv)
                     if cut_geom:
                         curr_n.data.shape.geom = cut_geom[0]
                         curr_n.data.shape.reset(xy_change=True)
-                except Exception as e:
-                    print "Error at shape.reset at pattern_stepback",str(e)
-        except Exception as e:
-            print str(e)#,sys.exc_traceback.tb_lineno 
-            print "Error at Pattern.stepback"
+                #except Exception as e:
+                #    print "Error at shape.reset at pattern_stepback",str(e)
+        #except Exception as e:
+        #    print str(e)#,sys.exc_traceback.tb_lineno 
+        #    print "Error at Pattern.stepback"
         ###debug.append(tnode.data.shape.geom)
         return tnode    
     def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=0.,twoway=False,flip=False):        
@@ -834,14 +835,14 @@ class Pattern:
             temp_node = self.pattern_separate_by_dist(temp_node,dist_lst,del_lst) 
             #print temp_node.data.shape.geom
         
+        
         ROOTREF = None
         if PD['stepback_ref']:
             stepback = PD['stepback_ref']
             stepback_node = -1
             #print 'root'
             root = temp_node
-            #print root.data.shape.x_dist
-            #print root.data.shape.y_dist
+            """
             if stepback != None and stepback != []:
                 try:
                     #root = temp_node.get_root()
@@ -851,18 +852,19 @@ class Pattern:
                     ROOTREF = Shape_3D(build_node.data.shape.geom,cplane=build_node.data.shape.cplane)
                 except:
                     pass
+            """
             if stepback != None and stepback != []:
-                try:
+                if True:#try:
                     setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
                     step_data = stepback[0]
                     build_lst = temp_node.traverse_tree(lambda n: n,internal=False)#self.print_node(n),internal=False)
                     for build_node in build_lst:
-                        try:
+                        if True:#try:
                             build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
-                        except:
-                            pass
-                except:
-                    pass
+                        #except:
+                            #pass
+                #except:
+                    #pass
                     
         if PD['concentric_divide']:
             dist_lst = PD['dist_lst']
