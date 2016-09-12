@@ -172,31 +172,34 @@ class Pattern:
         except Exception as e:
             print "Error at pattern solar envelope multi"
             print e
-    def pattern_stepback(self,tnode,stepback_,stepback_node_,sb_ref_):
-        ##stepback_: height,recess distance 
+    def pattern_stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
-        curr_n = tnode#tnode.traverse_tree(lambda n: n,internal=False)
-        if True:#try:
-            print stepback_
-            ht, dist = stepback_[0], stepback_[1]
-            dist = dist *2.
-            for j,sbref in enumerate(sb_ref_):
-                # move sbref
-                move_vector= rc.Geometry.Vector3d(0,0,float(ht))
-                sbref_crv = sc.doc.Objects.AddCurve(sbref)
-                sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
-                if True:#try:
-                    cut_geom = curr_n.data.shape.op_split("EW",0.5,deg=0.,\
-                    split_depth=float(dist),split_line_ref=sbref_crv)
+        sb_geom = PD_['stepback_geom']
+        sb_node = PD_['stepback_node']
+        sb_data = PD_['stepback_data']
+        ##sb_data: [(height,distance),(height,distance)...]     
+        try:
+            # Loop through the height,setback tuples
+            for sbd in sb_data:
+                ht, dist = sbd[0], sbd[1]
+                ## Not efficient, but for now: loop through all sb_geoms
+                for sbg in sb_geom:
+                    # move sbref
+                    move_vector= rc.Geometry.Vector3d(0,0,float(ht))
+                    sbref_crv = sc.doc.Objects.AddCurve(sbg)
+                    sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
+                    cut_geom = None
+                    try: 
+                        cut_geom = tnode.data.shape.op_split("EW",0.5,deg=0.,\
+                                            split_depth=float(dist*2.),split_line_ref=sbref_crv)
+                    except:
+                        pass
                     if cut_geom:
-                        curr_n.data.shape.geom = cut_geom[0]
-                        curr_n.data.shape.reset(xy_change=True)
-                #except Exception as e:
-                #    print "Error at shape.reset at pattern_stepback",str(e)
-        #except Exception as e:
-        #    print str(e)#,sys.exc_traceback.tb_lineno 
-        #    print "Error at Pattern.stepback"
-        ###debug.append(tnode.data.shape.geom)
+                        tnode.data.shape.geom = cut_geom[0]
+                        tnode.data.shape.reset(xy_change=True)
+        except Exception as e:
+            print str(e)#,sys.exc_traceback.tb_lineno 
+            print "Error at Pattern.stepback"
         return tnode    
     def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=0.,twoway=False,flip=False):        
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
@@ -287,7 +290,7 @@ class Pattern:
                     helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
         debug = sc.sticky['debug']
         if node.depth >=200: # base case 1
-            print 'node.depth > 10'
+            print 'node.depth > 200'
         else:
             helper_divide_recurse(node,grid_type,div,div_depth,cut_width,ratio,axis,0)
         return node
@@ -522,18 +525,12 @@ class Pattern:
             
         debug = sc.sticky['debug']
         #print 'We are setting height!'
-        overridePD = self.check_override(temp_node_)
         ht_node_ = 'print'
         lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
         lst_nodes = filter(lambda n:n!=None,lst_nodes)
         #ypt = sc.sticky['bula_transit'][0]
         #mpt = sc.sticky['bula_transit'][1]
         for n_ in lst_nodes:
-            overridePD = self.check_override(n_)
-            #print 'ht', ht_
-            if overridePD:
-                #print overridePD['height']
-                ht_ = overridePD['height']
             #if type(ht_)==type('') and 'bula' in ht_:
             #    setht_ = height_from_bula(n_)
             if type(ht_)==type('') and 'envelope' in ht_:
@@ -544,14 +541,12 @@ class Pattern:
             else:
                 setht_ = ht_
             
+            """
             #angle_srf = sc.sticky['angle_srf']
             #setht_angle = height_from_envelope(n_,envref=angle_srf)
-            
-            
             ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
             #ydist = rs.Distance(n_.data.shape.cpt,ypt)
             #mdist = rs.Distance(n_.data.shape.cpt,mpt)
-            """
             ydist = 121
             mdist = 121
             if ydist < mdist:
@@ -562,19 +557,13 @@ class Pattern:
             #IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
             IsPodium = 'podium' in n_.get_root().data.type['label']
             IsMaxht = maxht != None and setht_ > maxht
-            """
-            #print setht_
-            #print setht_angle
-            """
             if IsMaxht:
                 setht_ = maxht
             if setht_ > setht_angle:
                 setht_ = setht_angle 
             if IsPodium:
                 setht_ = sc.sticky['ht_podium']
-            
             """
-            
             n_.data.shape.op_extrude(setht_)
             n_.data.type['print'] = True
         return temp_node_
@@ -836,72 +825,24 @@ class Pattern:
             #print temp_node.data.shape.geom
         
         
-        ROOTREF = None
-        if PD['stepback_ref']:
-            stepback = PD['stepback_ref']
-            stepback_node = -1
-            #print 'root'
-            root = temp_node
-            """
-            if stepback != None and stepback != []:
-                try:
-                    #root = temp_node.get_root()
-                    setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
-                    step_data = stepback[0]
-                    build_node = self.pattern_stepback(root,step_data,stepback_node,setback_ref)
-                    ROOTREF = Shape_3D(build_node.data.shape.geom,cplane=build_node.data.shape.cplane)
-                except:
-                    pass
-            """
-            if stepback != None and stepback != []:
-                if True:#try:
-                    setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
-                    step_data = stepback[0]
-                    build_lst = temp_node.traverse_tree(lambda n: n,internal=False)#self.print_node(n),internal=False)
-                    for build_node in build_lst:
-                        if True:#try:
-                            build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
-                        #except:
-                            #pass
-                #except:
-                    #pass
-                    
-        if PD['concentric_divide']:
-            dist_lst = PD['dist_lst']
-            del_dist_lst = PD['delete_dist']
-            temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst,ROOTREF) 
-            
         ## 7. Extrude
         if PD['height']!=False:
             ht = PD['height']
             temp_node = self.pattern_set_height(temp_node,ht)
-        
-        
+            
         ## 5. Stepback
-        ## Ref: TT['stepback'] = [(27.,32+14.),(12.,32+7.),(0.,32)]
-        stepback = PD['stepback_base']
-        stepback_node = PD['stepback_node']
+        ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
         
-        #overridePD = self.check_override(temp_node)
-        #if overridePD!=None:
-        #    stepback_node = overridePD['stepback_node']
-        #    stepback = overridePD['stepback_base']
-        #if overridePD==None:
-            ###debug.append(temp_node.data.shape.geom)
-        if stepback != None and stepback != []:
-            setback_ref = temp_node.get_root().data.type.get('setback_reference_line')
-            #print temp_node.loc
-            ###debug.append(temp_node.data.shape.geom)
-            for step_data in stepback:
-                build_lst = temp_node.traverse_tree(lambda n: n,internal=False)#self.print_node(n),internal=False)
-                for build_node in build_lst:
-                    try:
-                        #print 'check', build_node.data.type['label']
-                        build_node = self.pattern_stepback(build_node,step_data,stepback_node,setback_ref)
-                    except Exception as e:
-                        print "Error @ stepback"
-                        print str(e)#,sys.exc_traceback.tb_lineno    
+        if PD['stepback']:
+            temp_node = self.pattern_stepback(temp_node,PD)
         
+        """
+        if PD['concentric_divide']:
+            dist_lst = PD['dist_lst']
+            del_dist_lst = PD['delete_dist']
+            temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst,ROOTREF) 
+        """ 
+
         ## 5. param 1
         court = PD['court']
         court_node = PD['court_node']
@@ -910,36 +851,8 @@ class Pattern:
         subdiv_num = PD['subdiv_num']
         subdiv_cut = PD['subdiv_cut'] 
         subdiv_flip = PD['subdiv_flip']
-        terrace = float(PD['terrace'])
-        terrace_node = PD['terrace_node']
-        
-        if terrace > 0.:
-            lon = temp_node.traverse_tree(lambda n: n,internal=False)
-            for i,subdiv in enumerate(lon):
-                ###debug.append(subdiv.data.shape.geom)
-                #tcrv = subdiv.data.shape.bottom_crv
-                # 2. offset
-                #if debug_print:
-                #    print 'terracenode', terrace_node
-                if int(terrace_node) == 0:
-                    root = node.get_root()
-                    tcrv = root.data.shape.bottom_crv
-                elif int(terrace_node) == 1:
-                    tcrv = subdiv.parent.data.shape.bottom_crv
-                elif int(terrace_node) == 2 and subdiv.parent.parent:
-                    tcrv = subdiv.parent.parent.data.shape.bottom_crv
-                elif int(terrace_node) == 3 and subdiv.parent.parent.parent:
-                    tcrv = subdiv.parent.parent.parent.data.shape.bottom_crv
-                else:
-                    tcrv = subdiv.data.shape.bottom_crv
-                subdiv.data.shape.op_offset(terrace,tcrv,dir="terrace_3d")
         if court==1:
             try:
-                #newyaxis = self.helper_normal2extsrf(temp_node)
-                #oldyaxis = temp_node.data.shape.cplane.YAxis
-                #radian_angle = rc.Geometry.Vector3d.VectorAngle(oldyaxis,newyaxis)
-                #zaxis = rc.Geometry.Vector3d(0,0,1)
-                #temp_node.data.shape.cplane.Rotate(radian_angle,zaxis)
                 self.pattern_court(temp_node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=court_slice)            
             except Exception as e:
                 print "Error at pattern_court"

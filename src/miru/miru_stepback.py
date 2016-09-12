@@ -1,9 +1,5 @@
 """
-Miru Grammar Podium
-This module defines the shape grammar rules for specific
-building typologies.  
-
-
+Miru Grammar Stepback 
 """
 
 import copy
@@ -30,11 +26,10 @@ PD_ = \
 COURT GRAMMAR
 ----------------""" 
 R = copy.deepcopy(PD_)
-R['court'] = 1
-R['court_width'] = podium_depth
-R['court_node'] = node_depth
-R['court_slice']= True
-R['height'] = podium_ht
+R['stepback'] = True
+R['stepback_node'] = -1
+R['stepback_data'] = [(3.,9.),(1.,3.)]
+R['stepback_geom'] = map(lambda l: rs.coercecurve(l),geom_ref)
 
 if True:
     rule = [R]

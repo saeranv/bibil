@@ -19,11 +19,10 @@ PD_ = \
 'court':0, 'court_width':0., 'court_node':-1,'court_slice':None,\
 'subdiv_num':0, 'subdiv_cut':0, 'subdiv_flip':False,
 'terrace':0,'terrace_node':-1,\
-'stepback_base':None, 'stepback_tower':None,'stepback_node':-1,\
+'stepback':False,'stepback_geom':[],'stepback_data':None,'stepback_node':-1,\
 'separate':False,\
 'height':False,\
 'concentric_divide': False,\
-'stepback_ref':None,\
 'dist_lst':None,'delete_dist':None}
 """--------------------------------"""
 

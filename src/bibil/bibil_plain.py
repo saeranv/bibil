@@ -48,7 +48,7 @@ def node2pattern(lst_node_,rule_in_):
     ## Applies pattern based on types
     ## outputs node    
     P = Pattern()
-    #NL = []
+    NL = []
     for node_ in lst_node_:
         ## Apply type to node
         node_ = type2node(node_,rule_in_)
@@ -56,26 +56,41 @@ def node2pattern(lst_node_,rule_in_):
         if True:#try:
             node_out_ = P.main_pattern(node_)
             nlst = node_out_.traverse_tree(lambda n:n,internal=False)
-            #NL.extend(nlst)
+            NL.extend(nlst)
             RhinoApp.Wait() 
-        yield nlst
+        #yield nlst
         #except Exception as e:
         #    print "Error @ Pattern.main_pattern"
-        #return NL
+        return NL
 
-def main(node_in_,rule_in):
-    ### Grid_Subdivide: (listof node) int int -> (listof node))
-    node_in_ = copy_node_lst(node_in_)     
-    lst_node = make_node_lst(node_in_)
-    lst_node = node2pattern(lst_node,rule_in)
-    lst_node = reduce(lambda x,y:x+y,lst_node)
-    return lst_node
+def main(node_in_,rule_in_):
+    def helper_main_recurse(node_in__,rule__,node_out__):
+        if rule__ != []:
+            lst_node = make_node_lst(node_in__)
+            lst_node = node2pattern(lst_node,rule__.pop(0))
+            L = []
+            for n_ in lst_node:
+                nlst = n_.traverse_tree(lambda n:n,internal=False)
+                L.extend(nlst)
+                print 'l', 
+            for n__ in L:
+                helper_main_recurse(n__,rule__,node_out__)
+        return node_in__
+    node_in_ = copy_node_lst(node_in_)
+    node_out_ = []
+    node_in_ = helper_main_recurse(node_in_,rule_in_,node_out_)     
+    L = []
+    for node_ in node_in_:
+        nlst = node_.traverse_tree(lambda n:n,internal=False)
+        L.extend(nlst)
+    print L
+    return L
 
 node_in = filter(lambda n: n!=None,node_in)
+rule_in = filter(lambda n: n!=None,rule_in)
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    rule_in = rule_in[0]
     node_out = main(node_in,rule_in)
 else:
     print 'Add inputs!'
