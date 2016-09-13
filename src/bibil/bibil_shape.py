@@ -223,7 +223,7 @@ class Shape_3D:
         rs.EnableRedraw(False)
         split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
         
-        try:#if True:
+        if True:#try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:
                 geom = rs.coercebrep(self.geom) if self.is_guid(self.geom) else self.geom 
@@ -234,7 +234,7 @@ class Shape_3D:
                     print 'not a 3d geom, therefore will not split'
                 # vec transformation
                 if self.is_guid(split_line):
-                    split_line = rs.coercecurve(split_line)
+                    split_line = rs.coercecurve(split_line)\
                 nc = split_line.ToNurbsCurve()
                 end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
                 dir_vector = end_pts[1] - end_pts[0]
@@ -261,9 +261,9 @@ class Shape_3D:
                 geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
                 lst_child.extend(geom_childs)
                 #debug.extend(geom_childs)
-        except Exception as e:
-            print "Error @ shape.op_split while splitting"
-            print str(e)#, sys.traceback.tb_lineno 
+        #except Exception as e:
+        #    print "Error @ shape.op_split while splitting"
+        #    print str(e)#, sys.traceback.tb_lineno 
             
         ## Clean up or rearrange or cap the split child geometries
         try:

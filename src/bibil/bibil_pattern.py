@@ -179,7 +179,7 @@ class Pattern:
         sb_data = PD_['stepback_data']
         ##sb_data: [(height,distance),(height,distance)...]     
         try:
-            # Loop through the height,setback tuples
+            ## Loop through the height,setback tuples
             for sbd in sb_data:
                 ht, dist = sbd[0], sbd[1]
                 ## Not efficient, but for now: loop through all sb_geoms
@@ -201,7 +201,7 @@ class Pattern:
             print str(e)#,sys.exc_traceback.tb_lineno 
             print "Error at Pattern.stepback"
         return tnode    
-    def pattern_divide(self,node,grid_type,div,axis="NS",cut_width=0,div_depth=0,ratio=0.,twoway=False,flip=False):        
+    def pattern_divide(self,node,PD_):       
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
             #print 'divdepth, div', div_depth,',', div
             # stop subdivide
@@ -289,10 +289,14 @@ class Pattern:
                 for nc in node_.loc:
                     helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
         debug = sc.sticky['debug']
-        if node.depth >=200: # base case 1
-            print 'node.depth > 200'
-        else:
-            helper_divide_recurse(node,grid_type,div,div_depth,cut_width,ratio,axis,0)
+        div = PD_['div_num']
+        div_deg = PD_['div_deg']
+        cut_width = PD_['div_cut']
+        ratio = PD_['div_ratio']
+        grid_type = PD_['div_type']
+        axis = PD_['axis']
+        tree_depth = 0.
+        helper_divide_recurse(node,grid_type,div,tree_depth,cut_width,ratio,axis,0)
         return node
     def helper_normal2extsrf(self,temp_node_):
         def get_colinear_line(refnode_,tn_):
@@ -654,7 +658,7 @@ class Pattern:
                 childnode = self.helper_geom2node(ring,subdiv)
                 subdiv.loc.append(childnode)
         return temp_node_
-    def pattern_court(self,temp_node_,court_node,court_width,subdiv_num=0.,subdiv_cut=0.,subdiv_flip=False,slice=None):        
+    def pattern_court(self,temp_node_,court_node,court_width,slice=None):        
         def helper_court_refcrv(court_node_,subdiv_):
             if type(court_node_) == type(1) or type(court_node_) == type(1.):
                 if int(court_node_) == 0:
@@ -794,20 +798,9 @@ class Pattern:
         temp_node.data.type['print'] = True
         
         ## 3. param 2
-        div_num = PD['div_num']
-        div_deg = PD['div_deg']
-        div_cut = PD['div_cut']
-        div_ratio = PD['div_ratio']
-        div_type = PD['div_type']
-        div_axis = PD['axis']
-        flip = PD['flip']
-        
-        if div_num > 0:
-            try:
-                temp_node = self.pattern_divide(temp_node,div_type,div_num,div_axis,div_cut,ratio=div_ratio,flip=flip)
-            except Exception as e:
-                print "Error @ main_pattern @ pattern_divide"
-                print str(e)
+        if PD['divide']:
+            temp_node = self.pattern_divide(temp_node,PD)
+               
         ## 4. param 3
         if solartype == 2: # multi_cell
             try:
@@ -820,10 +813,7 @@ class Pattern:
         if PD['separate']:
             dist_lst = PD['dist_lst']
             del_lst = PD['delete_dist']
-            #norm2srfvector = self.helper_normal2extsrf(temp_node)
-            temp_node = self.pattern_separate_by_dist(temp_node,dist_lst,del_lst) 
-            #print temp_node.data.shape.geom
-        
+            temp_node = self.pattern_separate_by_dist(temp_node,dist_lst,del_lst)
         
         ## 7. Extrude
         if PD['height']!=False:
@@ -832,7 +822,6 @@ class Pattern:
             
         ## 5. Stepback
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
-        
         if PD['stepback']:
             temp_node = self.pattern_stepback(temp_node,PD)
         
@@ -848,12 +837,9 @@ class Pattern:
         court_node = PD['court_node']
         court_width = PD['court_width']
         court_slice = PD['court_slice']
-        subdiv_num = PD['subdiv_num']
-        subdiv_cut = PD['subdiv_cut'] 
-        subdiv_flip = PD['subdiv_flip']
         if court==1:
             try:
-                self.pattern_court(temp_node,court_node,court_width,subdiv_num,subdiv_cut,subdiv_flip,slice=court_slice)            
+                self.pattern_court(temp_node,court_node,court_width,slice=court_slice)            
             except Exception as e:
                 print "Error at pattern_court"
                 print str(e)

@@ -1,17 +1,19 @@
 """----------------
-Miru Stepback
+Miru Court
 ----------------""" 
 import copy
 import scriptcontext as sc
 Miru = sc.sticky["Miru"]
 R = copy.deepcopy(Miru)
     
-R['stepback'] = True
-R['stepback_node'] = node_ref
-R['stepback_data'] = map(lambda x,y: (x,y),height,distance)
-R['stepback_geom'] = map(lambda l: rs.coercecurve(l),geom_ref)
+R['court'] = 1
+R['court_width'] = podium_depth
+R['court_node'] = node_depth
+R['court_slice']= True
 
 if run:
     rule = [R]
 else:
     rule = [copy.deepcopy(Miru)]
+    
+    

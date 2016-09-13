@@ -64,10 +64,19 @@ def node2pattern(lst_node_,rule_in_):
         #return NL
 
 def main(node_in_,rule_in_):
-    ### Grid_Subdivide: (listof node) int int -> (listof node))
+    def helper_main_recurse(lst_node_,rule_lst):
+        #print rule_lst
+        if rule_lst == []:
+            return lst_node_
+        else:
+            rule_ = rule_lst.pop(0)
+            lst_node_ = node2pattern(lst_node_,rule_)
+            lst_node_ = reduce(lambda x,y:x+y,lst_node_)
+            return helper_main_recurse(lst_node_,rule_lst)
+                
     node_in_ = copy_node_lst(node_in_)     
     lst_node = make_node_lst(node_in_)
-    lst_node = node2pattern(lst_node,rule_in_)
+    lst_node = helper_main_recurse(lst_node,rule_in_)
     return lst_node
 
 node_in = filter(lambda n: n!=None,node_in)
@@ -75,7 +84,6 @@ rule_in = filter(lambda n: n!=None,rule_in)
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    rule_in = rule_in[0]
     node_out = main(node_in,rule_in)
 else:
     print 'Add inputs!'
