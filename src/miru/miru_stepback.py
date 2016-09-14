@@ -3,6 +3,7 @@ Miru Stepback
 ----------------""" 
 import copy
 import scriptcontext as sc
+import rhinoscriptsyntax as rs
 Miru = sc.sticky["Miru"]
 R = copy.deepcopy(Miru)
     

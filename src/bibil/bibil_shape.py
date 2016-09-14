@@ -234,7 +234,7 @@ class Shape_3D:
                     print 'not a 3d geom, therefore will not split'
                 # vec transformation
                 if self.is_guid(split_line):
-                    split_line = rs.coercecurve(split_line)\
+                    split_line = rs.coercecurve(split_line)
                 nc = split_line.ToNurbsCurve()
                 end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
                 dir_vector = end_pts[1] - end_pts[0]
