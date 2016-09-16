@@ -8,7 +8,7 @@ R = copy.deepcopy(Miru)
     
 R['court'] = 1
 R['court_width'] = podium_depth
-R['court_node'] = node_depth
+R['court_node'] = -1#node_depth
 R['court_slice']= True
 
 if run:

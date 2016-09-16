@@ -20,7 +20,7 @@ def copy_node_lst(nlst):
         #L.append(copy.deepcopy(n))
         yield copy.deepcopy(n)
 
-def make_node_lst(copy_node_in_): 
+def make_node_lst(copy_node_in_,parent_node_=None): 
     #L = []
     P = Pattern()
     ref_geom = rs.coercebrep(rs.AddBox([[0,0,0],[0,1,0],[-1,1,0],[-1,0,0],\
@@ -33,7 +33,7 @@ def make_node_lst(copy_node_in_):
         if type(ref_node) == type(node_geom):
             n_ = node_geom
         else:
-            n_ = P.helper_geom2node(node_geom,None,label=label_)
+            n_ = P.helper_geom2node(node_geom,parent_node_,label=label_)
         yield n_
         #L.append(n_)
         #return L
@@ -63,7 +63,7 @@ def node2pattern(lst_node_,rule_in_):
         #    print "Error @ Pattern.main_pattern"
         #return NL
 
-def main(node_in_,rule_in_):
+def main(node_in_,rule_in_,parent_node_in_):
     def helper_main_recurse(lst_node_,rule_lst):
         #print rule_lst
         if rule_lst == []:
@@ -74,16 +74,33 @@ def main(node_in_,rule_in_):
             lst_node_ = reduce(lambda x,y:x+y,lst_node_)
             return helper_main_recurse(lst_node_,rule_lst)
                 
-    node_in_ = copy_node_lst(node_in_)     
-    lst_node = make_node_lst(node_in_)
+    #prep parents
+    #should just recurse one level up
+    if len(parent_node_in) > 0:
+        parent_node_ = parent_node_in_[0].get_root()
+    else:
+        parent_node_ = None
+    #prep nodes
+    node_in_ = copy_node_lst(node_in_)
+    lst_node = make_node_lst(node_in_,parent_node_)
+    
+    #if parents exist. apply parent rules to child
+    # at this point, just apply the rules from courtyard
+    #not ideal but fix later
+    if parent_node_:
+        parent_node_.data.type['court_node'] = 0
+        parent_rule_in_ = [parent_node_.data.type]
+        lst_node = helper_main_recurse(lst_node,parent_rule_in_)
+    #apply patterns           
     lst_node = helper_main_recurse(lst_node,rule_in_)
     return lst_node
 
-node_in = filter(lambda n: n!=None,node_in)
+child_node_in = filter(lambda n: n!=None,child_node_in)
+parent_node_in = filter(lambda n: n!=None,parent_node_in)
 rule_in = filter(lambda n: n!=None,rule_in)
-if run and node_in != []:
+if run and child_node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    node_out = main(node_in,rule_in)
+    node_out = main(child_node_in,rule_in,parent_node_in)
 else:
     print 'Add inputs!'

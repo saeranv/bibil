@@ -684,6 +684,7 @@ class Pattern:
                     #chk_offset_ = rootshape.op_offset_crv(width_+0.1)
                     matrice_max = False
                     #print 'start---'
+                    set_rel = -100
                     for i,line in enumerate(matrice):
                         #print i
                         dirvec = line[1]-line[0]
@@ -763,7 +764,7 @@ class Pattern:
                 try:
                     diff = court_slice(subdiv,refshape,court_width)
                 except Exception as e:
-                    pass#print 'Error @ court_slice', str(e)
+                    print 'Error @ court_slice', str(e)
             elif court_width > 0.:
                 try:
                     subdiv.data.shape.op_offset(court_width,refshape.bottom_crv,dir="courtyard")
