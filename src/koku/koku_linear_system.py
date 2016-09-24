@@ -14,6 +14,9 @@ class LinearSystem(object):
     INF_SOLUTIONS_MSG = 'Infinitely many solutions'
 
     def __init__(self, planes):
+        ### Takes list of planes
+        ### Checks if all planes are in the same dimension
+        ### adds planes and dimension to class
         try:
             d = planes[0].dimension
             for p in planes:
@@ -39,14 +42,19 @@ class LinearSystem(object):
 
 
     def indices_of_first_nonzero_terms_in_each_row(self):
+        ### Finds the first nonzero terms in each row
+        ### Therefore identifies the variable used to divide rows by
+        ### Iterates through list of planes
+        ### Finds the first nonzezo index in normal of plane (coefficient)
+        ### If no nonzero, index is -1, and continues iteration at next plane
+        ### Returns list of indices
         num_equations = len(self)
         num_variables = self.dimension
-
         indices = [-1] * num_equations
 
         for i,p in enumerate(self.planes):
             try:
-                indices[i] = p.first_nonzero_index(p.normal_vector)
+                indices[i] = p.first_nonzero_index(p.normal_vector.coord)
             except Exception as e:
                 if str(e) == Plane.NO_NONZERO_ELTS_FOUND_MSG:
                     continue
@@ -65,6 +73,7 @@ class LinearSystem(object):
 
 
     def __setitem__(self, i, x):
+        ### Not too sure what this function does
         try:
             assert x.dimension == self.dimension
             self.planes[i] = x
@@ -74,8 +83,12 @@ class LinearSystem(object):
 
 
     def __str__(self):
+        ### Prints linear system
+        ### Iterates each plane as an equation, and print equation of the plane.
         ret = 'Linear System:\n'
-        temp = ['Equation {}: {}'.format(i+1,p) for i,p in enumerate(self.planes)]
+        temp = []
+        for i,p in enumerate(self.planes):
+            temp += ['Equation ' + str(i+1) + ':' + str(p)]
         ret += '\n'.join(temp)
         return ret
 
@@ -85,20 +98,21 @@ class MyDecimal(Decimal):
         return abs(self) < eps
 
 
+
 p0 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
 p1 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
 p2 = Plane(normal_vector=Vector(['1','1','-1']), constant_term='3')
 p3 = Plane(normal_vector=Vector(['1','0','-2']), constant_term='2')
-
 s = LinearSystem([p0,p1,p2,p3])
-
 print s.indices_of_first_nonzero_terms_in_each_row()
-print '{},{},{},{}'.format(s[0],s[1],s[2],s[3])
+## Test 1
+"""
+print s.indices_of_first_nonzero_terms_in_each_row()
+print "%s,%s,%s,%s" % (s[0],s[1],s[2],s[3])
 print len(s)
 print s
-
 s[0] = p1
 print s
-
 print MyDecimal('1e-9').is_near_zero()
 print MyDecimal('1e-11').is_near_zero()
+"""

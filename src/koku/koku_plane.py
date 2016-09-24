@@ -160,7 +160,7 @@ class Plane(object):
             
             
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=Decimal(str(1e-10))):
+    def is_near_zero(self, eps=1E-10):
         return float(self) < eps
 
 
