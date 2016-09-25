@@ -275,7 +275,7 @@ class Pattern:
                 pass
             elif node_.data.type['ratio'] > 0.0001:
                 #node_.data.type['ratio'] = 1. - node_.data.type['ratio']
-                debug.extend(node_.data.shape.bbpts)
+                #debug.extend(node_.data.shape.bbpts)
                 loc = node_.data.shape.op_split(node_.data.type['axis'],node_.data.type['ratio'],0.,split_depth=cwidth_)
                 ###debug.extend(loc)
                 #print len(loc)
