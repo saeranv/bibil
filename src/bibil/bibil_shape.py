@@ -55,13 +55,14 @@ class Shape_3D:
             except Exception as e:
                 #print str(e)##sys.exc_traceback.tb_lineno 
                 self.bottom_crv = None
-            try:
+            if True:#try:
                 if self.cplane == None:
                     self.cplane = self.get_cplane_advanced(self.geom)
                 self.primary_axis_vector = self.cplane.YAxis
-            except Exception as e:
+                
+            #except Exception as e:
                 #print str(e)##sys.exc_traceback.tb_lineno 
-                self.cplane, self.primary_axis_vector = None, None
+                #self.cplane, self.primary_axis_vector = None, None
             try:
                 self.bbpts = self.get_boundingbox(self.geom,self.cplane)
                 self.s_wt,self.e_ht,self.n_wt,self.w_ht = get_dim_bbox(self.bbpts)
