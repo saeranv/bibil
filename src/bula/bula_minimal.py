@@ -40,27 +40,12 @@ class Bula_Data:
                 norm_val = 1/float(len(lov))
             L.append(norm_val)
         return L
-    def extract_line_data(self,lstx_):
-        ## lstx is the line extruded z height
-        ## cpt: the topcpt of lstx
-        # loop through all lines, get origin and zht (relative density)
-        # zht (density) is divided by 10
-        cpt_ = []
-        for i in lstx_:
-            try:
-                if type(rs.AddPoint(0,0,0)) != type(i):
-                    i = sc.doc.Objects.AddLine(i)
-                cptlst_ = rs.PolylineVertices(i)
-                if cptlst_[0][2] < cptlst_[1][2]:
-                    topcpt = cptlst_[1]
-                else:
-                    topcpt = cptlst_[0]
-        
-                #print si
-                cpt_.append(topcpt)
-            except Exception as e:
-                print 'problem at line extraaxtion', str(e)
-        return cpt_
+    def ghtree2nestlist(self,tree):
+        nested_lst = []
+        for i in range(tree.BranchCount):
+            branchList = tree.Branch(i)
+            nested_lst.append(branchList)
+        return nested_lst
     def normalize_cpt_data(self,cpt_lst_):
         ## Normalize points
         cpt_lst_val = map(lambda cpt: cpt[2], cpt_lst_)
@@ -110,21 +95,22 @@ class Bula_Data:
                     #debug.append(d)
             lst_bpt_lst_.append(neighbor)
         return lst_bpt_lst_ 
-    def generate_bula_point(self,lots_,lst_bpt_lst_):
-        ## Loop through tree lots w/ bula_pts
+    def generate_bula_point(self,lots_,lst_bpt_lst_,value_lst=None):
+        ## Loop through lots w/ bula_pts
         ## Add them together and generate the bpt
         lov = []
-        for lot,bpt_lst_ in zip(lots_,lst_bpt_lst_):
+        for i,lot in enumerate(lots_):
+            bpt_lst_ = lst_bpt_lst_[i]
+            val = value_lst[i]
             ## Make a bpt for each lot
-            bpt = Bula_Data(bpt_lst_)
-            norm_lst = map(lambda b: b[2],bpt_lst_)
-            bpt.value = sum(norm_lst)/float(bpt.bpt_num)
+            bpt = Bula_Data(bpt_lst_,val)
             lot.data.type['bula_data'] = bpt
-            #lov.append(lot.data.type['bula_data'].value)
+            lov.append(lot.data.type['bula_data'].value)
+        
         ## Normalize the bpt.value
-        #norm_bpt_lst = self.normalize_list(lov,1.,0.08)
-        #for lot,norm in zip(lots_,norm_bpt_lst):
-        #    lot.data.type['bula_data'].value = norm
+        norm_bpt_lst = self.normalize_list(lov,1.,0.1)
+        for lot,norm in zip(lots_,norm_bpt_lst):
+            lot.data.type['bula_data'].value = norm
         return lots_
     def calculate_node_gfa(self,lots_):
         ##It would be a lot easier to do all these additions
@@ -189,57 +175,36 @@ class Bula_Data:
         #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
         return bula_sort
 
-def brute_force_reorder(oldlots_,newlots,maxrecursenum,count):
-    ## brute force bade code
-    ## "Premature optimization is the root of all evil" - Donald Knut    
-    if count >= maxrecursenum:
-        return newlots
-    else:
-        for lot in oldlots:
-            if lot.loc:
-                newlots.append(lot.loc.pop(0))
-        return brute_force_reorder(oldlots_,newlots,maxrecursenum,count+1)
 
 debug = sc.sticky['debug']
 debug = []
 sc.sticky['BulaData'] = Bula_Data
 
-if lstx!=[] and lstx!=[None] and oldlots!=[] and oldlots!=[None]:
+
+if run and cpt!=[] and cpt!=[None] and zones!=[] and zones!=[None]:
     Bula = Bula_Data()
-    cpt_lst = Bula.extract_line_data(lstx)
-    #norm_cpt_lst = Bula.normalize_cpt_data(cpt_lst)
-    norm_cpt_lst = cpt_lst    
-    if 'park' in oldlots[0].get_root().data.type['label']:
-        lot_lst = []
-        maxcourtslices = 0.
-        for lot in oldlots:
-            if maxcourtslices < float(len(lot.loc)):
-                maxcourtslices = float(len(lot.loc))
-        #lot_lst = brute_force_reorder(oldlots,lot_lst,maxcourtslices+1,0)
-        #oldlots = lot_lst
-    for i,lot in enumerate(oldlots):
-        if i < 1:
-            debug.append(lot.data.shape.geom)
-    #"""
-        
-    lst_bpt_lst = Bula.getpoints4lot(oldlots,norm_cpt_lst)
-    lots = Bula.generate_bula_point(oldlots,lst_bpt_lst)
+    zones = Bula.ghtree2nestlist(zones)[0]
+    ## ^^ fix this? this is bizarre
+    if zones[0].data.shape.is_guid(cpt[0]):
+        norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
+    else:
+        norm_cpt_lst = cpt
+    
+    lst_plain_pt_lst = Bula.getpoints4lot(zones,norm_cpt_lst)
+    debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
+    lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
     
     line = []
-    newlots = []
-    for lot in oldlots:
-        cp = lot.data.shape.cpt
-        ht = lot.data.type['bula_data'].value
-        try:
-            line_ = rs.AddLine([cp[0],cp[1],ht],[cp[0],cp[1],0.])
+    print len(lots)
+    for lot_ in lots:
+        ht = lot_.data.type['bula_data'].value
+        for bula_pts in lot_.data.type['bula_data'].bpt_lst:
+            cp = bula_pts
+            #try:
+            line_ = rs.AddLine([cp[0],cp[1],ht*100],[cp[0],cp[1],0.])
             line.append(line_)
-        except:
-            pass
-        #if 'podium' in lot.get_root().data.type['label']:
-        #newlots.extend(lot)
-        newlots.extend(lot.traverse_tree(lambda n: n,internal=False))
-        #debug.append(lot.data.shape.geom)
-    #oldlots = Bula.sort_by_bula(oldlots)
-    lst_lots = newlots#oldlots
-    #print 'debug', debug
+            #except:
+            #    pass
+            print line_, ht
+    
     
