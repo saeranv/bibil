@@ -69,6 +69,7 @@ class Bula_Data:
         ## bpt_lst,lots: listof(listof(point data) 
         debug = sc.sticky['debug']
         lst_bpt_lst_ = []
+        out_pts = []#{}
         for j,lot in enumerate(lots_):
             boundary = lot.data.shape.bottom_crv
             neighbor = []
@@ -99,9 +100,16 @@ class Bula_Data:
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
                     #d = rs.AddPoint(copy_cp[0], copy_cp[1],0)
-                    #debug.append(d)
+                    debug.append(cp)
+                else:
+                    out_pts.append(cp)
+                    #out_str = str(cp[0]) + str(cp[1])
+                    #print out_pts.has_key(out_str)
+                    #if not out_pts.has_key(out_str):
+                        #out_pts[out_str] = cp
             lst_bpt_lst_.append(neighbor)
-        return lst_bpt_lst_ 
+        #out_pts.values()
+        return lst_bpt_lst_ , out_pts
     def generate_bula_point(self,lots_,lst_bpt_lst_,value_lst=None):
         ## Loop through lots w/ bula_pts
         ## Add them together and generate the bpt
@@ -183,6 +191,7 @@ class Bula_Data:
         return bula_sort
     def create_bula_viz(self,lots_,scale_):
         viz_dict = {}
+        viz = []
         for lot_ in lots_:
             ht = lot_.data.type['bula_data'].value
             #if lot_.data.shape.cpt:
@@ -195,21 +204,22 @@ class Bula_Data:
                 chk_str = str(int(cp[0])) + str(int(cp[1]))
                 IsExist = viz_dict.has_key(chk_str)
                 if not IsExist:
-                    viz_dict[chk_str] = ht
+                    viz_dict[chk_str] = [ht,cp]
                 else:
-                    viz_dict[chk_str] += ht
-                newpt = rc.Geometry.Point3d(cp[0],cp[1],viz_dict[chk_str])
-                lot_.data.type['bula_data'].bpt_lst[i] = newpt
-        # Now create the lines
-        viz = []
-        for lot_ in lots_:
-            for bula_pt in lot_.data.type['bula_data'].bpt_lst:
-                cp = bula_pt
-                if True: #try:
-                    line_ = rs.AddLine([cp[0],cp[1],cp[2]*scale_],[cp[0],cp[1],0.])
-                    viz.append(line_)
-                #except:
-                #    pass
+                    viz_dict[chk_str][0] += ht
+                    viz_dict[chk_str][1] = rc.Geometry.Point3d(cp[0],cp[1],viz_dict[chk_str][0])
+                #lot_.data.type['bula_data'].bpt_lst[i] = newpt
+        
+        lovp = viz_dict.values()
+        for vp in lovp:    
+            cp = vp[1]
+            ht = vp[0]
+            try:
+                #viz_input = rs.AddLine([cp[0],cp[1],cp[2]*scale_],[cp[0],cp[1],0.])
+                viz_input = rs.AddPoint(cp[0],cp[1],cp[2]*scale_)
+                viz.append(viz_input)
+            except:
+                pass
         return viz
 
 debug = sc.sticky['debug']
@@ -217,7 +227,7 @@ debug = []
 sc.sticky['BulaData'] = Bula_Data
 
 
-if run and cpt!=[] and cpt!=[None] and zones!=[] and zones!=[None]:
+if run and cpt!=[] and cpt!=[None] and child_node_in!=[] and child_node_in!=[None]:
     Bula = Bula_Data()
     zones = Bula.ghtree2nestlist(zones)[0]
     ## ^^ fix this? this is bizarre
@@ -226,9 +236,9 @@ if run and cpt!=[] and cpt!=[None] and zones!=[] and zones!=[None]:
     else:
         norm_cpt_lst = cpt
     
-    lst_plain_pt_lst = Bula.getpoints4lot(zones,norm_cpt_lst)
+    lst_plain_pt_lst,out_pts = Bula.getpoints4lot(zones,norm_cpt_lst)
     debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
     lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
     line = Bula.create_bula_viz(lots,scale_)
-    
+    #debug.extend(out_pts)
     
