@@ -69,7 +69,6 @@ class Bula_Data:
         ## bpt_lst,lots: listof(listof(point data) 
         debug = sc.sticky['debug']
         lst_bpt_lst_ = []
-        out_pts = []#{}
         for j,lot in enumerate(lots_):
             boundary = lot.data.shape.bottom_crv
             neighbor = []
@@ -99,17 +98,33 @@ class Bula_Data:
                 #2 = point in on the curve
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
-                    #d = rs.AddPoint(copy_cp[0], copy_cp[1],0)
-                    debug.append(cp)
-                else:
-                    out_pts.append(cp)
-                    #out_str = str(cp[0]) + str(cp[1])
-                    #print out_pts.has_key(out_str)
-                    #if not out_pts.has_key(out_str):
-                        #out_pts[out_str] = cp
             lst_bpt_lst_.append(neighbor)
-        #out_pts.values()
-        return lst_bpt_lst_ , out_pts
+        ## Now get the outpts
+        out_lst = []
+        for cp in cpt_:
+            copy_cp = cp
+            PtInside = False
+            for lot in lots_:
+                IsGround = True
+                if lot.data.shape.cpt:
+                    IsGround = abs(lot.data.shape.cpt[2] - 0.0) < 0.5
+                if IsGround:
+                    boundary = lot.data.shape.bottom_crv
+                    try:
+                        in_lot = int(rs.PointInPlanarClosedCurve(copy_cp,boundary,lot.data.shape.cplane))
+                    except:
+                        pass
+                    #0 = point is outside of the curve
+                    #1 = point is inside of the curve
+                    #2 = point in on the curve
+                    if abs(float(in_lot) - 1.) <= 0.1:
+                        PtInside = True
+                        break
+                if PtInside:
+                    break
+            if not PtInside: 
+                out_lst.append(cp)
+        return lst_bpt_lst_, out_lst 
     def generate_bula_point(self,lots_,lst_bpt_lst_,value_lst=None):
         ## Loop through lots w/ bula_pts
         ## Add them together and generate the bpt
@@ -127,8 +142,24 @@ class Bula_Data:
         for lot,norm in zip(lots_,norm_bpt_lst):
             lot.data.type['bula_data'].value = norm
         return lots_
+    def remove_duplicate(self,out_pts_,lst_plain_pt_lst_,tol=5.):
+        remove_duplicate = []
+        pt_lst = reduce(lambda x,y: x+y,lst_plain_pt_lst_)
+        for opt in out_pts:
+            print opt
+            x,y,z = opt[0], opt[1], opt[2]
+            Duplicate = False
+            for ppt in pt_lst:
+                x_ = abs(x - ppt[0]) < tol
+                y_ = abs(y - ppt[1]) < tol
+                z_ = abs(z - ppt[2]) < tol
+                if (x_ and y_ and z_):
+                    Duplicate = True
+            if not Duplicate:
+                remove_duplicate.append(opt)
+        return remove_duplicate
     def calculate_node_gfa(self,lots_):
-        ##It would be a lot easier to do all these additions
+        ## It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!
         ## Old obselete, will need to rwrite to reflect
         ## lot.data.type['bula_pt'] = lot.data.type['bula_data']
@@ -229,16 +260,16 @@ sc.sticky['BulaData'] = Bula_Data
 
 if run and cpt!=[] and cpt!=[None] and child_node_in!=[] and child_node_in!=[None]:
     Bula = Bula_Data()
-    zones = Bula.ghtree2nestlist(zones)[0]
-    ## ^^ fix this? this is bizarre
-    if zones[0].data.shape.is_guid(cpt[0]):
+    #zones = Bula.ghtree2nestlist(zones)[0]
+    if child_node_in[0].data.shape.is_guid(cpt[0]):
         norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
     else:
         norm_cpt_lst = cpt
     
-    lst_plain_pt_lst,out_pts = Bula.getpoints4lot(zones,norm_cpt_lst)
-    debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
-    lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
+    
+    lst_plain_pt_lst,out_pts = Bula.getpoints4lot(child_node_in,norm_cpt_lst)
+    #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
+    lots = Bula.generate_bula_point(child_node_in,lst_plain_pt_lst,values)
     line = Bula.create_bula_viz(lots,scale_)
-    #debug.extend(out_pts)
+    debug.extend(out_pts)
     
