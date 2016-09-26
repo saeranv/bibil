@@ -29,6 +29,9 @@ class Shape_3D:
         self.bottom_crv = None
         self.primary_axis_vector = None
         self.base_matrix = None
+        if geom == None:
+            geom = rs.coercebrep(rs.AddBox([[0,0,0],[0,1,0],[-1,1,0],[-1,0,0],\
+                                        [0,0,1],[0,1,1],[-1,1,1],[-1,0,1]]))
         if geom!=None:
             try:
                 self.reset(xy_change=True)

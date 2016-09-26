@@ -7,6 +7,12 @@ import rhinoscriptsyntax as rs
 import Rhino as rc
 import scriptcontext as sc
 
+## Import classes
+#Pattern = sc.sticky["Pattern"]
+#Shape_3D = sc.sticky["Shape_3D"]
+#Tree = sc.sticky["Tree"] 
+#Grammar = sc.sticky["Grammar"]
+
 """
 Bula takes in data points (i.e. from GIS, from manhattan distance 
 analysis) and uses data to drive form generative methods i.e. height, 
@@ -27,12 +33,13 @@ class Bula_Data:
         self.value = value
         self.lot_gfa = 0
     
-    def normalize_list(self,lov,hibound,lobound):
+    def normalize_list(self,lov,hibound,lobound,max_=None,min_=None):
         """normalized_val = ( (val-min)*(hibound-lobound) )/(max-min) + lobound"""
-        max_ = max(lov)
-        min_ = min(lov)
+        if max_ == None:
+            max_ = max(lov)
+        if min_ == None:
+            min_ = min(lov)
         L = []
-        
         for i,v in enumerate(lov):
             if max_-min_ > 0.:
                 norm_val = ((hibound-lobound)*(v-min_))/(max_-min_) + lobound
@@ -108,7 +115,7 @@ class Bula_Data:
             lov.append(lot.data.type['bula_data'].value)
         
         ## Normalize the bpt.value
-        norm_bpt_lst = self.normalize_list(lov,1.,0.1)
+        norm_bpt_lst = self.normalize_list(lov,1.,0.,min_=0.)
         for lot,norm in zip(lots_,norm_bpt_lst):
             lot.data.type['bula_data'].value = norm
         return lots_
@@ -174,7 +181,61 @@ class Bula_Data:
         bula_sort = sorted(lots,key=lambda n: helper_chk_bula(n),reverse=True)
         #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
         return bula_sort
-
+    def create_bula_viz(self,lots_,scale_):
+        viz_dict = {}
+        chk_radius = 5.0
+        chk_circle = []
+        viz = []
+        for lot_ in lots_:
+            ht = lot_.data.type['bula_data'].value
+            #if lot_.data.shape.cpt:
+            #    base = lot_.data.shape.cpt[2]
+            #else:
+            #    base = 0.0
+            #Sort through each bulapt
+            for i_,bula_pt in enumerate(lot_.data.type['bula_data'].bpt_lst):
+                chk_cp = rs.AddPoint(bula_pt[0],bula_pt[1],0)
+                Pt_Inside = False
+                Other_Circle = None
+                for i,circle_tuple in enumerate(chk_circle):
+                    circle = circle_tuple[0]
+                    IsInside = rs.PointInPlanarClosedCurve(chk_cp,circle,lot_.data.shape.cplane,1)
+                    if abs(IsInside - 1.) < 0.1:
+                        Pt_Inside = True
+                        Other_Circle = i 
+                        break
+                # If pt not inside, create new circle for checking, ht remains same
+                # If pt inside, add ht to existing point in circle
+                ht_ = ht
+                if not Pt_Inside:
+                    new_circle_tuple = (rs.AddCircle(chk_cp,chk_radius),bula_pt)
+                    chk_circle.append(new_circle_tuple)
+                    debug.append(new_circle_tuple[0])
+                else:
+                    ht_ += chk_circle[Other_Circle][1][2]  
+                #chk_str = str(int(cp[0])) + str(int(cp[1]))
+                #IsExist = viz_dict.has_key(chk_str)
+                #if not IsExist:
+                #    viz_dict[chk_str] = ht
+                #else:
+                #    viz_dict[chk_str] += ht
+                
+                newpt = rc.Geometry.Point3d(bula_pt[0],bula_pt[1],ht_)
+                debug.append(newpt)
+                if Other_Circle != None:
+                    chk_circle[Other_Circle] = (chk_circle[Other_Circle][0], newpt) 
+                lot_.data.type['bula_data'].bpt_lst[i_] = newpt
+                
+        # Now create the lines
+        for lot_ in lots_:
+            for bula_pt in lot_.data.type['bula_data'].bpt_lst:
+                cp = bula_pt
+                if True: #try:
+                    line_ = rs.AddLine([cp[0],cp[1],cp[2]*scale_],[cp[0],cp[1],0.])
+                    viz.append(line_)
+                #except:
+                #    pass
+        return viz
 
 debug = sc.sticky['debug']
 debug = []
@@ -193,18 +254,6 @@ if run and cpt!=[] and cpt!=[None] and zones!=[] and zones!=[None]:
     lst_plain_pt_lst = Bula.getpoints4lot(zones,norm_cpt_lst)
     debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
     lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
-    
-    line = []
-    print len(lots)
-    for lot_ in lots:
-        ht = lot_.data.type['bula_data'].value
-        for bula_pts in lot_.data.type['bula_data'].bpt_lst:
-            cp = bula_pts
-            #try:
-            line_ = rs.AddLine([cp[0],cp[1],ht*100],[cp[0],cp[1],0.])
-            line.append(line_)
-            #except:
-            #    pass
-            print line_, ht
+    line = Bula.create_bula_viz(lots,scale_)
     
     
