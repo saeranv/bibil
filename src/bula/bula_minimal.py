@@ -183,9 +183,6 @@ class Bula_Data:
         return bula_sort
     def create_bula_viz(self,lots_,scale_):
         viz_dict = {}
-        chk_radius = 5.0
-        chk_circle = []
-        viz = []
         for lot_ in lots_:
             ht = lot_.data.type['bula_data'].value
             #if lot_.data.shape.cpt:
@@ -193,40 +190,18 @@ class Bula_Data:
             #else:
             #    base = 0.0
             #Sort through each bulapt
-            for i_,bula_pt in enumerate(lot_.data.type['bula_data'].bpt_lst):
-                chk_cp = rs.AddPoint(bula_pt[0],bula_pt[1],0)
-                Pt_Inside = False
-                Other_Circle = None
-                for i,circle_tuple in enumerate(chk_circle):
-                    circle = circle_tuple[0]
-                    IsInside = rs.PointInPlanarClosedCurve(chk_cp,circle,lot_.data.shape.cplane,1)
-                    if abs(IsInside - 1.) < 0.1:
-                        Pt_Inside = True
-                        Other_Circle = i 
-                        break
-                # If pt not inside, create new circle for checking, ht remains same
-                # If pt inside, add ht to existing point in circle
-                ht_ = ht
-                if not Pt_Inside:
-                    new_circle_tuple = (rs.AddCircle(chk_cp,chk_radius),bula_pt)
-                    chk_circle.append(new_circle_tuple)
-                    debug.append(new_circle_tuple[0])
+            for i,bula_pt in enumerate(lot_.data.type['bula_data'].bpt_lst):
+                cp = bula_pt    
+                chk_str = str(int(cp[0])) + str(int(cp[1]))
+                IsExist = viz_dict.has_key(chk_str)
+                if not IsExist:
+                    viz_dict[chk_str] = ht
                 else:
-                    ht_ += chk_circle[Other_Circle][1][2]  
-                #chk_str = str(int(cp[0])) + str(int(cp[1]))
-                #IsExist = viz_dict.has_key(chk_str)
-                #if not IsExist:
-                #    viz_dict[chk_str] = ht
-                #else:
-                #    viz_dict[chk_str] += ht
-                
-                newpt = rc.Geometry.Point3d(bula_pt[0],bula_pt[1],ht_)
-                debug.append(newpt)
-                if Other_Circle != None:
-                    chk_circle[Other_Circle] = (chk_circle[Other_Circle][0], newpt) 
-                lot_.data.type['bula_data'].bpt_lst[i_] = newpt
-                
+                    viz_dict[chk_str] += ht
+                newpt = rc.Geometry.Point3d(cp[0],cp[1],viz_dict[chk_str])
+                lot_.data.type['bula_data'].bpt_lst[i] = newpt
         # Now create the lines
+        viz = []
         for lot_ in lots_:
             for bula_pt in lot_.data.type['bula_data'].bpt_lst:
                 cp = bula_pt
