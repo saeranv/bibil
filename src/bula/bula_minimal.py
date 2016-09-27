@@ -99,6 +99,7 @@ class Bula_Data:
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
             lst_bpt_lst_.append(neighbor)
+        
         ## Now get the outpts
         out_lst = []
         for cp in cpt_:
@@ -142,22 +143,6 @@ class Bula_Data:
         for lot,norm in zip(lots_,norm_bpt_lst):
             lot.data.type['bula_data'].value = norm
         return lots_
-    def remove_duplicate(self,out_pts_,lst_plain_pt_lst_,tol=5.):
-        remove_duplicate = []
-        pt_lst = reduce(lambda x,y: x+y,lst_plain_pt_lst_)
-        for opt in out_pts:
-            print opt
-            x,y,z = opt[0], opt[1], opt[2]
-            Duplicate = False
-            for ppt in pt_lst:
-                x_ = abs(x - ppt[0]) < tol
-                y_ = abs(y - ppt[1]) < tol
-                z_ = abs(z - ppt[2]) < tol
-                if (x_ and y_ and z_):
-                    Duplicate = True
-            if not Duplicate:
-                remove_duplicate.append(opt)
-        return remove_duplicate
     def calculate_node_gfa(self,lots_):
         ## It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!
@@ -220,8 +205,8 @@ class Bula_Data:
         bula_sort = sorted(lots,key=lambda n: helper_chk_bula(n),reverse=True)
         #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
         return bula_sort
-    def create_bula_viz(self,lots_,scale_):
-        viz_dict = {}
+    def create_bula_viz_pts(self,lots_,scale_):
+        viz_dict = {} #Dictionary to check for duplicate points in different lots or lots on top of eachother
         viz = []
         for lot_ in lots_:
             ht = lot_.data.type['bula_data'].value
@@ -231,7 +216,7 @@ class Bula_Data:
             #    base = 0.0
             #Sort through each bulapt
             for i,bula_pt in enumerate(lot_.data.type['bula_data'].bpt_lst):
-                cp = bula_pt    
+                cp = bula_pt 
                 chk_str = str(int(cp[0])) + str(int(cp[1]))
                 IsExist = viz_dict.has_key(chk_str)
                 if not IsExist:
@@ -247,29 +232,67 @@ class Bula_Data:
             ht = vp[0]
             try:
                 #viz_input = rs.AddLine([cp[0],cp[1],cp[2]*scale_],[cp[0],cp[1],0.])
-                viz_input = rs.AddPoint(cp[0],cp[1],cp[2]*scale_)
+                viz_input = rc.Geometry.Point3d(cp[0],cp[1],cp[2]*scale_)
                 viz.append(viz_input)
             except:
                 pass
         return viz
-
+    
+    def create_bula_viz_line(self,adjusted_pts_,out_pts_,analysis_pts_):
+        ## analysis_pts: ordered, non-weighted points
+        ## adjusted_pts_: subset of analysis_pts in the lot, have been weighted and moved up
+        ## out_pts: subset of analysis_pts, points not in the lot, disjoint w/ adjusted_pts,
+        
+        order_pts = analysis_pts_
+        bula_pts = out_pts_ + adjusted_pts_
+        
+        chk_order = {}
+        L = []
+        
+        for bpt in bula_pts:
+            bpt = rs.coerce3dpoint(bpt)
+            chk_str = str(int(bpt[0])) + str(int(bpt[1]))
+            if not chk_order.has_key(chk_str):
+                chk_order[chk_str] = bpt
+        
+        lop = []
+        for i,opt in enumerate(order_pts):
+            chk_str = str(int(opt[0])) + str(int(opt[1]))
+            #print chk_str
+            #print chk_order.has_key(chk_str)
+            if chk_order.has_key(chk_str):
+                bpt = chk_order[chk_str]
+                lop.append(bpt)
+    
+        profile = rs.AddCurve(lop[:-1],3)
+        return profile
+    
+    def main_bula(self,analysis_pts_,values_,node_in_,scale_):
+        if node_in_[0].data.shape.is_guid(analysis_pts_[0]):
+            norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),analysis_pts_)
+        else:
+            norm_cpt_lst = analysis_pts_
+            
+        lst_ptlst_in_lot,out_pts = Bula.getpoints4lot(node_in_,norm_cpt_lst)
+        #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
+        lots = Bula.generate_bula_point(node_in_,lst_ptlst_in_lot,values_)
+        adjusted_pts = Bula.create_bula_viz_pts(lots,scale_)
+        viz_line = Bula.create_bula_viz_line(adjusted_pts,out_pts,analysis_pts_)
+        #debug.extend(out_pts)
+        return viz_line#adjusted_pts
+    
 debug = sc.sticky['debug']
 debug = []
 sc.sticky['BulaData'] = Bula_Data
 
-
-if run and cpt!=[] and cpt!=[None] and child_node_in!=[] and child_node_in!=[None]:
+if run and analysis_pts!=[] and analysis_pts!=[None] and node_in!=[] and node_in!=[None]:
     Bula = Bula_Data()
-    #zones = Bula.ghtree2nestlist(zones)[0]
-    if child_node_in[0].data.shape.is_guid(cpt[0]):
-        norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
-    else:
-        norm_cpt_lst = cpt
+    IsNested = True if type(analysis_pts[0]) == type([]) else False
+    if not IsNested:
+        analysis_pts = [analysis_pts]
+    viz = []
+    for analysis_section in analysis_pts:
+        viz_out = Bula.main_bula(analysis_section,values,node_in,scale_)
+        viz.append(viz_out)
     
-    
-    lst_plain_pt_lst,out_pts = Bula.getpoints4lot(child_node_in,norm_cpt_lst)
-    #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
-    lots = Bula.generate_bula_point(child_node_in,lst_plain_pt_lst,values)
-    line = Bula.create_bula_viz(lots,scale_)
-    debug.extend(out_pts)
     
