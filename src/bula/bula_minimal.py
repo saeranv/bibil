@@ -233,6 +233,8 @@ class Bula_Data:
             try:
                 #viz_input = rs.AddLine([cp[0],cp[1],cp[2]*scale_],[cp[0],cp[1],0.])
                 viz_input = rc.Geometry.Point3d(cp[0],cp[1],cp[2]*scale_)
+                print cp[2]*scale_
+                debug.append(cp)
                 viz.append(viz_input)
             except:
                 pass
