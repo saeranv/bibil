@@ -748,6 +748,8 @@ class Pattern:
                 #debug.append(curr_node.data.shape.geom)
                 L,diff = recurse_slice(curr_node,shape_matrix,[],None,0,0)
                 #debug.extend(map(lambda n:n.data.shape.geom,L))
+                debug.append(diff.data.shape.geom)
+                print diff
                 for i,n in enumerate(L):
                     n.depth = curr_node.depth+1
                     n.parent = curr_node
