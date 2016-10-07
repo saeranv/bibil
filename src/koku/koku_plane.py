@@ -67,23 +67,27 @@ class Plane(object):
                 coefficient = int(coefficient)
 
             output = ''
-
             if coefficient < 0:
                 output += '-'
-            if coefficient > 0 and not is_initial_term:
-                output += '+'
-            if not is_initial_term:
-                output += ' '
-            output += str(abs(coefficient))
-
+            else:
+                output += "+"
+            #if coefficient > 0 and not is_initial_term:
+            #    output += '+'
+            #if not is_initial_term:
+            #    output += ' '
+            
+            coefficient = str(abs(coefficient))
+            if len(coefficient) < 2:
+                coefficient = '0'+coefficient
+            output += coefficient
             return output
-
+        
         n = self.normal_vector.coord
         try:
             initial_index = Plane.first_nonzero_index(n)
             terms = []
             for i in range(self.dimension):
-                if round(n[i], num_decimal_places) != 0:
+                if True:#round(n[i], num_decimal_places) != 0:
                     init=(i==initial_index)
                     var = 'n_'+str(i+1)
                     coef = write_coefficient(n[i],is_initial_term=init)

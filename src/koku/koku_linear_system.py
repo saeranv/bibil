@@ -27,10 +27,9 @@ class LinearSystem(object):
         except AssertionError:
             raise Exception(self.ALL_PLANES_MUST_BE_IN_SAME_DIM_MSG)
     def swap_rows(self, row0, row1):
-        temp_plane = None
-        temp_plane = self.planes[row0]
-        self.planes[row0] = self.planes[row1]
-        self.planes[row1] = temp_plane
+        #You can achieve this swap using a temporary container
+        #or you can use this, which accounts for the temp storage
+        self.planes[row0],self.planes[row1] = self.planes[row1],self.planes[row0]
     def multiply_coefficient_and_row(self, coefficient, row):
         #Multiples normal vector and constant by scalar coefficient
         #Makes a NEW normal vector and NEW scalar coefficient and then
@@ -41,8 +40,27 @@ class LinearSystem(object):
         new_normal_vector = self.planes[row].normal_vector.times_scalar(coefficient)
         new_constant_term = self.planes[row].constant_term * coefficient
         self.planes[row] = Plane(normal_vector=new_normal_vector, constant_term=new_constant_term)
-    def add_multiple_times_row_to_row(self, coefficient, row_to_add, row_to_be_added_to):
-        pass # add your code here
+    def add_multiple_times_row_to_row(self, coefficient, row_index_to_add, row_index):
+        #Multiply the row_to_be_add_to with coefficient
+        #Then add the row_to_add
+        #Multiply
+        
+        #CHECK - should multiply by zero, add the zero == the same
+        print 'old rows'
+        print self[row_index]
+        print self[row_index_to_add]
+        print 'multiply', coefficient, 'to', self[row_index_to_add]
+        self.multiply_coefficient_and_row(coefficient,row_index_to_add)
+        #Define normals and add
+        row_index_norm = self.planes[row_index].normal_vector
+        row_index_to_add_norm = self.planes[row_index_to_add].normal_vector
+        sum_normal_vector = row_index_norm.plus(row_index_to_add_norm)
+        sum_constant_term = self.planes[row_index_to_add].constant_term + self.planes[row_index].constant_term
+        #create planes
+        self.planes[row_index_to_add] = Plane(sum_normal_vector,sum_constant_term)
+        print 'new plane'
+        print self[row_index_to_add]
+        print '--'
     def indices_of_first_nonzero_terms_in_each_row(self):
         ### Finds the first nonzero terms in each row
         ### Therefore identifies the variable used to divide rows by
@@ -119,7 +137,7 @@ p2 = Plane(normal_vector=Vector(['1','1','-1']), constant_term='3')
 p3 = Plane(normal_vector=Vector(['1','0','-2']), constant_term='2')
 
 s = LinearSystem([p0,p1,p2,p3])
-#print s
+print s
 print '---'
 s.swap_rows(0,1)
 chkrow_swap = p0 == s[1] and p1 == s[0]
@@ -147,7 +165,6 @@ if not (s[0] == p1 and
         s[3] == p3):
     print 'test case 5 failed'
 
-"""
 s.multiply_coefficient_and_row(10,1)
 if not (s[0] == p1 and
         s[1] == Plane(normal_vector=Vector(['10','10','10']), constant_term='10') and
@@ -162,6 +179,7 @@ if not (s[0] == p1 and
         s[3] == p3):
     print 'test case 7 failed'
 
+"""
 s.add_multiple_times_row_to_row(1,0,1)
 if not (s[0] == p1 and
         s[1] == Plane(normal_vector=Vector(['10','11','10']), constant_term='12') and
