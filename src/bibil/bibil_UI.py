@@ -95,12 +95,12 @@ def main(node_in_,rule_in_,parent_node_in_):
     lst_node = helper_main_recurse(lst_node,rule_in_)
     return lst_node
 
-child_node_in = filter(lambda n: n!=None,child_node_in)
-parent_node_in = filter(lambda n: n!=None,parent_node_in)
+node_in = filter(lambda n: n!=None,node_in)
+parent_ref = filter(lambda n: n!=None,parent_ref)
 rule_in = filter(lambda n: n!=None,rule_in)
 if run and child_node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    node_out = main(child_node_in,rule_in,parent_node_in)
+    node_out = main(node_in,rule_in,parent_ref)
 else:
     print 'Add inputs!'

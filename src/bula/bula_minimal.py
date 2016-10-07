@@ -7,12 +7,6 @@ import rhinoscriptsyntax as rs
 import Rhino as rc
 import scriptcontext as sc
 
-## Import classes
-#Pattern = sc.sticky["Pattern"]
-#Shape_3D = sc.sticky["Shape_3D"]
-#Tree = sc.sticky["Tree"] 
-#Grammar = sc.sticky["Grammar"]
-
 """
 Bula takes in data points (i.e. from GIS, from manhattan distance 
 analysis) and uses data to drive form generative methods i.e. height, 
@@ -33,13 +27,12 @@ class Bula_Data:
         self.value = value
         self.lot_gfa = 0
     
-    def normalize_list(self,lov,hibound,lobound,max_=None,min_=None):
+    def normalize_list(self,lov,hibound,lobound):
         """normalized_val = ( (val-min)*(hibound-lobound) )/(max-min) + lobound"""
-        if max_ == None:
-            max_ = max(lov)
-        if min_ == None:
-            min_ = min(lov)
+        max_ = max(lov)
+        min_ = min(lov)
         L = []
+        
         for i,v in enumerate(lov):
             if max_-min_ > 0.:
                 norm_val = ((hibound-lobound)*(v-min_))/(max_-min_) + lobound
@@ -98,34 +91,10 @@ class Bula_Data:
                 #2 = point in on the curve
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
+                    #d = rs.AddPoint(copy_cp[0], copy_cp[1],0)
+                    #debug.append(d)
             lst_bpt_lst_.append(neighbor)
-        
-        ## Now get the outpts
-        out_lst = []
-        for cp in cpt_:
-            copy_cp = cp
-            PtInside = False
-            for lot in lots_:
-                IsGround = True
-                if lot.data.shape.cpt:
-                    IsGround = abs(lot.data.shape.cpt[2] - 0.0) < 0.5
-                if IsGround:
-                    boundary = lot.data.shape.bottom_crv
-                    try:
-                        in_lot = int(rs.PointInPlanarClosedCurve(copy_cp,boundary,lot.data.shape.cplane))
-                    except:
-                        pass
-                    #0 = point is outside of the curve
-                    #1 = point is inside of the curve
-                    #2 = point in on the curve
-                    if abs(float(in_lot) - 1.) <= 0.1:
-                        PtInside = True
-                        break
-                if PtInside:
-                    break
-            if not PtInside: 
-                out_lst.append(cp)
-        return lst_bpt_lst_, out_lst 
+        return lst_bpt_lst_ 
     def generate_bula_point(self,lots_,lst_bpt_lst_,value_lst=None):
         ## Loop through lots w/ bula_pts
         ## Add them together and generate the bpt
@@ -139,12 +108,13 @@ class Bula_Data:
             lov.append(lot.data.type['bula_data'].value)
         
         ## Normalize the bpt.value
-        norm_bpt_lst = self.normalize_list(lov,1.,0.,min_=0.)
+        print lov
+        norm_bpt_lst = self.normalize_list(lov,1.,0.1)
         for lot,norm in zip(lots_,norm_bpt_lst):
             lot.data.type['bula_data'].value = norm
         return lots_
     def calculate_node_gfa(self,lots_):
-        ## It would be a lot easier to do all these additions
+        ##It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!
         ## Old obselete, will need to rwrite to reflect
         ## lot.data.type['bula_pt'] = lot.data.type['bula_data']
@@ -205,96 +175,42 @@ class Bula_Data:
         bula_sort = sorted(lots,key=lambda n: helper_chk_bula(n),reverse=True)
         #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
         return bula_sort
-    def create_bula_viz_pts(self,lots_,scale_):
-        viz_dict = {} #Dictionary to check for duplicate points in different lots or lots on top of eachother
-        viz = []
-        for lot_ in lots_:
-            ht = lot_.data.type['bula_data'].value
-            #if lot_.data.shape.cpt:
-            #    base = lot_.data.shape.cpt[2]
-            #else:
-            #    base = 0.0
-            #Sort through each bulapt
-            for i,bula_pt in enumerate(lot_.data.type['bula_data'].bpt_lst):
-                cp = bula_pt 
-                chk_str = str(int(cp[0])) + str(int(cp[1]))
-                IsExist = viz_dict.has_key(chk_str)
-                if not IsExist:
-                    viz_dict[chk_str] = [ht,cp]
-                else:
-                    viz_dict[chk_str][0] += ht
-                    viz_dict[chk_str][1] = rc.Geometry.Point3d(cp[0],cp[1],viz_dict[chk_str][0])
-                #lot_.data.type['bula_data'].bpt_lst[i] = newpt
-        
-        lovp = viz_dict.values()
-        for vp in lovp:    
-            cp = vp[1]
-            ht = vp[0]
-            try:
-                #viz_input = rs.AddLine([cp[0],cp[1],cp[2]*scale_],[cp[0],cp[1],0.])
-                viz_input = rc.Geometry.Point3d(cp[0],cp[1],cp[2]*scale_)
-                print cp[2]*scale_
-                debug.append(cp)
-                viz.append(viz_input)
-            except:
-                pass
-        return viz
-    
-    def create_bula_viz_line(self,adjusted_pts_,out_pts_,analysis_pts_):
-        ## analysis_pts: ordered, non-weighted points
-        ## adjusted_pts_: subset of analysis_pts in the lot, have been weighted and moved up
-        ## out_pts: subset of analysis_pts, points not in the lot, disjoint w/ adjusted_pts,
-        
-        order_pts = analysis_pts_
-        bula_pts = out_pts_ + adjusted_pts_
-        
-        chk_order = {}
-        L = []
-        
-        for bpt in bula_pts:
-            bpt = rs.coerce3dpoint(bpt)
-            chk_str = str(int(bpt[0])) + str(int(bpt[1]))
-            if not chk_order.has_key(chk_str):
-                chk_order[chk_str] = bpt
-        
-        lop = []
-        for i,opt in enumerate(order_pts):
-            chk_str = str(int(opt[0])) + str(int(opt[1]))
-            #print chk_str
-            #print chk_order.has_key(chk_str)
-            if chk_order.has_key(chk_str):
-                bpt = chk_order[chk_str]
-                lop.append(bpt)
-    
-        profile = rs.AddCurve(lop[:-1],3)
-        return profile
-    
-    def main_bula(self,analysis_pts_,values_,node_in_,scale_):
-        if node_in_[0].data.shape.is_guid(analysis_pts_[0]):
-            norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),analysis_pts_)
-        else:
-            norm_cpt_lst = analysis_pts_
-            
-        lst_ptlst_in_lot,out_pts = Bula.getpoints4lot(node_in_,norm_cpt_lst)
-        #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
-        lots = Bula.generate_bula_point(node_in_,lst_ptlst_in_lot,values_)
-        adjusted_pts = Bula.create_bula_viz_pts(lots,scale_)
-        viz_line = Bula.create_bula_viz_line(adjusted_pts,out_pts,analysis_pts_)
-        #debug.extend(out_pts)
-        return viz_line#adjusted_pts
-    
+
+
 debug = sc.sticky['debug']
 debug = []
 sc.sticky['BulaData'] = Bula_Data
 
-if run and analysis_pts!=[] and analysis_pts!=[None] and node_in!=[] and node_in!=[None]:
+if run and cpt!=[] and cpt!=[None] and zones!=[] and zones!=[None]:
     Bula = Bula_Data()
-    IsNested = True if type(analysis_pts[0]) == type([]) else False
-    if not IsNested:
-        analysis_pts = [analysis_pts]
-    viz = []
-    for analysis_section in analysis_pts:
-        viz_out = Bula.main_bula(analysis_section,values,node_in,scale_)
-        viz.append(viz_out)
+    if zones[0].data.shape.is_guid(cpt[0]):
+        norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
+    else:
+        norm_cpt_lst = cpt
+    #Get analysis pts
+    lst_plain_pt_lst = Bula.getpoints4lot(zones,norm_cpt_lst)
+    #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
     
+    #Get analysis values
+    if values:
+        values = Bula.ghtree2nestlist(values)
+    
+    #Get bula points for each lot
+    lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
+    
+    #Extract bulapt for each lot and visualize as line graph
+    line = []
+    newlots = []
+    for lot in lots:
+        for bula_data in lot.data.type['bula_data']:
+            ht = lot.data.type['bula_data'].value
+            for bpt in bula_data.bpt_lst: 
+                cp = bpt
+                try:
+                    line_ = rs.AddLine([cp[0],cp[1],ht],[cp[0],cp[1],0.])
+                    line.append(line_)
+                except:
+                    pass
+    
+    pt = line
     
