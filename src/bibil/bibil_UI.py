@@ -76,7 +76,7 @@ def main(node_in_,rule_in_,parent_node_in_):
                 
     #prep parents
     #should just recurse one level up
-    if len(parent_node_in) > 0:
+    if len(parent_node_in_) > 0:
         parent_node_ = parent_node_in_[0].get_root()
     else:
         parent_node_ = None
@@ -98,7 +98,7 @@ def main(node_in_,rule_in_,parent_node_in_):
 node_in = filter(lambda n: n!=None,node_in)
 parent_ref = filter(lambda n: n!=None,parent_ref)
 rule_in = filter(lambda n: n!=None,rule_in)
-if run and child_node_in != []:
+if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
     node_out = main(node_in,rule_in,parent_ref)
