@@ -170,8 +170,8 @@ class Vector(object):
         return self.area_of_parallelogram(w)/Decimal('2.0')
 
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=Decimal(str(1e-10))):
-        return abs(self) < eps
+    def is_near_zero(self, eps=1E-10):
+        return abs(float(self)) < eps
 
 if True:
     

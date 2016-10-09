@@ -49,13 +49,12 @@ class Plane(object):
             basepoint_coords[initial_index] = c/initial_coefficient
             # Now make the basepoint a vector
             self.basepoint = Vector(basepoint_coords)
-            
         except Exception as e:
             if str(e) == Plane.NO_NONZERO_ELTS_FOUND_MSG:
                 self.basepoint = None
             else:
                 raise e
-
+    
     def __str__(self):
         ### This function goves is the coefficients (A,B,C)
         ### which is calculated from the basepoints.. somehow
@@ -107,7 +106,7 @@ class Plane(object):
         output += ' = '+str(constant)
 
         return output
-
+        
     @staticmethod
     def first_nonzero_index(iterable):
         for k, item in enumerate(iterable):
@@ -165,7 +164,7 @@ class Plane(object):
             
 class MyDecimal(Decimal):
     def is_near_zero(self, eps=1E-10):
-        return float(self) < eps
+        return abs(float(self)) < eps
 
 
 

@@ -41,26 +41,25 @@ class LinearSystem(object):
         new_constant_term = self.planes[row].constant_term * coefficient
         self.planes[row] = Plane(normal_vector=new_normal_vector, constant_term=new_constant_term)
     def add_multiple_times_row_to_row(self, coefficient, row_index_to_add, row_index):
-        #Multiply the row_to_be_add_to with coefficient
-        #Then add the row_to_add
-        #Multiply
+        # Multiples the row_index_to_add with coefficient and then
+        # adds it to the row_index
         
-        #CHECK - should multiply by zero, add the zero == the same
-        print 'old rows'
-        print self[row_index]
-        print self[row_index_to_add]
-        print 'multiply', coefficient, 'to', self[row_index_to_add]
-        self.multiply_coefficient_and_row(coefficient,row_index_to_add)
-        #Define normals and add
-        row_index_norm = self.planes[row_index].normal_vector
-        row_index_to_add_norm = self.planes[row_index_to_add].normal_vector
-        sum_normal_vector = row_index_norm.plus(row_index_to_add_norm)
-        sum_constant_term = self.planes[row_index_to_add].constant_term + self.planes[row_index].constant_term
-        #create planes
-        self.planes[row_index_to_add] = Plane(sum_normal_vector,sum_constant_term)
-        print 'new plane'
-        print self[row_index_to_add]
-        print '--'
+        #print 'old rows'
+        #print self[row_index], 'row index'
+        #print self[row_index_to_add], 'row index to add'
+        #Create new row normal and constant
+        new_normal = self.planes[row_index_to_add].normal_vector.times_scalar(coefficient)
+        new_constant = self.planes[row_index_to_add].constant_term * coefficient
+        
+        #Add the rows normal and constants
+        sum_normal_vector = self.planes[row_index].normal_vector.plus(new_normal)
+        sum_constant_term = self.planes[row_index].constant_term + new_constant
+        
+        #Create new plane
+        self.planes[row_index] = Plane(normal_vector=sum_normal_vector,constant_term=sum_constant_term)
+        #print 'new rows'
+        #print self[row_index], 'row index'
+        #print self[row_index_to_add], 'row index to add'
     def indices_of_first_nonzero_terms_in_each_row(self):
         ### Finds the first nonzero terms in each row
         ### Therefore identifies the variable used to divide rows by
@@ -104,8 +103,8 @@ class LinearSystem(object):
         ret += '\n'.join(temp)
         return ret
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=1e-10):
-        return abs(self) < eps
+    def is_near_zero(self, eps=1E-10):
+        return abs(float(self)) < eps
 
 
 
@@ -137,8 +136,8 @@ p2 = Plane(normal_vector=Vector(['1','1','-1']), constant_term='3')
 p3 = Plane(normal_vector=Vector(['1','0','-2']), constant_term='2')
 
 s = LinearSystem([p0,p1,p2,p3])
-print s
-print '---'
+#print s
+#print '---'
 s.swap_rows(0,1)
 chkrow_swap = p0 == s[1] and p1 == s[0]
 chkrow_not_swap = p2 == s[2] and p3 == s[3]
@@ -179,18 +178,18 @@ if not (s[0] == p1 and
         s[3] == p3):
     print 'test case 7 failed'
 
-"""
 s.add_multiple_times_row_to_row(1,0,1)
-if not (s[0] == p1 and
+if not (s[0] == p1 and #p1 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
         s[1] == Plane(normal_vector=Vector(['10','11','10']), constant_term='12') and
         s[2] == Plane(normal_vector=Vector(['-1','-1','1']), constant_term='-3') and
         s[3] == p3):
     print 'test case 8 failed'
 
+#Plane(normal_vector=['-10','-10','-10', constant_term='-10')
 s.add_multiple_times_row_to_row(-1,1,0)
 if not (s[0] == Plane(normal_vector=Vector(['-10','-10','-10']), constant_term='-10') and
         s[1] == Plane(normal_vector=Vector(['10','11','10']), constant_term='12') and
         s[2] == Plane(normal_vector=Vector(['-1','-1','1']), constant_term='-3') and
         s[3] == p3):
     print 'test case 9 failed'
-"""
+    

@@ -195,8 +195,8 @@ class Line(object):
                 return None
       
 class MyDecimal(Decimal):
-    def is_near_zero(self, eps=0.0000000001):
-        return float(self) < eps
+    def is_near_zero(self, eps=1E-10):
+        return abs(float(self)) < eps
 
 """
 ## testing __init__ for line
