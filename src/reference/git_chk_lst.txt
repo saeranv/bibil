@@ -1,0 +1,6 @@
+Checklst for git contributions
+- update userobj
+- update date
+- pull request from my fork to original repo
+- merge the pull request
+- make pull reqest to original repo
