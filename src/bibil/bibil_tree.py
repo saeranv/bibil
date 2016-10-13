@@ -11,8 +11,9 @@ class Tree:
     http://www.laurentluce.com/posts/binary-search-tree-library-in-python/
     double-linked binary tree
     """
-    def __init__(self,data,loc=None,parent=None,sib=None,depth=0):
-        self.data = data
+    def __init__(self,shape=None,grammar=None,loc=None,parent=None,sib=None,depth=0):
+        self.shape = shape
+        self.grammar = grammar
         if loc is None: loc = []
         self.loc = loc
         self.parent = parent

@@ -63,19 +63,19 @@ class Bula_Data:
         debug = sc.sticky['debug']
         lst_bpt_lst_ = []
         for j,lot in enumerate(lots_):
-            boundary = lot.data.shape.bottom_crv
+            boundary = lot.shape.bottom_crv
             neighbor = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
                 """
-                movedist = abs(lot.data.shape.cpt[2]-cp[2])
+                movedist = abs(lot.shape.cpt[2]-cp[2])
                 if abs(movedist-0.0)>0.1:
-                    if lot.data.shape.cpt[2] < cp[2]:
+                    if lot.shape.cpt[2] < cp[2]:
                         movedist *= -1
                     vec = rc.Geometry.Vector3d(0,0,movedist)
                 else:
                     vec = rc.Geometry.Vector3d(0,0,0)
-                if not lot.data.shape.is_guid(cp):
+                if not lot.shape.is_guid(cp):
                     cp = sc.doc.Objects.AddPoint(cp)
                 copy_cp = rs.CopyObject(cp,vec)
                 #copy_cp = rs.coerce3dpoint() 
@@ -83,7 +83,7 @@ class Bula_Data:
                 copy_cp = cp
                 in_lot = 0
                 try:
-                    in_lot = int(rs.PointInPlanarClosedCurve(copy_cp,boundary,lot.data.shape.cplane))
+                    in_lot = int(rs.PointInPlanarClosedCurve(copy_cp,boundary,lot.shape.cplane))
                 except:
                     pass
                 #0 = point is outside of the curve
@@ -125,7 +125,7 @@ class Bula_Data:
         ### the designer while maintaining the exponential or nonexponetial
         ### relationship between different lot FARS.
         lot_num = float(len(lots_))
-        lot_area = sum(map(lambda l:l.data.shape.get_area(),lots_))
+        lot_area = sum(map(lambda l:l.shape.get_area(),lots_))
         sum_gfa = 0.
         for l in lots_:
             for bpt in l.data['bula_pt']:
@@ -148,7 +148,7 @@ class Bula_Data:
             lot_num = float(len(lot.data.type['bula_pt']))
             lot_val = sum(map(lambda bpt: bpt.value,lot.data.type['bula_pt']))
             try: 
-                lot_gfa = (lot_val/lot_num) * lot.data.shape.get_area()
+                lot_gfa = (lot_val/lot_num) * lot.shape.get_area()
                 ## Calculate the actual lot FAR / actual total FAR
                 ## This fixes the exponential relationship.
                 proportion = lot_gfa/sum_gfa
@@ -183,7 +183,7 @@ sc.sticky['BulaData'] = Bula_Data
 
 if run and cpt!=[] and cpt!=[None] and zones!=[] and zones!=[None]:
     Bula = Bula_Data()
-    if zones[0].data.shape.is_guid(cpt[0]):
+    if zones[0].shape.is_guid(cpt[0]):
         norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
     else:
         norm_cpt_lst = cpt

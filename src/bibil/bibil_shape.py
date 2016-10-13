@@ -14,7 +14,7 @@ TOL = sc.doc.ModelAbsoluteTolerance
 
 
 
-class Shape_3D:
+class Shape:
     """
     Parent shape operations and information
     """
@@ -30,9 +30,9 @@ class Shape_3D:
         self.primary_axis_vector = None
         self.base_matrix = None
         if geom == None:
-            geom = rs.coercebrep(rs.AddBox([[0,0,0],[0,1,0],[-1,1,0],[-1,0,0],\
-                                        [0,0,1],[0,1,1],[-1,1,1],[-1,0,1]]))
-        if geom!=None:
+            self.geom = rs.coercebrep(rs.AddBox([[0,0,0],[0,10,0],[-10,10,0],[-10,0,0],\
+                                        [0,0,10],[0,10,10],[-10,10,10],[-10,0,10]]))
+        else:
             try:
                 self.reset(xy_change=True)
             except Exception as e:
@@ -617,7 +617,7 @@ class Shape_3D:
                 self.geom = brep
                 self.reset(xy_change=False)
         except Exception as e:
-            print "Error @ Shape_3D.op_extrude"
+            print "Error @ Shape.op_extrude"
             print str(e)#sys.exc_traceback.tb_lineno 
     def op_offset_crv(self,dim,curve=None,count=0,refcpt=None,corner=1):
         #print 'count: ', count, 'dim: ', dim
@@ -640,7 +640,7 @@ class Shape_3D:
                 else:
                     return offcurve[0] 
             except Exception as e:
-                print "Error @ Shape_3D.op_offset_crv"
+                print "Error @ Shape.op_offset_crv"
                 print str(e)#sys.exc_traceback.tb_lineno 
     def op_offset(self,dim,curve,dir="courtyard",useoffcrv=False):
         try:
@@ -680,7 +680,6 @@ class Shape_3D:
                 ht = self.z_dist+1.
                 offgeom = rc.Geometry.Extrusion.Create(offcurve,self.z_dist,True)
                 offgeom = sc.doc.Objects.AddBrep(rs.coercebrep(offgeom))
-                ext = rc.Geometry.Extrusion.Create(shapecurve,ht,True)
                 diff_geom = sc.doc.Objects.AddBrep(rs.coercebrep(ext))
             elif dir=="terrace_3d" and not abort:
                 ht = self.z_dist+1.
@@ -721,9 +720,9 @@ class Shape_3D:
             rs.EnableRedraw(True)
             return diff_geom
         except Exception as e:
-            print 'Error @ Shape_3D.op_offset'
+            print 'Error @ Shape.op_offset'
             print str(e)#sys.exc_traceback.tb_l          
     
 
 if True:
-    sc.sticky["Shape_3D"] = Shape_3D
+    sc.sticky["Shape"] = Shape
