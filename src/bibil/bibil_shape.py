@@ -49,8 +49,7 @@ class Shape_3D:
             #     s_wt = x_dist
             """    self.s_wt,self.e_ht,self.n_wt,self.w_ht """
             return b[:2],b[1:3],b[2:4],[b[3],b[0]]
-            
-            
+                
         # primary edges
         if xy_change == True:
             try:
