@@ -8,9 +8,14 @@ import ghpythonlib.components as ghcomp
 
 """import classes"""
 Shape = sc.sticky["Shape"]
-Tree = sc.sticky["Tree"] 
-Grammar = sc.sticky["Grammar"]
+Tree = sc.sticky["Tree"]
+Bula = sc.sticky["Bula"]
 
+sc.sticky['debug'] = []
+debug = sc.sticky["debug"]
+
+TOL = sc.doc.ModelAbsoluteTolerance
+    
 class Grammar:
     """Grammar """
     def __init__(self):
@@ -579,27 +584,6 @@ class Grammar:
         except Exception as e:
             print "P.op_solar_envelope error"
             print e
-    def check_override(self,node_):
-        """
-        Ref:
-        if label in overnode.grammar.type['label']:
-        overnode.grammar.type['grammar'] = grammar
-        sc.sticky['override'].append(overnode)
-        """
-        """
-        #debug = sc.sticky['debug']
-        lstoverride = sc.sticky['override']
-        theoverride = None
-        crvA = node_.shape.bottom_crv
-        for overnode in lstoverride:
-            crvB = overnode.shape.bottom_crv
-            setrel = node_.shape.check_region(crvA,crvB,tol=0.5)
-            if not abs(setrel-0.)<0.1:
-                theoverride = overnode.grammar.type['grammar']
-                break
-        return theoverride
-        """
-        return False
     def print_node(self,node_,label='print'):
         #debug = sc.sticky['debug']
         if node_.grammar.type.has_key(label) and node_.grammar.type[label]:
@@ -784,71 +768,55 @@ class Grammar:
                 except Exception as e:
                     print 'Error @ court', str(e)        
         return diff
-    
-    def main_pattern(self,node):
-        debug = sc.sticky["debug"]
-        debug = []
-        TOL = sc.doc.ModelAbsoluteTolerance
+    def bula(self,temp_node_,PD_):
+        Bula_ = Bula()
+        analysis_ref = PD_['bula_point_lst']
+        value_ref = PD_['bula_value_lst']
+        scale_ = PD_['bula_scale']
         
-        ## Make a copy of the geometry
-        gb = node.shape.geom
-        if node.shape.is_guid(gb): gb = rs.coercebrep(gb)#gb = sc.doc.Objects.AddBrep(gb)
-        geo_brep = copy.copy(gb)
-        PD = node.grammar.type
-        ## Make a new, fresh node
-        temp_node = self.helper_geom2node(geo_brep,node)
-        temp_node.grammar.type['print'] = True
-                     
-        ## Divide
-        if PD['divide']:
-            temp_node = self.divide(temp_node,PD)
-               
-        ## Separation_distance
-        if PD['separate']:
-            dist_lst = PD['dist_lst']
-            del_lst = PD['delete_dist']
-            temp_node = self.separate_by_dist(temp_node,dist_lst,del_lst)
-        
-        ## Extrude
-        if PD['height']!=False:
-            temp_node = self.set_height(temp_node,PD['height'])
+        ##Check to see what are input combo
+        chk_apt = filter(lambda x: x!=None,analysis_ref) != []
+        chk_val = filter(lambda x: x!=None,value_ref) != []
+        chk_sc = scale_ != None
+        if not chk_sc:
+            scale_ = 1.
+        #If both are missing, inputs are wrong
+        if not chk_apt and not chk_val:
+            print 'Inputs are missing!'
+        #One of both values are true
+        else:
+            #If analysis pts are treu
+            assert if chk_apt:
+            #Get the analysis points
+            if zones[0].shape.is_guid(cpt[0]):
+                norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
+            else:
+                norm_cpt_lst = cpt
+            #Put analysis pts in lots
+            lst_plain_pt_lst = Bula.getpoints4lot(zones,norm_cpt_lst)
+            #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
             
-        ## Setbacks/Stepback
-        ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
-        if PD['stepback']:
-            temp_node = self.stepback(temp_node,PD)
+            #Make value list
+            #----
+            #Add bula points for each lot
+            lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
+            
+            """
+        #Extract bulapt for each lot and visualize as line graph
+        line = []
+        newlots = []
+        for lot in lots:
+            for bula_data in lot.data.type['bula_data']:
+                ht = lot.data.type['bula_data'].value
+                for bpt in bula_data.bpt_lst: 
+                    cp = bpt
+                    try:
+                        line_ = rs.AddLine([cp[0],cp[1],ht],[cp[0],cp[1],0.])
+                        line.append(line_)
+                    except:
+                        pass
         
-        ## 5. Court
-        if PD['court'] == True:
-            self.court(temp_node,PD)
-        
+        pt = line
         """
-        These have to be rewritten
-        if solartype == 2: # multi_cell
-            try:
-                temp_node = self.solar_envelope_multi(temp_node,solartime,node.grammar,solarht)
-            except Exception as e:
-                print e
-        
-        if PD['concentric_divide']:
-            dist_lst = PD['dist_lst']
-            del_dist_lst = PD['delete_dist']
-            temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst,ROOTREF) 
-         
-        ## 1. param 1 or param 3
-        solartype = PD['solartype']
-        solartime = PD['solartime']
-        solarht = PD['solarht']
-        
-        if solartype == 1 or solartype == 3: # uni-cell
-            try:
-                geo_brep = self.solar_envelope_uni(node,solartime,solarht,solartype)
-            except Exception as e:
-                    print "Error @ solartype 1 or 3", str(e)
-        """
-        
-        ## 7. Finish
-        return temp_node
-
 if True:
     sc.sticky["Grammar"] = Grammar

@@ -1,5 +1,8 @@
 """
 Playing around with standard form of a line Ax + By = C
+
+For parametric definition of plane see here:
+http://math.stackexchange.com/questions/152467/parametric-form-of-a-plane
 """
 
 import rhinoscriptsyntax as rs

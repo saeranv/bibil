@@ -17,7 +17,7 @@ By incrementing the bula.value, you can experiment with densities,
 but the density will always be DIRECTIONALLY DRIVEN by underling point
 data.
 """
-class Bula_Data:
+class Bula:
     def __init__(self,bpt_lst=None,value=0.):
         if bpt_lst == None:
             bpt_lst = []
@@ -176,41 +176,6 @@ class Bula_Data:
         #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
         return bula_sort
 
-
-debug = sc.sticky['debug']
-debug = []
-sc.sticky['BulaData'] = Bula_Data
-
-if run and cpt!=[] and cpt!=[None] and zones!=[] and zones!=[None]:
-    Bula = Bula_Data()
-    if zones[0].shape.is_guid(cpt[0]):
-        norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
-    else:
-        norm_cpt_lst = cpt
-    #Get analysis pts
-    lst_plain_pt_lst = Bula.getpoints4lot(zones,norm_cpt_lst)
-    #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
-    
-    #Get analysis values
-    if values:
-        values = Bula.ghtree2nestlist(values)
-    
-    #Get bula points for each lot
-    lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
-    
-    #Extract bulapt for each lot and visualize as line graph
-    line = []
-    newlots = []
-    for lot in lots:
-        for bula_data in lot.data.type['bula_data']:
-            ht = lot.data.type['bula_data'].value
-            for bpt in bula_data.bpt_lst: 
-                cp = bpt
-                try:
-                    line_ = rs.AddLine([cp[0],cp[1],ht],[cp[0],cp[1],0.])
-                    line.append(line_)
-                except:
-                    pass
-    
-    pt = line
-    
+if True:
+    debug = sc.sticky['debug']
+    sc.sticky['Bula'] = Bula

@@ -11,7 +11,10 @@ R['court'] = True
 R['court_width'] = podium_depth
 R['court_node'] = -1#node_depth
 R['court_slice']= True
-R['court_ref'] = rs.coercegeometry(parent_ref)
+# G = Grammar()
+# if G.check_type(parent_ref) == 'geometry':
+# else: parent_ref
+R['court_ref'] = rs.coercecurve(parent_ref)
 
 if run:
     rule = [R]
