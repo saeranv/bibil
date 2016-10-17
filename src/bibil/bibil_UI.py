@@ -79,7 +79,7 @@ def node2grammar(node):
     elif PD['court'] == True:
         G.court(temp_node,PD)
     elif PD['bula'] == True:
-        G.bula(temp_node,PD)
+        G.set_bula_point(temp_node,PD)
     """
     These have to be rewritten
     #elif PD['separate'] == True:

@@ -768,7 +768,7 @@ class Grammar:
                 except Exception as e:
                     print 'Error @ court', str(e)        
         return diff
-    def bula(self,temp_node_,PD_):
+    def set_bula_point(self,temp_node_,PD_):
         #Move this back to Bula as main_bula
         B = Bula()
         S = Shape()
@@ -801,29 +801,12 @@ class Grammar:
                 analysis_pts = map(lambda p: rs.coerce3dpoint(p),analysis_ref)
             #Check if value is a formula
             if type(value_ref[0]) == type(''):
-                value_ref = B.apply_formula2points(value_ref,analysis_pts)
+                value_ref = B.apply_formula2points(value_ref,analysis_ref)
             #Sort analysis pts into leaf nodes
-            leaves = temp_node_.traverse_tree(lambda n: n,internal=False)
-            lst_plain_pt_lst = B.getpoints4lot(leaves,analysis_pts)
+            shape_leaves = temp_node_.traverse_tree(lambda n: n,internal=False)
+            lst_plain_pt_lst, lst_value_lst = B.getpoints4lot(shape_leaves,analysis_ref,value_ref)
             #Make bula point for each lot
-            lot_lst = B.generate_bula_point(leaves,lst_plain_pt_lst,value_ref)
-            
-        """
-        #Extract bulapt for each lot and visualize as line graph
-        line = []
-        newlots = []
-        for lot in lots:
-            for bula_data in lot.data.type['bula_data']:
-                ht = lot.data.type['bula_data'].value
-                for bpt in bula_data.bpt_lst: 
-                    cp = bpt
-                    try:
-                        line_ = rs.AddLine([cp[0],cp[1],ht],[cp[0],cp[1],0.])
-                        line.append(line_)
-                    except:
-                        pass
-        
-        pt = line
-        """
+            B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst)
+            B.set_bula_height4viz(shape_leaves,scale_)
 if True:
     sc.sticky["Grammar"] = Grammar

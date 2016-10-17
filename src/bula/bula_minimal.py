@@ -6,6 +6,8 @@ Created on Jun 25, 2016
 import rhinoscriptsyntax as rs
 import Rhino as rc
 import scriptcontext as sc
+import math
+import copy
 
 """
 Bula takes in data points (i.e. from GIS, from manhattan distance 
@@ -18,14 +20,18 @@ but the density will always be DIRECTIONALLY DRIVEN by underling point
 data.
 """
 class Bula:
-    def __init__(self,bpt_lst=None,value=0.):
+    def __init__(self,bpt_lst=None,value_lst=None,avg_val=0.):
+        #Set defaults for list types
         if bpt_lst == None:
             bpt_lst = []
+        if value_lst == None:
+            value_lst = []
+        #Init
         self.bpt_lst = bpt_lst
-        self.bpt_num = 1 if len(bpt_lst) < 1. else len(bpt_lst)
-        #Normalized value of bpt_lst data
-        self.value = value
-        self.lot_gfa = 0
+        self.value_lst = value_lst
+        self.avg_value = avg_val
+        self.bpt_viz_lst = copy.copy(bpt_lst)
+         
     def normalize_list(self,lov,hibound,lobound):
         """normalized_val = ( (val-min)*(hibound-lobound) )/(max-min) + lobound"""
         max_ = max(lov)
@@ -55,15 +61,17 @@ class Bula:
             cpt[2] = norm
             cpt_lst_[i] = cpt
         return cpt_lst_ 
-    def getpoints4lot(self,lots_,cpt_):
+    def getpoints4lot(self,lots_,cpt_,value_ref_):
         ## Loop through tree lots and add the point_nodes
         ## to each lot; returns lst of (listof points inside each lot)
         ## bpt_lst,lots: listof(listof(point data) 
         debug = sc.sticky['debug']
         lst_bpt_lst_ = []
+        lst_val_lst_ = []
         for j,lot in enumerate(lots_):
             boundary = lot.shape.bottom_crv
             neighbor = []
+            neighbor_val= []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
                 """
@@ -90,35 +98,28 @@ class Bula:
                 #2 = point in on the curve
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
+                    neighbor_val.append(value_ref_[i])
                     #d = rs.AddPoint(copy_cp[0], copy_cp[1],0)
                     #debug.append(d)
             lst_bpt_lst_.append(neighbor)
-        return lst_bpt_lst_ 
-    def generate_bula_point(self,lots_,lst_bpt_lst_,value_lst=None):
-        ## Loop through lots w/ bula_pts
-        ## Add them together and generate the bpt
-        lov = []
-        for i,lot in enumerate(lots_):
+            lst_val_lst_.append(neighbor_val)
+        return lst_bpt_lst_,lst_val_lst_ 
+    def generate_bula_point(self,shapes_,lst_bpt_lst_,lst_value_lst):
+        ## Loop through shape nodes w/ bula_pts
+        for i,shape_node in enumerate(shapes_):
             bpt_lst_ = lst_bpt_lst_[i]
-            val = value_lst[i]
+            val_lst = lst_value_lst[i]
+            avg_val = reduce(lambda x,y: x+y,val_lst)
             ## Make a bpt for each lot
-            bpt = Bula(bpt_lst_,val)
-            lot.grammar.type['bula'] = bpt
-            lov.append(lot.grammar.type['bula'].value)
-        
-        ## Normalize the bpt.value
-        #print lov
-        norm_bpt_lst = self.normalize_list(lov,1.,0.1)
-        for lot,norm in zip(lots_,norm_bpt_lst):
-            lot.grammar.type['bula'].value = norm
-        return lots_
-    def calculate_node_gfa(self,lots_):
+            bpt = Bula(bpt_lst_,val_lst,avg_val)
+            shape_node.grammar.type['bula'] = bpt
+    def calculate_node_gfa(self,lots_,ref_density):
         ##It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!
         ## Old obselete, will need to rwrite to reflect
         ## lot.grammar.type['bula_pt'] = lot.grammar.type['bula_data']
         ## is a single class not list of bpt classes
-        
+
         ### This section recalculates density amounts to bring the 
         ### actual density in line with the reference density provided by
         ### the designer while maintaining the exponential or nonexponetial
@@ -136,7 +137,7 @@ class Bula:
         abs_diff = abs(float(ref_gfa) - sum_gfa)
         abs_diff = abs_diff*-1 if ref_gfa < sum_gfa else abs_diff
         ## Sort lot nodes from lowest to highest FAR
-        lots.sort(key=lambda n: n.grammar.type['bula_pt'].value)
+        lots_.sort(key=lambda n: n.grammar.type['bula_pt'].value)
            
         ## Loop through the listof(lots)
         for i,lot in enumerate(lots_):
@@ -171,7 +172,7 @@ class Bula:
                 bula_val = 0.
             return bula_val 
         #print map(lambda n: n.grammar.type['bula_data'].value,lots_)
-        bula_sort = sorted(lots,key=lambda n: helper_chk_bula(n),reverse=True)
+        bula_sort = sorted(lots_,key=lambda n: helper_chk_bula(n),reverse=True)
         #print map(lambda n: n.grammar.type['bula_data'].value,bula_sort)
         return bula_sort
     def apply_formula2points(self,formula_ref_,analysis_pts_):
@@ -179,48 +180,90 @@ class Bula:
         formula = formula_ref_[0]
         focal_ref = formula_ref_[1]
         focal_weight = formula_ref_[2]
-        #YEL = []
-        #MPL = []#parallel list of which points is chosen
+        value_lst = []
         
-        #Create list of focal pt: list of distance
-        for pt in analysis_pts_:
-            dlst = []
-            distmajor = rs.Distance(pt,dpt_major)
-            distminor = rs.Distance(pt,dpt_minor)
-            YEL.append(distmajor)
-            MPL.append(distminor)
-        
-        #normalize distances according to weight
-        val_lst = []
-        norm_dist_yonge = normalize_list(YL,0.,1.0)
-        norm_dist_mount = normalize_list(ML,0.,3.0)
-        
-        #sort dist for focal pt and find min focal pt
-        #use min dist w/ formula export value list
-        for i,dist in enumerate(zip(YL,ML)):
-            y = dist[0]
-            m = dist[1]
-            divfact = 75.
-            powfact = 1.1
-            factor = factor =  math.pow(abs(y-m)/divfact,powfact)
-            if y<m:
-                try:
-                    y = norm_dist_yonge[i]
-                    z = y
-                    z = 25 * (1/math.pow(y,it))
-                except ZeroDivisionError:
-                    z = 0.
+        #Set defaults
+        if len(focal_weight) != len(focal_ref):
+            if len(focal_weight) == 1:
+                focal_weight = focal_weight * len(focal_ref)
+            elif len(focal_weight) == 0:
+                focal_weight = [1.] * len(focal_ref)
             else:
-                try:
-                    m = norm_dist_mount[i]
-                    #z = m#25 * (1/math.pow(m,it))
-                    z = 25 * (1/math.pow(m,it))
-                except ZeroDivisionError:
-                    z = 0.
-            z *= factor/6.
-            val_lst.append(z)
-        return val_lst
+                print 'Correct the number of focal_weight inputs'
+                
+        #Create list of focal pt: list of distance
+        lst_fpt_lst = []
+        for i,fpt in enumerate(focal_ref):
+            fpt_lst = []
+            for j,apt_ in enumerate(analysis_pts_):
+                dist2fpt = rs.Distance(fpt,apt_)
+                fpt_lst.append(dist2fpt)
+            lst_fpt_lst.append(fpt_lst)
+            
+        #Normalize distances according to focal weight
+        norm_lst_fpt_lst = []
+        for fpt_dist_lst,fwt in zip(lst_fpt_lst,focal_weight):
+            norm_dist2fpt = fpt_dist_lst#self.normalize_list(fpt_dist_lst,0.,fwt)
+            norm_lst_fpt_lst.append(norm_dist2fpt)
         
+        #Loop through dist2fptlst for each analysis_pts and find min dist2fpt
+        min_norm_dist_lst = []
+        for i,apt_ in enumerate(analysis_pts_):
+            dist4fpts = []
+            #lstdust2fot = dist of each analysis_pt to fpt
+            for lstdist2fpt in lst_fpt_lst:
+                dist4fpts.append(lstdist2fpt[i])
+            #Identify the fpt that is closer to the apt
+            min_fpt_index = dist4fpts.index(min(dist4fpts))
+            min_norm_dist = norm_lst_fpt_lst[min_fpt_index][i]
+            min_norm_dist_lst.append(min_norm_dist)
+        #Use min fpt w/ formula export value list
+        print 'values'
+        for apt_,min_norm_dist in zip(analysis_pts_,min_norm_dist_lst):
+            #formula: 1/math.exp(0.1813*dist)
+            #print 'f', formula
+            #print 'd', min_norm_dist
+            try:
+                dist = (min_norm_dist/1000.)*10 #<<< convert to km * 10 for 10 min walk
+                val = eval(formula)
+            except ZeroDivisionError:
+                val = 0.
+            value_lst.append(val)
+        print min(value_lst)
+        print max(value_lst)
+        max_bound = 150 * max(value_lst)
+        min_bound = 150 * min(value_lst)
+        print max_bound, min_bound
+        value_lst = map(lambda n: n*100,value_lst)
+        #value_lst = self.normalize_list(value_lst,max_bound,min_bound)
+        return value_lst
+    def set_bula_height4viz(self,shape_node_lst,scale_factor):
+        for shape_node in shape_node_lst:
+            buladata = shape_node.grammar.type['bula']
+            bpt_lst = buladata.bpt_lst
+            val_lst =  buladata.value_lst
+            for i,bp_tuple in enumerate(zip(bpt_lst,val_lst)):
+                bpt,val = bp_tuple[0],bp_tuple[1]
+                vizpt = rc.Geometry.Point3d(bpt[0],bpt[1],val*scale_factor)
+                buladata.bpt_viz_lst[i] = vizpt
+    def set_bula_line4viz(self):
+        pass
+        """
+        #Extract bulapt for each lot and visualize as line graph
+        line = []
+        newlots = []
+        for lot in lots:
+            for bula_data in lot.data.type['bula_data']:
+                ht = lot.data.type['bula_data'].value
+                for bpt in bula_data.bpt_lst: 
+                    cp = bpt
+                    try:
+                        line_ = rs.AddLine([cp[0],cp[1],ht],[cp[0],cp[1],0.])
+                        line.append(line_)
+                    except:
+                        pass
+        
+        pt = line
+        """
 if True:
-    debug = sc.sticky['debug']
     sc.sticky['Bula'] = Bula
