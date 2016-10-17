@@ -26,7 +26,6 @@ class Bula:
         #Normalized value of bpt_lst data
         self.value = value
         self.lot_gfa = 0
-    
     def normalize_list(self,lov,hibound,lobound):
         """normalized_val = ( (val-min)*(hibound-lobound) )/(max-min) + lobound"""
         max_ = max(lov)
@@ -103,21 +102,21 @@ class Bula:
             bpt_lst_ = lst_bpt_lst_[i]
             val = value_lst[i]
             ## Make a bpt for each lot
-            bpt = Bula_Data(bpt_lst_,val)
-            lot.data.type['bula_data'] = bpt
-            lov.append(lot.data.type['bula_data'].value)
+            bpt = Bula(bpt_lst_,val)
+            lot.grammar.type['bula'] = bpt
+            lov.append(lot.grammar.type['bula'].value)
         
         ## Normalize the bpt.value
-        print lov
+        #print lov
         norm_bpt_lst = self.normalize_list(lov,1.,0.1)
         for lot,norm in zip(lots_,norm_bpt_lst):
-            lot.data.type['bula_data'].value = norm
+            lot.grammar.type['bula'].value = norm
         return lots_
     def calculate_node_gfa(self,lots_):
         ##It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!
         ## Old obselete, will need to rwrite to reflect
-        ## lot.data.type['bula_pt'] = lot.data.type['bula_data']
+        ## lot.grammar.type['bula_pt'] = lot.grammar.type['bula_data']
         ## is a single class not list of bpt classes
         
         ### This section recalculates density amounts to bring the 
@@ -128,16 +127,16 @@ class Bula:
         lot_area = sum(map(lambda l:l.shape.get_area(),lots_))
         sum_gfa = 0.
         for l in lots_:
-            for bpt in l.data['bula_pt']:
+            for bpt in l.grammar['bula_pt']:
                 sum_gfa += bpt.value
-            bula_num = len(l.data['bula_pt'])
+            bula_num = len(l.grammar['bula_pt'])
             sum_gfa += 0 if bula_num < 1 else sum_gfa/float(bula_num)
         ref_gfa = ref_density * lot_area
         ## Calculate difference between reference FAR, and actual FAR
         abs_diff = abs(float(ref_gfa) - sum_gfa)
         abs_diff = abs_diff*-1 if ref_gfa < sum_gfa else abs_diff
         ## Sort lot nodes from lowest to highest FAR
-        lots.sort(key=lambda n: n.data.type['bula_pt'].value)
+        lots.sort(key=lambda n: n.grammar.type['bula_pt'].value)
            
         ## Loop through the listof(lots)
         for i,lot in enumerate(lots_):
@@ -145,8 +144,8 @@ class Bula:
             ## used to derive density sim. Not surrounding neighbors. 
             ## Sort the neighbor nodes for each lot from 
             ## lowest to highest by their FAR 
-            lot_num = float(len(lot.data.type['bula_pt']))
-            lot_val = sum(map(lambda bpt: bpt.value,lot.data.type['bula_pt']))
+            lot_num = float(len(lot.grammar.type['bula_pt']))
+            lot_val = sum(map(lambda bpt: bpt.value,lot.grammar.type['bula_pt']))
             try: 
                 lot_gfa = (lot_val/lot_num) * lot.shape.get_area()
                 ## Calculate the actual lot FAR / actual total FAR
@@ -161,21 +160,67 @@ class Bula:
             except ZeroDivisionError:
                 lot_gfa = 1.
                 new_lot_gfa
-            lot.data.type['lot_gfa'] = new_lot_gfa
+            lot.grammar.type['lot_gfa'] = new_lot_gfa
         return lots_
     def sort_by_bula(self,lots_):
         ## Sort by Bula_data.value, from highest to lowest
         def helper_chk_bula(lot_):
-            if lot_.data.type.has_key('bula_data'):
-                bula_val = lot_.data.type['bula_data'].value 
+            if lot_.grammar.type.has_key('bula_data'):
+                bula_val = lot_.grammar.type['bula_data'].value 
             else: 
                 bula_val = 0.
             return bula_val 
-        #print map(lambda n: n.data.type['bula_data'].value,lots_)
+        #print map(lambda n: n.grammar.type['bula_data'].value,lots_)
         bula_sort = sorted(lots,key=lambda n: helper_chk_bula(n),reverse=True)
-        #print map(lambda n: n.data.type['bula_data'].value,bula_sort)
+        #print map(lambda n: n.grammar.type['bula_data'].value,bula_sort)
         return bula_sort
-
+    def apply_formula2points(self,formula_ref_,analysis_pts_):
+        #Purpose: Go through each point and add value based on formula
+        formula = formula_ref_[0]
+        focal_ref = formula_ref_[1]
+        focal_weight = formula_ref_[2]
+        #YEL = []
+        #MPL = []#parallel list of which points is chosen
+        
+        #Create list of focal pt: list of distance
+        for pt in analysis_pts_:
+            dlst = []
+            distmajor = rs.Distance(pt,dpt_major)
+            distminor = rs.Distance(pt,dpt_minor)
+            YEL.append(distmajor)
+            MPL.append(distminor)
+        
+        #normalize distances according to weight
+        val_lst = []
+        norm_dist_yonge = normalize_list(YL,0.,1.0)
+        norm_dist_mount = normalize_list(ML,0.,3.0)
+        
+        #sort dist for focal pt and find min focal pt
+        #use min dist w/ formula export value list
+        for i,dist in enumerate(zip(YL,ML)):
+            y = dist[0]
+            m = dist[1]
+            divfact = 75.
+            powfact = 1.1
+            factor = factor =  math.pow(abs(y-m)/divfact,powfact)
+            if y<m:
+                try:
+                    y = norm_dist_yonge[i]
+                    z = y
+                    z = 25 * (1/math.pow(y,it))
+                except ZeroDivisionError:
+                    z = 0.
+            else:
+                try:
+                    m = norm_dist_mount[i]
+                    #z = m#25 * (1/math.pow(m,it))
+                    z = 25 * (1/math.pow(m,it))
+                except ZeroDivisionError:
+                    z = 0.
+            z *= factor/6.
+            val_lst.append(z)
+        return val_lst
+        
 if True:
     debug = sc.sticky['debug']
     sc.sticky['Bula'] = Bula

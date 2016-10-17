@@ -1,5 +1,5 @@
 """
-Bibil UI
+Trinco UI
 """
 
 import rhinoscriptsyntax as rs
@@ -58,6 +58,7 @@ def sort_node2grammar(lst_node_,rule_in_):
         #return NL
 
 def node2grammar(node):
+    #move this back to grammar?
     G = Grammar()
     ## Make a copy of the geometry
     gb = node.shape.geom

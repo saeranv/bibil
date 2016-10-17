@@ -769,7 +769,10 @@ class Grammar:
                     print 'Error @ court', str(e)        
         return diff
     def bula(self,temp_node_,PD_):
-        Bula_ = Bula()
+        #Move this back to Bula as main_bula
+        B = Bula()
+        S = Shape()
+        #Get the inputs
         analysis_ref = PD_['bula_point_lst']
         value_ref = PD_['bula_value_lst']
         scale_ = PD_['bula_scale']
@@ -778,30 +781,34 @@ class Grammar:
         chk_apt = filter(lambda x: x!=None,analysis_ref) != []
         chk_val = filter(lambda x: x!=None,value_ref) != []
         chk_sc = scale_ != None
-        if not chk_sc:
+        
+        #Set defaults or add warnings
+        if not chk_apt:
+            print 'Analysis inputs are missing!'
+            chk_apt = False
+        if not chk_val:
+            val_num = len(analysis_ref)
+            value_ref = [0]*val_num
+            chk_val = True
+        if not chk_sc: 
             scale_ = 1.
-        #If both are missing, inputs are wrong
-        if not chk_apt and not chk_val:
-            print 'Inputs are missing!'
-        #One of both values are true
-        else:
-            #If analysis pts are treu
-            assert if chk_apt:
-            #Get the analysis points
-            if zones[0].shape.is_guid(cpt[0]):
-                norm_cpt_lst = map(lambda p: rs.coerce3dpoint(p),cpt)
-            else:
-                norm_cpt_lst = cpt
-            #Put analysis pts in lots
-            lst_plain_pt_lst = Bula.getpoints4lot(zones,norm_cpt_lst)
-            #debug.extend(reduce(lambda x,y: x+y, lst_plain_pt_lst))
+            chk_sc = True
+        
+        #Now, if True execute Bula
+        if chk_apt and chk_val and chk_sc: 
+            #Convert from guid 
+            if S.is_guid(analysis_ref[0]):
+                analysis_pts = map(lambda p: rs.coerce3dpoint(p),analysis_ref)
+            #Check if value is a formula
+            if type(value_ref[0]) == type(''):
+                value_ref = B.apply_formula2points(value_ref,analysis_pts)
+            #Sort analysis pts into leaf nodes
+            leaves = temp_node_.traverse_tree(lambda n: n,internal=False)
+            lst_plain_pt_lst = B.getpoints4lot(leaves,analysis_pts)
+            #Make bula point for each lot
+            lot_lst = B.generate_bula_point(leaves,lst_plain_pt_lst,value_ref)
             
-            #Make value list
-            #----
-            #Add bula points for each lot
-            lots = Bula.generate_bula_point(zones,lst_plain_pt_lst,values)
-            
-            """
+        """
         #Extract bulapt for each lot and visualize as line graph
         line = []
         newlots = []
