@@ -8,6 +8,7 @@ import Rhino as rc
 import scriptcontext as sc
 import math
 import copy
+import itertools
 
 """
 Bula takes in data points (i.e. from GIS, from manhattan distance 
@@ -45,6 +46,11 @@ class Bula:
                 norm_val = 1/float(len(lov))
             L.append(norm_val)
         return L
+    def calculate_combination(self,iterable,r):
+        # combinations(iterable, r)
+        # combinations('ABCD', 2) --> AB AC AD BC BD CD
+        return itertools.combinations(iterable,r)
+
     def ghtree2nestlist(self,tree):
         nested_lst = []
         for i in range(tree.BranchCount):
@@ -194,6 +200,7 @@ class Bula:
             #Then loop through each dist2fpt for each apt
             min_dist_lst_ = []
             min_fptindex_lst_ = []
+            smooth_fac_lst_ = []
             for i,apt_ in enumerate(analysis_pt_lst):
                 dist4fpts = []
                 #lstdist2fot = dist of each analysis_pt to fpt
@@ -204,7 +211,17 @@ class Bula:
                 min_dist = min(dist4fpts)
                 min_fptindex_lst_.append(min_fpt_index)
                 min_dist_lst_.append(min_dist)
-            return min_dist_lst_,min_fptindex_lst_
+                
+                #Calculate Smoothing factor 
+                #Find all combinations of two for each fref pt
+                comb_dist = self.calculate_combination(dist4fpts,2)
+                #Take sqrt of abs difference btwn each dist2fpt and sum 
+                smooth_factor = 0.
+                for fptdist in comb_dist:
+                    smooth_factor += math.fabs(fptdist[0]-fptdist[1])/1000
+                    #math.sqrt(math.fabs(fptdist[0]-fptdist[1]))
+                smooth_fac_lst_.append(smooth_factor)
+            return min_dist_lst_,min_fptindex_lst_,smooth_fac_lst_
         
         #Purpose: Go through each point and add value based on formula
         formula = formula_ref_[0]
@@ -224,7 +241,9 @@ class Bula:
         #Calculate distance from apt to each focal ref       
         apts_in_fpts = helper_dist2focal_lst(focal_ref,analysis_pts_)
         #Make list of the minimum distance to fpt for each apt
-        min_dist_lst,min_fptindex_lst = helper_min_dist4apt(apts_in_fpts,analysis_pts_)            
+        min_dist_lst,min_fptindex_lst,smooth_fac_lst = helper_min_dist4apt(apts_in_fpts,analysis_pts_)            
+        
+        smooth_fac_lst = self.normalize_list(smooth_fac_lst, 1., 0.0)
         
         #Main function apply formula to min dist of each apt
         #This is ordered by fpt so we can weight it later
@@ -239,17 +258,20 @@ class Bula:
             #print 'f', formula
             #print 'd', min_dist
             #Keep track of which fpt is referenced
+            sf = smooth_fac_lst[apt_i]
+            print sf
             try:
                 dist = (min_dist/1000.)*10 #<<< convert to km * 10 for 10 min walk
-                val = eval(formula)
+                val = eval(formula) * sf
             except ZeroDivisionError:
                 val = 0.
             #store value, apt index tuple
             value_lst_by_fpt[fpt_i].append((val,apt_i))
+        
         #Add weights to each
-        wtlst = [1,0.5]
+        wtlst = [1,91.5/211.5]
         for fi,val_ind_lst in enumerate(value_lst_by_fpt):
-            weight = wtlst[fi]*150
+            weight = wtlst[fi]*211.5
             #Separate value and index
             val_lst = map(lambda v: v[0],val_ind_lst)
             ind_lst = map(lambda v: v[1],val_ind_lst)
@@ -257,18 +279,21 @@ class Bula:
             max_bound = weight * max(val_lst)
             min_bound = weight * min(val_lst)
             val_lst = self.normalize_list(val_lst,max_bound,min_bound)
+            for i,val in enumerate(val_lst):
+                if val <= 61.5:
+                    val_lst[i] = 61.5
             #Now merge value and index back
             val_ind_lst = map(lambda x:(x[0],x[1]),zip(val_lst,ind_lst))
             value_lst_by_fpt[fi] = val_ind_lst
-            
+        
+        
         #Resort by apt order
         #this is a clever way of handling this problem
         flat_val_ind_lst = reduce(lambda x,y:x+y,value_lst_by_fpt)
-        #print 'valindlst'
-        #print len(val_ind_lst)
         flat_val_ind_lst.sort(key=lambda n:n[1])
         value_lst = map(lambda x: x[0],flat_val_ind_lst)
         
+        #Done!
         return value_lst
     def set_bula_height4viz(self,shape_node_lst,scale_factor):
         for shape_node in shape_node_lst:
