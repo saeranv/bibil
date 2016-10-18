@@ -176,11 +176,40 @@ class Bula:
         #print map(lambda n: n.grammar.type['bula_data'].value,bula_sort)
         return bula_sort
     def apply_formula2points(self,formula_ref_,analysis_pts_):
+        def helper_dist2focal_lst(focal_ref_,analysis_pt_lst):
+            #Create nested list:
+            #lst of Focal pts (len=2): 
+            #>> nested lst of distance to focal pt for every analysis pt (len=100)
+            apt_lst_in_fpt_lst_ = []
+            for i,fpt in enumerate(focal_ref_):
+                dist_lst = []
+                for j,apt_ in enumerate(analysis_pt_lst):
+                    dist2fpt = rs.Distance(fpt,apt_)
+                    dist_lst.append(dist2fpt)
+                apt_lst_in_fpt_lst_.append(dist_lst)
+            return apt_lst_in_fpt_lst_
+        def helper_min_dist4apt(apt_lst_in_fpt_lst_,analysis_pt_lst): 
+            #Purpose: Find the minimum distance for each apt
+            #Loop through each apt
+            #Then loop through each dist2fpt for each apt
+            min_dist_lst_ = []
+            min_fptindex_lst_ = []
+            for i,apt_ in enumerate(analysis_pt_lst):
+                dist4fpts = []
+                #lstdist2fot = dist of each analysis_pt to fpt
+                for lstofdist2fpt in apt_lst_in_fpt_lst_:
+                    dist4fpts.append(lstofdist2fpt[i])
+                #Identify the fpt that is closer to the apt
+                min_fpt_index = dist4fpts.index(min(dist4fpts))
+                min_dist = min(dist4fpts)
+                min_fptindex_lst_.append(min_fpt_index)
+                min_dist_lst_.append(min_dist)
+            return min_dist_lst_,min_fptindex_lst_
+        
         #Purpose: Go through each point and add value based on formula
         formula = formula_ref_[0]
         focal_ref = formula_ref_[1]
         focal_weight = formula_ref_[2]
-        value_lst = []
         
         #Set defaults
         if len(focal_weight) != len(focal_ref):
@@ -191,51 +220,55 @@ class Bula:
             else:
                 print 'Correct the number of focal_weight inputs'
                 
-        #Create list of focal pt: list of distance
-        lst_fpt_lst = []
-        for i,fpt in enumerate(focal_ref):
-            fpt_lst = []
-            for j,apt_ in enumerate(analysis_pts_):
-                dist2fpt = rs.Distance(fpt,apt_)
-                fpt_lst.append(dist2fpt)
-            lst_fpt_lst.append(fpt_lst)
-            
-        #Normalize distances according to focal weight
-        norm_lst_fpt_lst = []
-        for fpt_dist_lst,fwt in zip(lst_fpt_lst,focal_weight):
-            norm_dist2fpt = fpt_dist_lst#self.normalize_list(fpt_dist_lst,0.,fwt)
-            norm_lst_fpt_lst.append(norm_dist2fpt)
         
-        #Loop through dist2fptlst for each analysis_pts and find min dist2fpt
-        min_norm_dist_lst = []
-        for i,apt_ in enumerate(analysis_pts_):
-            dist4fpts = []
-            #lstdust2fot = dist of each analysis_pt to fpt
-            for lstdist2fpt in lst_fpt_lst:
-                dist4fpts.append(lstdist2fpt[i])
-            #Identify the fpt that is closer to the apt
-            min_fpt_index = dist4fpts.index(min(dist4fpts))
-            min_norm_dist = norm_lst_fpt_lst[min_fpt_index][i]
-            min_norm_dist_lst.append(min_norm_dist)
-        #Use min fpt w/ formula export value list
-        print 'values'
-        for apt_,min_norm_dist in zip(analysis_pts_,min_norm_dist_lst):
+        #Calculate distance from apt to each focal ref       
+        apts_in_fpts = helper_dist2focal_lst(focal_ref,analysis_pts_)
+        #Make list of the minimum distance to fpt for each apt
+        min_dist_lst,min_fptindex_lst = helper_min_dist4apt(apts_in_fpts,analysis_pts_)            
+        
+        #Main function apply formula to min dist of each apt
+        #This is ordered by fpt so we can weight it later
+        #Careful when adding lists! They are complex objects
+        # can unintentionally craete odd mutatios
+        value_lst_by_fpt = []
+        for fi in enumerate(focal_ref):
+            value_lst_by_fpt.append([])
+        for apt_i,dist_data in enumerate(zip(min_dist_lst,min_fptindex_lst)):
+            min_dist,fpt_i = dist_data[0],dist_data[1]
             #formula: 1/math.exp(0.1813*dist)
             #print 'f', formula
-            #print 'd', min_norm_dist
+            #print 'd', min_dist
+            #Keep track of which fpt is referenced
             try:
-                dist = (min_norm_dist/1000.)*10 #<<< convert to km * 10 for 10 min walk
+                dist = (min_dist/1000.)*10 #<<< convert to km * 10 for 10 min walk
                 val = eval(formula)
             except ZeroDivisionError:
                 val = 0.
-            value_lst.append(val)
-        print min(value_lst)
-        print max(value_lst)
-        max_bound = 150 * max(value_lst)
-        min_bound = 150 * min(value_lst)
-        print max_bound, min_bound
-        value_lst = map(lambda n: n*100,value_lst)
-        #value_lst = self.normalize_list(value_lst,max_bound,min_bound)
+            #store value, apt index tuple
+            value_lst_by_fpt[fpt_i].append((val,apt_i))
+        #Add weights to each
+        wtlst = [1,0.5]
+        for fi,val_ind_lst in enumerate(value_lst_by_fpt):
+            weight = wtlst[fi]*150
+            #Separate value and index
+            val_lst = map(lambda v: v[0],val_ind_lst)
+            ind_lst = map(lambda v: v[1],val_ind_lst)
+            #Calculate weighted value
+            max_bound = weight * max(val_lst)
+            min_bound = weight * min(val_lst)
+            val_lst = self.normalize_list(val_lst,max_bound,min_bound)
+            #Now merge value and index back
+            val_ind_lst = map(lambda x:(x[0],x[1]),zip(val_lst,ind_lst))
+            value_lst_by_fpt[fi] = val_ind_lst
+            
+        #Resort by apt order
+        #this is a clever way of handling this problem
+        flat_val_ind_lst = reduce(lambda x,y:x+y,value_lst_by_fpt)
+        #print 'valindlst'
+        #print len(val_ind_lst)
+        flat_val_ind_lst.sort(key=lambda n:n[1])
+        value_lst = map(lambda x: x[0],flat_val_ind_lst)
+        
         return value_lst
     def set_bula_height4viz(self,shape_node_lst,scale_factor):
         for shape_node in shape_node_lst:
