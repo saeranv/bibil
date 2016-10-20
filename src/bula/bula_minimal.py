@@ -218,8 +218,8 @@ class Bula:
                 #Take sqrt of abs difference btwn each dist2fpt and sum 
                 smooth_factor = 0.
                 for fptdist in comb_dist:
-                    smooth_factor += math.fabs(fptdist[0]-fptdist[1])/1000
-                    #math.sqrt(math.fabs(fptdist[0]-fptdist[1]))
+                    smooth_factor += math.pow(math.fabs(fptdist[0]-fptdist[1]),0.5)
+                    print smooth_factor
                 smooth_fac_lst_.append(smooth_factor)
             return min_dist_lst_,min_fptindex_lst_,smooth_fac_lst_
         
@@ -237,18 +237,17 @@ class Bula:
             else:
                 print 'Correct the number of focal_weight inputs'
                 
-        
         #Calculate distance from apt to each focal ref       
         apts_in_fpts = helper_dist2focal_lst(focal_ref,analysis_pts_)
         #Make list of the minimum distance to fpt for each apt
         min_dist_lst,min_fptindex_lst,smooth_fac_lst = helper_min_dist4apt(apts_in_fpts,analysis_pts_)            
         
-        smooth_fac_lst = self.normalize_list(smooth_fac_lst, 1., 0.0)
+        
         
         #Main function apply formula to min dist of each apt
         #This is ordered by fpt so we can weight it later
         #Careful when adding lists! They are complex objects
-        # can unintentionally craete odd mutatios
+        #can unintentionally create odd mutations
         value_lst_by_fpt = []
         for fi in enumerate(focal_ref):
             value_lst_by_fpt.append([])
@@ -258,41 +257,53 @@ class Bula:
             #print 'f', formula
             #print 'd', min_dist
             #Keep track of which fpt is referenced
-            sf = smooth_fac_lst[apt_i]
-            print sf
             try:
                 dist = (min_dist/1000.)*10 #<<< convert to km * 10 for 10 min walk
-                val = eval(formula) * sf
+                val = eval(formula)
             except ZeroDivisionError:
                 val = 0.
             #store value, apt index tuple
             value_lst_by_fpt[fpt_i].append((val,apt_i))
         
         #Add weights to each
-        wtlst = [1,91.5/211.5]
+        wtlst = [1]#[1,121.5/211.5]
         for fi,val_ind_lst in enumerate(value_lst_by_fpt):
-            weight = wtlst[fi]*211.5
+            weight = wtlst[fi]*148.5
             #Separate value and index
             val_lst = map(lambda v: v[0],val_ind_lst)
             ind_lst = map(lambda v: v[1],val_ind_lst)
+            #print 'val', val_lst
             #Calculate weighted value
             max_bound = weight * max(val_lst)
             min_bound = weight * min(val_lst)
             val_lst = self.normalize_list(val_lst,max_bound,min_bound)
-            for i,val in enumerate(val_lst):
-                if val <= 61.5:
-                    val_lst[i] = 61.5
             #Now merge value and index back
             val_ind_lst = map(lambda x:(x[0],x[1]),zip(val_lst,ind_lst))
             value_lst_by_fpt[fi] = val_ind_lst
-        
-        
+           
         #Resort by apt order
         #this is a clever way of handling this problem
         flat_val_ind_lst = reduce(lambda x,y:x+y,value_lst_by_fpt)
         flat_val_ind_lst.sort(key=lambda n:n[1])
         value_lst = map(lambda x: x[0],flat_val_ind_lst)
         
+        #Add smoothing factor
+        if len(focal_ref) > 1:
+            smooth_fac_lst = self.normalize_list(smooth_fac_lst, 1, 0.0001)
+            value_lst = map(lambda vs: vs[0]*vs[1], zip(value_lst,smooth_fac_lst))
+            max_wtd_value = max(wtd_value_lst)
+            for i,wtd_val in enumerate(value_lst):
+                sf = smooth_fac_lst[i]
+                wtd_sf_val = wtd_val *sf
+                inc = (1.-sf)*50.
+                #print '---'
+                #print 'sf: ', sf
+                #print 'inc:', inc
+                #print 'ht: ', wtd_val
+                #if sf <= 0.999:
+                #    if (wtd_val + inc) <= max_wtd_value:
+                wtd_val_inc = wtd_val + inc
+                value_lst[i] = wtd_val_inc 
         #Done!
         return value_lst
     def set_bula_height4viz(self,shape_node_lst,scale_factor):
