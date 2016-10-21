@@ -482,7 +482,7 @@ class Grammar:
             setht = 21. #default ht = midrise
             bula_node = n_.search_up_tree(lambda n: n.grammar.type.has_key('bula'))
             print bula_node.grammar.type['label']
-            print n_.parent.grammar.type['label']
+            #print n_.parent.parent.grammar.type['label']
             print 'bula', bula_node.grammar.type['bula']
             
             if bula_node:
@@ -534,6 +534,7 @@ class Grammar:
         debug = sc.sticky['debug']
         #print 'We are setting height!'
         n_ = temp_node_
+        print 'labelchk', temp_node_.parent.parent.grammar.type['label']
         if type(ht_)==type('') and 'bula' in ht_:
             setht_ = height_from_bula(n_)
         else:
@@ -822,6 +823,6 @@ class Grammar:
                 meta_node.loc = loc
                 temp_node_.parent = meta_node
                 temp_node_.parent.traverse_tree(lambda n:inc_depth(n),internal=True)
-
+                print 'asdf', temp_node_.parent.parent.grammar.type['label']
 if True:
     sc.sticky["Grammar"] = Grammar
