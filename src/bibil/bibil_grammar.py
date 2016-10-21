@@ -19,7 +19,7 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"",'axis':"NS",'ratio':0.,'print':False}
+        self.type = {'label':"",'axis':"NS",'ratio':0.}
 
     def helper_geom2node(self,geom,parent_node=None,label=""):
         def helper_curve2srf(geom_):
@@ -480,9 +480,13 @@ class Grammar:
         def height_from_bula(n_):
             bula_node,bptlst = False,False
             setht = 21. #default ht = midrise
-            bula_node = n_.search_up_tree(lambda n: n.grammar.type.has_key('bula_data'))
+            bula_node = n_.search_up_tree(lambda n: n.grammar.type.has_key('bula'))
+            print bula_node.grammar.type['label']
+            print n_.parent.grammar.type['label']
+            print 'bula', bula_node.grammar.type['bula']
+            
             if bula_node:
-                buladata = bula_node.grammar.type['bula_data']
+                buladata = bula_node.grammar.type['bula']
                 nodecrvlst = [n_]
                 #make this function in bula
                 inptlst = buladata.getpoints4lot(nodecrvlst,buladata.bpt_lst)
@@ -529,47 +533,37 @@ class Grammar:
             
         debug = sc.sticky['debug']
         #print 'We are setting height!'
-        ht_node_ = 'print'
-        lst_nodes = temp_node_.traverse_tree(lambda n: self.print_node(n,label=ht_node_))
-        lst_nodes = filter(lambda n:n!=None,lst_nodes)
-        #ypt = sc.sticky['bula_transit'][0]
-        #mpt = sc.sticky['bula_transit'][1]
-        for n_ in lst_nodes:
-            #if type(ht_)==type('') and 'bula' in ht_:
-            #    setht_ = height_from_bula(n_)
-            if type(ht_)==type('') and 'envelope' in ht_:
-                setht_ = height_from_envelope(n_)
-            elif type(ht_)==type('') and 'angle_srf' in ht_:
-                angle_srf = sc.sticky['angle_srf']
-                setht_ = height_from_envelope(n_,envref=angle_srf)
-            else:
-                setht_ = ht_
-            
-            """
-            #angle_srf = sc.sticky['angle_srf']
-            #setht_angle = height_from_envelope(n_,envref=angle_srf)
-            ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
-            #ydist = rs.Distance(n_.shape.cpt,ypt)
-            #mdist = rs.Distance(n_.shape.cpt,mpt)
-            ydist = 121
-            mdist = 121
-            if ydist < mdist:
-                maxht = sc.sticky['max_ht_yonge']# 70 storeys
-            else:
-                maxht = sc.sticky['max_ht_mount']# 40 storeys
-            
-            #IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
-            IsPodium = 'podium' in n_.get_root().grammar.type['label']
-            IsMaxht = maxht != None and setht_ > maxht
-            if IsMaxht:
-                setht_ = maxht
-            if setht_ > setht_angle:
-                setht_ = setht_angle 
-            if IsPodium:
-                setht_ = sc.sticky['ht_podium']
-            """
-            n_.shape.op_extrude(setht_)
-            n_.grammar.type['print'] = True
+        n_ = temp_node_
+        if type(ht_)==type('') and 'bula' in ht_:
+            setht_ = height_from_bula(n_)
+        else:
+            setht_ = ht_
+        
+        """
+        #angle_srf = sc.sticky['angle_srf']
+        #setht_angle = height_from_envelope(n_,envref=angle_srf)
+        ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
+        #ydist = rs.Distance(n_.shape.cpt,ypt)
+        #mdist = rs.Distance(n_.shape.cpt,mpt)
+        ydist = 121
+        mdist = 121
+        if ydist < mdist:
+            maxht = sc.sticky['max_ht_yonge']# 70 storeys
+        else:
+            maxht = sc.sticky['max_ht_mount']# 40 storeys
+        
+        #IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
+        IsPodium = 'podium' in n_.get_root().grammar.type['label']
+        IsMaxht = maxht != None and setht_ > maxht
+        if IsMaxht:
+            setht_ = maxht
+        if setht_ > setht_angle:
+            setht_ = setht_angle 
+        if IsPodium:
+            setht_ = sc.sticky['ht_podium']
+        """
+        print setht_
+        n_.shape.op_extrude(setht_)
         return temp_node_
     def get_solar_zone(self,start_time,end_time,curve=None,zonetype='envelope'):
         try:
@@ -584,10 +578,7 @@ class Grammar:
         except Exception as e:
             print "P.op_solar_envelope error"
             print e
-    def print_node(self,node_,label='print'):
-        #debug = sc.sticky['debug']
-        if node_.grammar.type.has_key(label) and node_.grammar.type[label]:
-            return node_
+
     def concentric_divide(self,temp_node_,distlst,dellst,ROOTREF):
         def helper_recurse(curr_node_,rootref_,distlst_,dist_acc,dellst_,lst_ring,diffn,count):
             ##base case: fail chk_offset
@@ -808,5 +799,29 @@ class Grammar:
             #Make bula point for each lot
             B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst)
             B.set_bula_height4viz(shape_leaves,scale_)
+    def meta_tree(self,temp_node_,PD_):
+        def inc_depth(n):
+            n.depth += 1
+            return n
+        insert_node = PD_['meta_insert']
+        meta_node = PD_['meta_node']
+        relation = PD_['meta_relation']
+        #Get relation hierarchy
+        if relation == 'parent':
+            #Get operation
+            if insert_node == True:
+                #THIS SHOULD BE DONE IN TREE CLASS
+                if temp_node_.parent:
+                    loc = temp_node_.parent.loc
+                    parent = temp_node_.parent.parent
+                    temp_node_.delete_node()
+                else:
+                    loc = temp_node_
+                    parent = None
+                meta_node.depth = temp_node_.depth - 1
+                meta_node.loc = loc
+                temp_node_.parent = meta_node
+                temp_node_.parent.traverse_tree(lambda n:inc_depth(n),internal=True)
+
 if True:
     sc.sticky["Grammar"] = Grammar

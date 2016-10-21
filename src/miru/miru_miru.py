@@ -19,7 +19,8 @@ Miru = \
 'height':False,\
 'concentric_divide': False,\
 'dist_lst':None,'delete_dist':None,\
-'bula':False,'bula_point_lst':None,'bula_value_lst':None,'bula_scale':1.}
+'bula':False,'bula_point_lst':None,'bula_value_lst':None,'bula_scale':1.,\
+'miru':True,'miru_insert':None, 'miru_relation':None,'miru_node':None}
 """--------------------------------"""
 
 if True:

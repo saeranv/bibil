@@ -172,8 +172,8 @@ class Bula:
     def sort_by_bula(self,lots_):
         ## Sort by Bula_data.value, from highest to lowest
         def helper_chk_bula(lot_):
-            if lot_.grammar.type.has_key('bula_data'):
-                bula_val = lot_.grammar.type['bula_data'].value 
+            if lot_.grammar.type.has_key('bula'):
+                bula_val = lot_.grammar.type['bula'].value 
             else: 
                 bula_val = 0.
             return bula_val 

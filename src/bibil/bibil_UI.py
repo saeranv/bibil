@@ -19,7 +19,7 @@ def copy_node_lst(nlst):
         #L.append(copy.deepcopy(n))
         yield copy.deepcopy(n)
 
-def make_node_lst(copy_node_in_,parent_node_=None): 
+def make_node_lst(copy_node_in_,label_in_): 
     #L = []
     G = Grammar()
     T = Tree()
@@ -28,7 +28,7 @@ def make_node_lst(copy_node_in_,parent_node_=None):
         if type(T) == type(node_geom):
             n_ = node_geom
         else:
-            n_ = G.helper_geom2node(node_geom,parent_node_,label=label_)
+            n_ = G.helper_geom2node(node_geom,label=label_in_)
         yield n_
         #L.append(n_)
         #return L
@@ -80,6 +80,8 @@ def node2grammar(node):
         G.court(temp_node,PD)
     elif PD['bula'] == True:
         G.set_bula_point(temp_node,PD)
+    elif PD['meta_tree'] == True:
+        G.meta_tree(temp_node,PD)
     """
     These have to be rewritten
     #elif PD['separate'] == True:
@@ -108,7 +110,7 @@ def node2grammar(node):
     ## 7. Finish
     return temp_node
 
-def main(node_in_,rule_in_):
+def main(node_in_,rule_in_,label__):
     def helper_main_recurse(lst_node_,rule_lst):
         #print rule_lst
         if rule_lst == []:
@@ -120,8 +122,8 @@ def main(node_in_,rule_in_):
             return helper_main_recurse(lst_node_,rule_lst)
                 
     #prep nodes
-    node_in_ = copy_node_lst(node_in_)
-    lst_node = make_node_lst(node_in_)
+    #node_in_ = copy_node_lst(node_in_)
+    lst_node = make_node_lst(node_in_,label__)
     
     #apply patterns           
     lst_node = helper_main_recurse(lst_node,rule_in_)
@@ -132,6 +134,6 @@ rule_in = filter(lambda n: n!=None,rule_in)
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    node_out = main(node_in,rule_in)
+    node_out = main(node_in,rule_in,label_)
 else:
     print 'Add inputs!'

@@ -25,7 +25,38 @@ class Tree:
         #for child in self.loc:
         #    ret += child.__repr__()
         return ret
-    ## def lookup
+    
+    
+    """
+    def increase_depth(self,amount):
+        self.depth += amount
+        
+    def insert_node(self,node,depth):
+        #NEEDS TO BE TESTED
+        #Purpose: Insert node at the depth specified
+        #Base case 1: equal to depth
+        if self.depth == depth:
+            #add as sibling
+            node.parent = self.parent
+            node.depth = self.depth
+        elif self.depth < depth:
+            #Base case 2: empty child
+            if self.loc == []:
+                node.parent = self
+                node.depth = self.depth + 1
+                self.loc.append(node)
+            else: 
+                self.loc[0].insert_node(node,depth)
+        elif self.depth > depth:
+            #Base case 3: root
+            if self.parent == None:
+                node.loc.append(self)
+                self.parent = node
+                self.traverse_tree(lambda n:n.increase_depth(node.depth),internal=True)
+            else:
+                self.parent.insert_node(node,depth)
+       """     
+            
     def delete_node(self):
         if self is not None:
             self.loc = []
