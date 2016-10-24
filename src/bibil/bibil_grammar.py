@@ -481,9 +481,9 @@ class Grammar:
             bula_node,bptlst = False,False
             setht = 21. #default ht = midrise
             bula_node = n_.search_up_tree(lambda n: n.grammar.type.has_key('bula'))
-            print bula_node.grammar.type['label']
+            #print bula_node.grammar.type['label']
             #print n_.parent.parent.grammar.type['label']
-            print 'bula', bula_node.grammar.type['bula']
+            #print 'bula', bula_node.grammar.type['bula']
             
             if bula_node:
                 buladata = bula_node.grammar.type['bula']
@@ -528,7 +528,6 @@ class Grammar:
                 envht = min_pt[2]
             else:
                 envht = 150.
-            print 'envht', envht
             return envht
             
         debug = sc.sticky['debug']
@@ -563,7 +562,6 @@ class Grammar:
         if IsPodium:
             setht_ = sc.sticky['ht_podium']
         """
-        print setht_
         n_.shape.op_extrude(setht_)
         return temp_node_
     def get_solar_zone(self,start_time,end_time,curve=None,zonetype='envelope'):
@@ -812,6 +810,8 @@ class Grammar:
             #Get operation
             if insert_node == True:
                 #THIS SHOULD BE DONE IN TREE CLASS
+                print 'label: ', temp_node_.grammar.type['label']
+                print 'parent: ', temp_node_.parent
                 if temp_node_.parent:
                     print temp_node_.grammar.type['label']
                     loc = temp_node_.parent.loc

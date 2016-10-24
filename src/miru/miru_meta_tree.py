@@ -3,15 +3,23 @@ Miru Meta Tree
 ----------------""" 
 import copy
 import scriptcontext as sc
-Miru = sc.sticky["Miru"]
-R = copy.deepcopy(Miru)
-    
-R['meta_tree'] = True
-R['meta_insert'] = insert
-R['meta_node'] = node
-R['meta_relation'] = relation
+import clr
+
+clr.AddReference("Grasshopper")
+from Grasshopper.Kernel.Data import GH_Path
+from Grasshopper import DataTree
 
 if run:
-    rule = [R]
+    rule = DataTree[object]()
+    rule_ = [\
+    ['meta_tree', True],\
+    ['meta_insert', insert],\
+    ['meta_node', node],\
+    ['meta_relation', relation],\
+    ['end_rule']]
+    
+    for i, r in enumerate(rule_):
+        rule.Add(r)
 else:
     rule = []
+    
