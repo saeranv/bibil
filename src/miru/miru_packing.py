@@ -4,16 +4,13 @@ Miru Packing
 
 import copy
 import scriptcontext as sc
-Miru = sc.sticky["Miru"]
-R = copy.deepcopy(Miru)
-
-R['separate'] = True 
-R['dist_lst'] = [20.,27.]
-R['delete_dist'] = [25.]
-#TP['concentric_divide'] = True
-R['height'] = 90.
+#Miru = sc.sticky["Miru"]
+#R = copy.deepcopy(Miru)
 
 if run:
-    rule = [R]
+    rule = [['separate', True], 
+    ['dist_lst',[20.,27.]],\
+    ['delete_dist', [25.]],\
+    ['height', 90.]]
 else:
     rule = []

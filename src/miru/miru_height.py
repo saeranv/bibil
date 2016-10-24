@@ -3,13 +3,21 @@ Miru Height
 ----------------""" 
 import copy
 import scriptcontext as sc
-Miru = sc.sticky["Miru"]
-R = copy.deepcopy(Miru)
-    
-R['height'] = height
+import clr
+
+clr.AddReference("Grasshopper")
+from Grasshopper.Kernel.Data import GH_Path
+from Grasshopper import DataTree
+
 
 if run:
-    rule = [R]
+    rule = DataTree[object]()
+    rule_ = [['height',height],\
+             ['end_rule']]
+    
+    for i, r in enumerate(rule_):
+        rule.Add(r)
+        
 else:
     rule = []
 

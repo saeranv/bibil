@@ -4,15 +4,29 @@ Miru Analysis Points
 import copy
 import scriptcontext as sc
 import rhinoscriptsyntax as rs
-Miru = sc.sticky["Miru"]
-R = copy.deepcopy(Miru)
-    
-R['bula'] = True
-R['bula_point_lst'] = map(lambda pt: rs.coerce3dpoint(pt), analysis_ref)
-R['bula_value_lst'] = value_ref
-R['bula_scale'] = scale
+import clr
 
-if run:
-    rule = [R]
+clr.AddReference("Grasshopper")
+from Grasshopper.Kernel.Data import GH_Path
+from Grasshopper import DataTree
+
+if run:    
+    rule = DataTree[object]()
+    rule_ = [\
+    ['bula', True],\
+    ['bula_point_lst', map(lambda pt: rs.coerce3dpoint(pt), analysis_ref)],\
+    ['bula_value_lst', value_ref],\
+    ['bula_scale', scale],\
+    ['end_rule']]
+    
+    for i, r in enumerate(rule_):
+        rule.Add(r)
+
 else:
     rule = []
+
+
+
+
+
+

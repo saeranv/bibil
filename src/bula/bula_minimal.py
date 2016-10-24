@@ -51,16 +51,19 @@ class Bula:
         # combinations('ABCD', 2) --> AB AC AD BC BD CD
         return itertools.combinations(iterable,r)
 
-    def ghtree2nestlist(self,tree):
+    def ghtree2nestlist(self,tree,nest=True):
         nested_lst = []
         for i in range(tree.BranchCount):
             branchList = tree.Branch(i)
             #change from listobject
             lst = []
             for b in branchList:
-                lst.append(b)
-            #return list
-            nested_lst.append(lst)
+                if nest: 
+                    lst.append(b)
+                else: 
+                    nested_lst.append(b)
+            if nest: 
+                nested_lst.append(lst)
         return nested_lst
     def normalize_cpt_data(self,cpt_lst_):
         ## Normalize points

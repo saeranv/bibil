@@ -13,6 +13,7 @@ Shape = sc.sticky["Shape"]
 Tree = sc.sticky["Tree"] 
 Grammar = sc.sticky["Grammar"]
 Bula = sc.sticky["Bula"]
+Miru = sc.sticky["Miru"]
 
 def copy_node_lst(nlst):
     L = []
@@ -109,7 +110,32 @@ def node2grammar(node):
     ## 7. Finish
     lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
     return lst_childs
-
+    
+def insert_rule_dict(rule_tree_):
+    #Purpose: Extract rules from tree insert nest list of rule dictionaries
+    B = Bula()
+    
+    #Convert tree to flat list
+    flat_lst = B.ghtree2nestlist(rule_tree_,nest=False)
+    
+    #Convert flat list to nested list of typology rules
+    nest_rdict = []
+    rdict = copy.deepcopy(Miru)
+    for parselst in flat_lst:
+        if parselst[0] != 'end_rule':
+            miru_key,miru_val = parselst[0],parselst[1]
+            rdict[miru_key] = miru_val  
+        else:
+            nest_rdict.append(rdict)
+            rdict = copy.deepcopy(Miru)
+    #Test
+    #for i in nest_rdict:
+    #    print i['height']
+    #    print i['divide']
+    #    print '---'
+    
+    return nest_rdict
+    
 def main(node_in_,rule_in_,label__):
     def helper_main_recurse(lst_node_,rule_lst):
         #print rule_lst
@@ -120,18 +146,17 @@ def main(node_in_,rule_in_,label__):
             #apply rule to current list of nodes, get child lists flat
             lst_node_leaves = sort_node2grammar(lst_node_,rule_)
             return helper_main_recurse(lst_node_leaves,rule_lst)
-                
-    #prep nodes
-    #node_in_ = copy_node_lst(node_in_)
+    
+    #prep rules
+    nested_rule_dict = insert_rule_dict(rule_in_)
     lst_node = make_node_lst(node_in_,label__)
     #apply patterns           
-    lst_node_out = helper_main_recurse(lst_node,rule_in_)
+    lst_node_out = helper_main_recurse(lst_node,nested_rule_dict)
 
     return lst_node_out
 
 
 node_in = filter(lambda n: n!=None,node_in)
-rule_in = filter(lambda n: n!=None,rule_in)
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
