@@ -21,7 +21,7 @@ class Grammar:
     def __init__(self):
         self.type = {'label':"",'axis':"NS",'ratio':0.}
 
-    def helper_geom2node(self,geom,parent_node=None,label=""):
+    def helper_geom2node(self,geom,parent_node=None,label="__node"):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
             curve_guid = None

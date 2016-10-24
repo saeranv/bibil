@@ -53,7 +53,7 @@ def sort_node2grammar(lst_node_,rule_in_):
             node_out_ = node2grammar(node_)
             RhinoApp.Wait() 
         #yield node_out_
-        L.append(node_out_)
+        L.extend(node_out_)
         #except Exception as e:
         #    print "Error @ Pattern.main_pattern"
     return L
@@ -67,7 +67,7 @@ def node2grammar(node):
     PD = node.grammar.type
     
     temp_node = node
-                 
+    print PD['divide']             
     if PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
     elif PD['height'] != False:
@@ -107,7 +107,8 @@ def node2grammar(node):
                 print "Error @ solartype 1 or 3", str(e)
     """
     ## 7. Finish
-    return temp_node
+    lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
+    return lst_childs
 
 def main(node_in_,rule_in_,label__):
     def helper_main_recurse(lst_node_,rule_lst):
@@ -116,28 +117,24 @@ def main(node_in_,rule_in_,label__):
             return lst_node_
         else:
             rule_ = rule_lst.pop(0)
-            lst_node_ = sort_node2grammar(lst_node_,rule_)
-            #lst_node_ = reduce(lambda x,y:x+y,lst_node_)
-            return helper_main_recurse(lst_node_,rule_lst)
+            #apply rule to current list of nodes, get child lists flat
+            lst_node_leaves = sort_node2grammar(lst_node_,rule_)
+            return helper_main_recurse(lst_node_leaves,rule_lst)
                 
     #prep nodes
     #node_in_ = copy_node_lst(node_in_)
     lst_node = make_node_lst(node_in_,label__)
     #apply patterns           
-    lst_node = helper_main_recurse(lst_node,rule_in_)
+    lst_node_out = helper_main_recurse(lst_node,rule_in_)
 
-    return lst_node
+    return lst_node_out
 
-B = Bula()
-rule_in = B.ghtree2nestlist(rule_in)
-print len(rule_in)
+
 node_in = filter(lambda n: n!=None,node_in)
 rule_in = filter(lambda n: n!=None,rule_in)
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    print 'rp', rule_in
     node_out = main(node_in,rule_in,label_)
-    print 'pp', node_out
 else:
     print 'Add inputs!'
