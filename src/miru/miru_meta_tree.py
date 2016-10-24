@@ -12,6 +12,6 @@ R['meta_node'] = node
 R['meta_relation'] = relation
 
 if run:
-    rule = [R]
+    rule = []
 else:
     rule = [copy.deepcopy(Miru)]

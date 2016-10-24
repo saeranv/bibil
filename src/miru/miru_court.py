@@ -22,7 +22,7 @@ R['court_slice']= True
 R['court_ref'] = parent_ref
 
 if run:
-    rule = [R]
+    rule = []
 else:
     rule = [copy.deepcopy(Miru)]
     

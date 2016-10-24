@@ -18,7 +18,7 @@ R['div_type'] = divide_type
 R['axis'] = axis
 
 if run:
-    rule = [R]
+    rule = []
 else:
     rule = [copy.deepcopy(Miru)]
     

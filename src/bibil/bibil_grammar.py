@@ -534,7 +534,7 @@ class Grammar:
         debug = sc.sticky['debug']
         #print 'We are setting height!'
         n_ = temp_node_
-        print 'labelchk', temp_node_.parent.parent.grammar.type['label']
+        #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
         if type(ht_)==type('') and 'bula' in ht_:
             setht_ = height_from_bula(n_)
         else:
@@ -813,6 +813,7 @@ class Grammar:
             if insert_node == True:
                 #THIS SHOULD BE DONE IN TREE CLASS
                 if temp_node_.parent:
+                    print temp_node_.grammar.type['label']
                     loc = temp_node_.parent.loc
                     parent = temp_node_.parent.parent
                     temp_node_.delete_node()
@@ -822,7 +823,7 @@ class Grammar:
                 meta_node.depth = temp_node_.depth - 1
                 meta_node.loc = loc
                 temp_node_.parent = meta_node
-                temp_node_.parent.traverse_tree(lambda n:inc_depth(n),internal=True)
-                print 'asdf', temp_node_.parent.parent.grammar.type['label']
+                #temp_node_.parent.traverse_tree(lambda n:inc_depth(n),internal=True)
+                #print 'asdf', temp_node_.parent.parent.grammar.type['label']
 if True:
     sc.sticky["Grammar"] = Grammar

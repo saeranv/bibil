@@ -14,6 +14,6 @@ R['delete_dist'] = [25.]
 R['height'] = 90.
 
 if run:
-    rule = [R]
+    rule = []
 else:
     rule = [copy.deepcopy(Miru)]

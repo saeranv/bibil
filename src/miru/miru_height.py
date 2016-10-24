@@ -9,7 +9,7 @@ R = copy.deepcopy(Miru)
 R['height'] = height
 
 if run:
-    rule = [R]
+    rule = []
 else:
     rule = [copy.deepcopy(Miru)]
 

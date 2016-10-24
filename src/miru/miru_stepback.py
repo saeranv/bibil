@@ -13,6 +13,6 @@ R['stepback_data'] = map(lambda x,y: (x,y),height,distance)
 R['stepback_geom'] = map(lambda l: rs.coercecurve(l),geom_ref)
 
 if run:
-    rule = [R]
+    rule = []
 else:
     rule = [copy.deepcopy(Miru)]

@@ -20,18 +20,19 @@ def copy_node_lst(nlst):
         yield copy.deepcopy(n)
 
 def make_node_lst(copy_node_in_,label_in_): 
-    #L = []
+    L = []
     G = Grammar()
     T = Tree()
     
     for node_geom in copy_node_in_:
+        #if node
         if type(T) == type(node_geom):
             n_ = node_geom
         else:
             n_ = G.helper_geom2node(node_geom,label=label_in_)
-        yield n_
-        #L.append(n_)
-        #return L
+        #yield n_
+        L.append(n_)
+    return L
 
 def sort_node2grammar(lst_node_,rule_in_):
     def type2node(copy_node_,type_):
@@ -41,33 +42,30 @@ def sort_node2grammar(lst_node_,rule_in_):
         return copy_node_
     ## Purpose: Input list of nodes, applies type
     ## Applies pattern based on types
-    ## outputs node    
-    #NL = []
+    ## outputs node
+    L = []
     for node_ in lst_node_:
         ## Apply type to node
         node_ = type2node(node_,rule_in_)
         ## Apply pattern
         if True:#try:
             node_out_ = node2grammar(node_)
-            nlst = node_out_.traverse_tree(lambda n:n,internal=False)
-            #NL.extend(nlst)
             RhinoApp.Wait() 
-        yield nlst
+        #yield node_out_
+        L.append(node_out_)
         #except Exception as e:
         #    print "Error @ Pattern.main_pattern"
-        #return NL
+    return L
 
 def node2grammar(node):
     #move this back to grammar?
     G = Grammar()
-    ## Make a copy of the geometry
+    ## Check geometry
     gb = node.shape.geom
-    if node.shape.is_guid(gb): gb = rs.coercebrep(gb)#gb = sc.doc.Objects.AddBrep(gb)
-    geo_brep = copy.copy(gb)
+    if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
     PD = node.grammar.type
-    ## Make a new, fresh node
-    temp_node = G.helper_geom2node(geo_brep,node)
-    temp_node.grammar.type['print'] = True
+    
+    temp_node = node
                  
     if PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
@@ -118,15 +116,15 @@ def main(node_in_,rule_in_,label__):
         else:
             rule_ = rule_lst.pop(0)
             lst_node_ = sort_node2grammar(lst_node_,rule_)
-            lst_node_ = reduce(lambda x,y:x+y,lst_node_)
+            #lst_node_ = reduce(lambda x,y:x+y,lst_node_)
             return helper_main_recurse(lst_node_,rule_lst)
                 
     #prep nodes
     #node_in_ = copy_node_lst(node_in_)
     lst_node = make_node_lst(node_in_,label__)
-    
     #apply patterns           
     lst_node = helper_main_recurse(lst_node,rule_in_)
+
     return lst_node
 
 node_in = filter(lambda n: n!=None,node_in)
@@ -134,6 +132,8 @@ rule_in = filter(lambda n: n!=None,rule_in)
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
+    print rule_in
     node_out = main(node_in,rule_in,label_)
+    print 'pp', node_out
 else:
     print 'Add inputs!'
