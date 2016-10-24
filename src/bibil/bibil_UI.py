@@ -12,6 +12,7 @@ import copy
 Shape = sc.sticky["Shape"]
 Tree = sc.sticky["Tree"] 
 Grammar = sc.sticky["Grammar"]
+Bula = sc.sticky["Bula"]
 
 def copy_node_lst(nlst):
     L = []
@@ -127,12 +128,15 @@ def main(node_in_,rule_in_,label__):
 
     return lst_node
 
+B = Bula()
+rule_in = B.ghtree2nestlist(rule_in)
+print len(rule_in)
 node_in = filter(lambda n: n!=None,node_in)
 rule_in = filter(lambda n: n!=None,rule_in)
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
-    print rule_in
+    print 'rp', rule_in
     node_out = main(node_in,rule_in,label_)
     print 'pp', node_out
 else:

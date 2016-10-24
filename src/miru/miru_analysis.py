@@ -13,6 +13,6 @@ R['bula_value_lst'] = value_ref
 R['bula_scale'] = scale
 
 if run:
-    rule = []
+    rule = [R]
 else:
-    rule = [copy.deepcopy(Miru)]
+    rule = []
