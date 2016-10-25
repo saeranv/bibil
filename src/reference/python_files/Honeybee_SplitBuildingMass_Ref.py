@@ -90,16 +90,12 @@ def checkTheInputs():
     if bldgsFlr2FloorHeights_ == []:
         print "No value is connected for floor heights and so the model will not be divided up into floors"
     else: pass
-    
-    if perimeterZoneDepth_ == []:
-        print "No value is connected for zone depth and so the model will not be divided up into perimeter and core zones."
-    else: pass
-    
-    if bldgsFlr2FloorHeights_ != [] or perimeterZoneDepth_ != []:
+        
+    if bldgsFlr2FloorHeights_ != []:
         checkData2 = True
     else:
         checkData2 = False
-        print "A value must be conneted for either Flr2FloorHeights_ or perimeterZoneDepth_ in order to run."
+        print "A value must be conneted for either Flr2FloorHeights_ in order to run."
     
     if checkData1 == True and checkData2 == True:
         checkData = True
