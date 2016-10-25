@@ -126,7 +126,7 @@ class Bula:
             avg_val = reduce(lambda x,y: x+y,val_lst)
             ## Make a bpt for each lot
             bpt = Bula(bpt_lst_,val_lst,avg_val)
-            shape_node.grammar.type['bula'] = bpt
+            shape_node.grammar.type['bula_data'] = bpt
     def calculate_node_gfa(self,lots_,ref_density):
         ##It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!
@@ -180,8 +180,8 @@ class Bula:
     def sort_by_bula(self,lots_):
         ## Sort by Bula_data.value, from highest to lowest
         def helper_chk_bula(lot_):
-            if lot_.grammar.type.has_key('bula'):
-                bula_val = lot_.grammar.type['bula'].value 
+            if lot_.grammar.type.has_key('bula_data'):
+                bula_val = lot_.grammar.type['bula_data'].value 
             else: 
                 bula_val = 0.
             return bula_val 
@@ -316,7 +316,7 @@ class Bula:
         return value_lst
     def set_bula_height4viz(self,shape_node_lst,scale_factor):
         for shape_node in shape_node_lst:
-            buladata = shape_node.grammar.type['bula']
+            buladata = shape_node.grammar.type['bula_data']
             bpt_lst = buladata.bpt_lst
             val_lst =  buladata.value_lst
             for i,bp_tuple in enumerate(zip(bpt_lst,val_lst)):

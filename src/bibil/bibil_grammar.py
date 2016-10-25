@@ -10,6 +10,7 @@ import ghpythonlib.components as ghcomp
 Shape = sc.sticky["Shape"]
 Tree = sc.sticky["Tree"]
 Bula = sc.sticky["Bula"]
+Miru = sc.sticky["Miru"]
 
 sc.sticky['debug'] = []
 debug = sc.sticky["debug"]
@@ -20,7 +21,9 @@ class Grammar:
     """Grammar """
     def __init__(self):
         self.type = {'label':"",'axis':"NS",'ratio':0.}
-
+        empty_rule_dict = copy.deepcopy(Miru)
+        self.type.update(empty_rule_dict)
+        
     def helper_geom2node(self,geom,parent_node=None,label=""):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
@@ -480,20 +483,21 @@ class Grammar:
         def height_from_bula(n_):
             bula_node,bptlst = False,False
             setht = 21. #default ht = midrise
-            bula_node = n_.search_up_tree(lambda n: n.grammar.type.has_key('bula'))
-            #print bula_node.grammar.type['label']
-            #print n_.parent.parent.grammar.type['label']
-            #print 'bula', bula_node.grammar.type['bula']
-            
+            bula_node = n_.search_up_tree(lambda n: n.grammar.type['bula'])
+            #print 'bulalabel', bula_node.grammar.type['label']
             if bula_node:
-                buladata = bula_node.grammar.type['bula']
-                nodecrvlst = [n_]
+                #Purpose: Reference bula pts to newly generated shape_geom boundaries
                 #make this function in bula
-                inptlst = buladata.getpoints4lot(nodecrvlst,buladata.bpt_lst)
-                if inptlst != [[]]:
-                    buladata.generate_bula_point(nodecrvlst,inptlst)
+                buladata = bula_node.grammar.type['bula_data']
+                nodecrvlst = [n_]
+                shape_pt_lst = buladata.bpt_lst
+                shape_value_lst = buladata.value_lst
+                lst_bpt_lst_,lst_val_lst_  = buladata.getpoints4lot(nodecrvlst,shape_pt_lst,shape_value_lst)
+                if lst_bpt_lst_ != [[]]:
+                    buladata.generate_bula_point(nodecrvlst,lst_bpt_lst_,lst_val_lst_)
                     ## you are now a bulalot!
-                    ht_factor = n_.grammar.type['bula_data'].value
+                    val_lst = n_.grammar.type['bula_data'].value_lst
+                    ht_factor = sum(val_lst)/float(len(val_lst))
                     setht = ht_factor#1000.*ht_factor
                     ##debug.extend(n_.grammar.type['bula_data'].bpt_lst)
                 return setht
