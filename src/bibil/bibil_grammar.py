@@ -21,7 +21,7 @@ class Grammar:
     def __init__(self):
         self.type = {'label':"",'axis':"NS",'ratio':0.}
 
-    def helper_geom2node(self,geom,parent_node=None,label="__node"):
+    def helper_geom2node(self,geom,parent_node=None,label=""):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
             curve_guid = None
@@ -58,7 +58,7 @@ class Grammar:
                 if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
                     child_shape.op_extrude(6.)
                 child_grammar = Grammar()
-                child_grammar.type["label"] = label
+                child_grammar.type["label"] = "nd__"+label
                 child_node = Tree(child_shape,child_grammar,parent=parent_node,depth=tree_depth)
         except Exception as e:
             print "Error at Pattern.helper_geom2node", str(e)
@@ -408,7 +408,7 @@ class Grammar:
             debug.append(sep_crv_viz)
             ## Append crv
             sc.sticky['seperation_offset_lst'].append(sep_crv)
-            check_base_separation_.grammar.type["print"] = True
+            #check_base_separation_.grammar.type["print"] = True
         def check_shape_validity(t_,cut_axis_,dstlst,dellst,sep_lst_,separation_tol_):
             ## Check dimension then check if collision w/ offset dist
             dim_ = dstlst[0] if dstlst[1] in dellst else dstlst[1]
@@ -577,7 +577,6 @@ class Grammar:
         except Exception as e:
             print "P.op_solar_envelope error"
             print e
-
     def concentric_divide(self,temp_node_,distlst,dellst,ROOTREF):
         def helper_recurse(curr_node_,rootref_,distlst_,dist_acc,dellst_,lst_ring,diffn,count):
             ##base case: fail chk_offset
@@ -800,30 +799,35 @@ class Grammar:
             B.set_bula_height4viz(shape_leaves,scale_)
     def meta_tree(self,temp_node_,PD_):
         def inc_depth(n):
-            n.depth += 1
-            return n
+            if n.parent:
+                n.depth = n.parent.depth + 1
+            else:
+                n.depth = 0
         insert_node = PD_['meta_insert']
         meta_node = PD_['meta_node']
         relation = PD_['meta_relation']
         #Get relation hierarchy
-        if relation == 'parent':
+        if relation == 'root':
             #Get operation
             if insert_node == True:
                 #THIS SHOULD BE DONE IN TREE CLASS
-                print 'label: ', temp_node_.grammar.type['label']
-                print 'parent: ', temp_node_.parent
-                if temp_node_.parent:
-                    print temp_node_.grammar.type['label']
-                    loc = temp_node_.parent.loc
-                    parent = temp_node_.parent.parent
-                    temp_node_.delete_node()
-                else:
-                    loc = temp_node_
-                    parent = None
-                meta_node.depth = temp_node_.depth - 1
-                meta_node.loc = loc
-                temp_node_.parent = meta_node
-                #temp_node_.parent.traverse_tree(lambda n:inc_depth(n),internal=True)
-                #print 'asdf', temp_node_.parent.parent.grammar.type['label']
+                #print 'label metanode:', meta_node.parent
+                #print 'label currnode: ', temp_node_
+                meta_root = meta_node.get_root()
+                temp_root = temp_node_.get_root()
+                #Check to make sure we haven't already inserted as root
+                chklabel = temp_root.grammar.type['label'] != meta_root.grammar.type['label']
+                if chklabel:
+                    new_child_node = temp_node_.get_root()
+                    #Insert and link both ways
+                    meta_node.loc.append(new_child_node)
+                    #Give a unique id to meta_node to make sure we don't double ref 
+                    meta_node.grammar.type['label'] += str(random.randrange(1,1000))
+                    #Now reference it
+                    new_child_node.parent = meta_node
+                    #Reset depths
+                    root = meta_node.get_root()
+                    root.traverse_tree(lambda n:inc_depth(n),internal=True)
+                    
 if True:
     sc.sticky["Grammar"] = Grammar

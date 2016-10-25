@@ -21,16 +21,13 @@ class Tree:
         
     def __repr__(self):
         """ http://cbio.ufs.ac.za/live_docs/nbn_tut/trees.html """
-        ret = "nd:%s" % (self.depth)#"   "*self.depth+"depth:%s\n" % (self.depth)
+        ret = str(self.grammar.type['label']) + "__%s" % (self.depth)
         #for child in self.loc:
         #    ret += child.__repr__()
         return ret
     
     
-    """
-    def increase_depth(self,amount):
-        self.depth += amount
-        
+    """        
     def insert_node(self,node,depth):
         #NEEDS TO BE TESTED
         #Purpose: Insert node at the depth specified

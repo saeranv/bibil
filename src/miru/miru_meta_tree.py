@@ -4,6 +4,7 @@ Miru Meta Tree
 import copy
 import scriptcontext as sc
 import clr
+import random 
 
 clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path

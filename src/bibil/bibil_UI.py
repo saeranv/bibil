@@ -67,8 +67,7 @@ def node2grammar(node):
     if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
     PD = node.grammar.type
     
-    temp_node = node
-    print PD['divide']             
+    temp_node = node          
     if PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
     elif PD['height'] != False:
