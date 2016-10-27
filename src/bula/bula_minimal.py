@@ -276,7 +276,7 @@ class Bula:
         #Add weights to each
         wtlst = [1]#[1,121.5/211.5]
         for fi,val_ind_lst in enumerate(value_lst_by_fpt):
-            weight = wtlst[fi]*148.5
+            weight = wtlst[fi]*100.#148.5
             #Separate value and index
             val_lst = map(lambda v: v[0],val_ind_lst)
             ind_lst = map(lambda v: v[1],val_ind_lst)
