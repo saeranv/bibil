@@ -112,10 +112,10 @@ def getFloorHeights(flr2flrHeights, maxHeights, firstFloorHeight = 0, rep = True
             numOfFlr = 1
             floorH = float(height)
         if floorH!=0:
-            if numOfFlr != 1 and rep:
-                print 'There are ' + `numOfFlr` + ' floors with height of ' + `floorH` + ' m.'
-            elif rep:
-                print 'There is a floor with height of ' + `floorH` + ' m.'
+            #if numOfFlr != 1 and rep:
+            #    print 'There are ' + `numOfFlr` + ' floors with height of ' + `floorH` + ' m.'
+            #elif rep:
+            #    print 'There is a floor with height of ' + `floorH` + ' m.'
             
             for floors in range(numOfFlr): flrHeights.append(flrHeights[-1] + floorH)
     
@@ -398,6 +398,8 @@ def getFloorCrvs(buildingMass, floorHeights, maxHeights):
 def splitFloorHeights(bldgMasses, bldgsFlr2FlrHeights, lb_preparation, lb_visualization):
     #Input: mass, floorHeights, lb_preparation, lb_visualization
     #Output: splitFloors, floorCrvs, topInc, nurbsList, lastFloorInclud
+    debug = sc.sticky['debug']
+    
     if len(bldgMasses)!=0:
         # clean the geometries 
         analysisMesh, initialMasses = lb_preparation.cleanAndCoerceList(bldgMasses)
@@ -461,39 +463,32 @@ def splitFloorHeights(bldgMasses, bldgsFlr2FlrHeights, lb_preparation, lb_visual
 
 def main(mass, floorHeights):
     #Import the Ladybug Classes.
+    debug = sc.sticky['debug']
     if sc.sticky.has_key('ladybug_release')and sc.sticky.has_key('honeybee_release'):
         lb_preparation = sc.sticky["ladybug_Preparation"]()
         lb_visualization = sc.sticky["ladybug_ResultVisualization"]()
-        
         #If the user has specified a floor height, split the mass up by floor.
         #Input: mass, floorHeights, lb_preparation, lb_visualization
         #Output: splitFloors, floorCrvs, topInc, nurbsList, lastFloorInclud
+        splitFloors = []
+        floorCrvs = []##
+        topInc = []
+        nurbsList = []##
+        lastFloorInclud = []
         if floorHeights != []:
             splitFloors, floorCrvs, topInc, nurbsList, lastFloorInclud = splitFloorHeights(mass, floorHeights, lb_preparation, lb_visualization)
-        #If no floor heights, make inputs for perimterZoneDepth_ function
-        else:
-            splitFloors = [mass]
-            floorCrvs = []
-            topInc = []
-            nurbsList = []
-            for item in mass:
-                bbBox = item.GetBoundingBox(rc.Geometry.Plane.WorldXY)
-                maxHeights = bbBox.Max.Z
-                minHeights = bbBox.Min.Z
-                splitters, flrCrvs, topIncl, nurbL, lastInclu = getFloorCrvs(item, [0, maxHeights-minHeights], maxHeights)
-                
-                floorCrvs.append(flrCrvs)
-                topInc.append(topIncl)
-                nurbsList.append(nurbL)
-        
+        #debug.extend(map(lambda n: n[0],splitFloors))
         #Sort the floors into a list
         splitZones = []
         for count, mass in enumerate(splitFloors):
+            print count, mass, topInc[count], lastFloorInclud[count]
             if topInc[count][0] == True and lastFloorInclud[count] == True:
                 splitZones.append(mass)
             elif topInc[count][0] == False and lastFloorInclud[count] == False:
                 splitZones.append(mass)
             else:
+                print count
+                debug.append(mass[0])
                 splitZones.append(mass[:-1])
         
         #return list of list of each floor zones
@@ -505,6 +500,8 @@ def main(mass, floorHeights):
         return -1
 
 checkData = False
+
+sc.sticky['debug']=[]
 if _runIt == True:
     checkData = checkTheInputs()
 if checkData == True:
@@ -546,3 +543,4 @@ if checkData == True:
                 except:
                     splitBldgMasses.Add(mass, p)
                     #names.Add(str(i) + "_" + str(j), p)
+debug = sc.sticky['debug']
