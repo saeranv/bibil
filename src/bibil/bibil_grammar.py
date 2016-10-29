@@ -41,7 +41,7 @@ class Grammar:
                 rc_brep = rs.coercebrep(srf_guid)
                 return rc_brep
             else:
-                return geom_     
+                return rs.coercebrep(geom_)     
         debug = sc.sticky['debug']
         child_node = None
         try:
