@@ -88,8 +88,31 @@ class LinearSystem(object):
         #3. Coefficients below pivots (leading) coefficients = zero
         #4. If RREF acheived, then one variable is a parameter
         #   find the parameter, and define it as such
+        # Assumptions: 
+            # 1. Swap with current row with topmost row below current row
+            # 2. Don't multiply rows by numbers
+            # 3. Only add a multiple of a row to rows underneat row underneath.
+        
+        #GET RID OF THIS
+        #def helper_sort_planes(plane_0,plane_1):
+        #    vec_coord_0 = plane_0.normal_vector.coord[0]
+        #    vec_coord_1 = plane_1.normal_vector.coord[0]
+        #    if vec_coord_0 < vec_coord_1:
+        #        return plane_1,plane_0
+        #    else:
+        #        return plane_0, plane_1
+        
         system = deepcopy(self)
-        return system
+        lstofplanes = system.planes
+        #DOESN"T WORK
+        #1. Order the rows
+        #for i in range(len(lstofplanes)):
+        #    if i < len(lstofplanes)-1:
+        #        lstofplanes[i],lstofplanes[i+1] = helper_sort_planes(lstofplanes[i],lstofplanes[i+1])
+        #system.planes = lstofplanes
+        #return system
+    
+    
     
     def __len__(self):
         return len(self.planes)
@@ -117,45 +140,17 @@ class MyDecimal(Decimal):
         return abs(float(self)) < eps
 
 
-##Test 3
-p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
-p2 = Plane(normal_vector=Vector(['0','1','1']), constant_term='2')
-s = LinearSystem([p1,p2])
-t = s.compute_triangular_form()
-if not (t[0] == p1 and
-        t[1] == p2):
-    print 'test case 1 failed'
-"""
-p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+## Test 3: Triangular Form
+p1 = Plane(normal_vector=Vector(['0','1','1']), constant_term='1')
 p2 = Plane(normal_vector=Vector(['1','1','1']), constant_term='2')
 s = LinearSystem([p1,p2])
 t = s.compute_triangular_form()
-if not (t[0] == p1 and
-        t[1] == Plane(constant_term='1')):
-    print 'test case 2 failed'
+print t
+print '--'
 
-p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
-p2 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
-p3 = Plane(normal_vector=Vector(['1','1','-1']), constant_term='3')
-p4 = Plane(normal_vector=Vector(['1','0','-2']), constant_term='2')
-s = LinearSystem([p1,p2,p3,p4])
-t = s.compute_triangular_form()
-if not (t[0] == p1 and
-        t[1] == p2 and
-        t[2] == Plane(normal_vector=Vector(['0','0','-2']), constant_term='2') and
-        t[3] == Plane()):
-    print 'test case 3 failed'
+#if not (t[0] == p1 and t[1] == p2):
+#    print 'test case 1 failed'
 
-p1 = Plane(normal_vector=Vector(['0','1','1']), constant_term='1')
-p2 = Plane(normal_vector=Vector(['1','-1','1']), constant_term='2')
-p3 = Plane(normal_vector=Vector(['1','2','-5']), constant_term='3')
-s = LinearSystem([p1,p2,p3])
-t = s.compute_triangular_form()
-if not (t[0] == Plane(normal_vector=Vector(['1','-1','1']), constant_term='2') and
-        t[1] == Plane(normal_vector=Vector(['0','1','1']), constant_term='1') and
-        t[2] == Plane(normal_vector=Vector(['0','0','-9']), constant_term='-2')):
-    print 'test case 4 failed'
-"""
 
 ## Test 0
 """
