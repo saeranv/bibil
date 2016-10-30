@@ -171,9 +171,7 @@ def getFloorCrvs(buildingMass, floorHeights, maxHeights):
             extV.T1 += 1.0
             splitters.append(rc.Geometry.PlaneSurface(sectionPlane, extU, extV))
     
-    finalCrvsList = []
     finaltopIncList = []
-    finalNurbsList = []
     
     for courtyrdCount, contourCrvs in enumerate(cntrCrvs):
         
@@ -236,12 +234,15 @@ def getFloorCrvs(buildingMass, floorHeights, maxHeights):
         
         lastFloorHeight = (maxHeights)  - floorHeights[-1]
         
-        if lastFloorHeight == 0.0: lastFloorInc = True
+        #Adding is_near_zero function due 
+        #to rounding/precision issues with equality of floats
+        if is_near_zero(lastFloorHeight):
+            lastFloorInc = True
         else:
             if lastFloorHeight < maxHeight:
                 lastFloorInc = False
-            else: lastFloorInc = True
-        
+            else: 
+                lastFloorInc = True
         #Check to see if the top surface is horizontal + planar and, if so, include it in the curve process below.
         if lastFloorInc == True:
             #First find the top surface
@@ -276,35 +277,6 @@ def getFloorCrvs(buildingMass, floorHeights, maxHeights):
             #If it's both horizontal and planar, take the boundary curve and include it in the rest of the process.
             if tophoriz == True and topPlanar == True:
                 topInc = True
-                edgeCurves = rc.Geometry.Curve.JoinCurves(topSurface.DuplicateEdgeCurves())
-                #If the building is a courtyard one, select out the curve with the same area order.
-                if len(edgeCurves) > 1:
-                    areaList = []
-                    for curve in edgeCurves:
-                        try: areaList.append(rc.Geometry.AreaMassProperties.Compute(curve).Area)
-                        except: areaList.append(0.0)
-                    edgeCurvesSorted = [x for (y,x) in sorted(zip(areaList, edgeCurves))]
-                    edgeCurves = [edgeCurvesSorted[courtyrdCount]]
-                else: pass
-                
-                isNurbCurve = []
-                for count, curve in enumerate(edgeCurves):
-                    try:
-                        segCount = edgeCurves.SegmentCount
-                        isNurbCurve.append(False)
-                    except:
-                        isNurbCurve.append(True)
-                        curveLength = curve.GetLength()
-                        divisionParams = curve.DivideByLength((curveLength/4), False)[0:3]
-                        splitCurve = curve.Split(divisionParams)
-                        newCrv = rc.Geometry.PolyCurve()
-                        for segment in splitCurve:
-                            newCrv.Append(segment)
-                        edgeCurves[count] = newCrv
-                    for curve in edgeCurves:
-                        contourCrvs.append(curve)
-                    for bool in isNurbCurve:
-                        nurbsList.append(bool)
             else:
                 topInc = False
         else:
@@ -315,86 +287,10 @@ def getFloorCrvs(buildingMass, floorHeights, maxHeights):
         if topProblem == True:
             topInc = False
         else: pass
-        
-        # Match the curve directions.
-        if len(contourCrvs)!= 0:
-            refCrv = contourCrvs[0]
-            crvDir = []
-            for crv in contourCrvs:
-                crvDir.append(rc.Geometry.Curve.DoDirectionsMatch(refCrv, crv))
-            for count, dir in enumerate(crvDir):
-                if dir == True:
-                    contourCrvs[count].Reverse()
-        
-        #Check if there are any curved segments in the polycurve and if so, make a note of it
-        curveSegmentList = []
-        for curve in contourCrvs:
-            curved = False
-            for segment in curve.DuplicateSegments():
-                if segment.IsLinear(): pass
-                else: curved = True
-            curveSegmentList.append(curved)
-        
-        
-        #Match the curve seams in order to ensure proper zone splitting later.
-        if len(contourCrvs)!= 0:
-            crvCentPt = rc.Geometry.AreaMassProperties.Compute(contourCrvs[-1]).Centroid
-            # get a point from the center of the contour curve to a seam in order to adjust the seam of all other curves.
-            curveLengths = []
-            for curve in contourCrvs:
-                curveLengths.append(curve.GetLength())
-            curveLengths.sort()
-            longestCurveLength = curveLengths[-1]
-            factor = ((longestCurveLength)/(contourCrvs[-1].PointAtStart.X - crvCentPt.X))*2
-            seamVectorPt = rc.Geometry.Vector3d((contourCrvs[-1].PointAtStart.X - crvCentPt.X)*factor, (contourCrvs[-1].PointAtStart.Y - crvCentPt.Y)*factor, 0)
-            
-            # Try to adjust the seam of the curves.
-            crvAdjust = []
-            try:
-                for nurbCount, curve in enumerate(contourCrvs):
-                    if curve.IsClosed:
-                        if nurbsList[nurbCount] == False and curveSegmentList[nurbCount] == False:
-                            curveParameter = curve.ClosestPoint(rc.Geometry.Intersect.Intersection.CurveCurve(curve, rc.Geometry.Line(rc.Geometry.AreaMassProperties.Compute(curve).Centroid, seamVectorPt).ToNurbsCurve(), sc.doc.ModelAbsoluteTolerance, sc.doc.ModelAbsoluteTolerance)[0].PointA)[1]
-                            curveParameterRound = round(curveParameter)
-                            curveParameterTol = round(curveParameter, (len(list(str(sc.doc.ModelAbsoluteTolerance)))-2))
-                            if curveParameterRound + sc.doc.ModelAbsoluteTolerance > curveParameter and curveParameterRound - sc.doc.ModelAbsoluteTolerance < curveParameter:
-                                curve.ChangeClosedCurveSeam(curveParameterRound)
-                                crvAdjust.append(curve)
-                            else:
-                                curve.ChangeClosedCurveSeam(curveParameter)
-                                if curve.IsClosed == True:
-                                    crvAdjust.append(curve)
-                                else:
-                                    curve.ChangeClosedCurveSeam(curveParameter+sc.doc.ModelAbsoluteTolerance)
-                                    if curve.IsClosed == True:
-                                        crvAdjust.append(curve)
-                                    else:
-                                        curve.ChangeClosedCurveSeam(curveParameter-sc.doc.ModelAbsoluteTolerance)
-                                        if curve.IsClosed == True:
-                                            crvAdjust.append(curve)
-                                        else:
-                                            curve.ChangeClosedCurveSeam(curveParameter)
-                                            curve.MakeClosed(sc.doc.ModelAbsoluteTolerance)
-                                            crvAdjust.append(curve)
-                        else:
-                            crvAdjust.append(curve)
-                    else:
-                        crvAdjust.append(curve)
-                        warning = 'The top or bottom of your mass geometry is composed of multiple surfaces and this is causing the algorithm to mess up.\n  If you re-make your top and/or bottom of your mass to be a single surface, this component should work.'
-                        print warning
-                        ghenv.Component.AddRuntimeMessage(gh.GH_RuntimeMessageLevel.Warning, warning)
-            except: crvAdjust = contourCrvs
-        
-        #Simplify the contour curves to ensure that they do not mess up the next few steps.
-        for curve in crvAdjust:
-            curve.Simplify(rc.Geometry.CurveSimplifyOptions.All, tolerance, sc.doc.ModelAngleToleranceRadians)
-        
+
         #Append the results to the list.
-        finalCrvsList.append(crvAdjust)
         finaltopIncList.append(topInc)
-        finalNurbsList.append(nurbsList)
-    
-    return splitters, finalCrvsList, finaltopIncList, finalNurbsList, lastFloorInc
+    return splitters, finaltopIncList, lastFloorInc
 def splitFloorHeights(bldgMasses, bldgsFlr2FlrHeights, lb_preparation, lb_visualization):
     #Input: mass, floorHeights, lb_preparation, lb_visualization
     #Output: splitFloors, floorCrvs, topInc, nurbsList, lastFloorInclud
@@ -405,9 +301,7 @@ def splitFloorHeights(bldgMasses, bldgsFlr2FlrHeights, lb_preparation, lb_visual
         analysisMesh, initialMasses = lb_preparation.cleanAndCoerceList(bldgMasses)
         
         splitZones = []
-        floorCurves = []#
-        topIncluded = []#
-        nurbsCurveList = []#
+        topIncluded = []
         lastFloorInclud = []
         for bldgCount, mass in enumerate(initialMasses):
             # 0- split the mass vertically [well, it is actually horizontally! so confusing...]
@@ -420,11 +314,9 @@ def splitFloorHeights(bldgMasses, bldgsFlr2FlrHeights, lb_preparation, lb_visual
             floorHeights = getFloorHeights(bldgsFlr2FlrHeights, maxHeights)
             
             if floorHeights!=[0]:
-                splitterSrfs, crvAdjust, topInc, nurbsList, lastFloorInc = getFloorCrvs(mass, floorHeights, maxHeights)
+                splitterSrfs, topInc,lastFloorInc = getFloorCrvs(mass, floorHeights, maxHeights)
                 
-                floorCurves.append(crvAdjust)
                 topIncluded.append(topInc)
-                nurbsCurveList.append(nurbsList)
                 lastFloorInclud.append(lastFloorInc)
                 
                 # well, I'm pretty sure that something like this is smarter to be written
@@ -459,8 +351,9 @@ def splitFloorHeights(bldgMasses, bldgsFlr2FlrHeights, lb_preparation, lb_visual
                 
                 splitZones.append(massZones)
         
-        return splitZones, floorCurves, topIncluded, nurbsCurveList, lastFloorInclud
-
+        return splitZones, topIncluded, lastFloorInclud
+def is_near_zero(num, eps=1E-10):
+    return abs(float(num)) < eps
 def main(mass, floorHeights):
     #Import the Ladybug Classes.
     debug = sc.sticky['debug']
@@ -471,23 +364,20 @@ def main(mass, floorHeights):
         #Input: mass, floorHeights, lb_preparation, lb_visualization
         #Output: splitFloors, floorCrvs, topInc, nurbsList, lastFloorInclud
         splitFloors = []
-        floorCrvs = []##
         topInc = []
-        nurbsList = []##
         lastFloorInclud = []
         if floorHeights != []:
-            splitFloors, floorCrvs, topInc, nurbsList, lastFloorInclud = splitFloorHeights(mass, floorHeights, lb_preparation, lb_visualization)
+            splitFloors, topInc,lastFloorInclud = splitFloorHeights(mass, floorHeights, lb_preparation, lb_visualization)
         #debug.extend(map(lambda n: n[0],splitFloors))
         #Sort the floors into a list
         splitZones = []
         for count, mass in enumerate(splitFloors):
-            print count, mass, topInc[count], lastFloorInclud[count]
+            #print count, mass, topInc[count], lastFloorInclud[count]
             if topInc[count][0] == True and lastFloorInclud[count] == True:
                 splitZones.append(mass)
             elif topInc[count][0] == False and lastFloorInclud[count] == False:
                 splitZones.append(mass)
             else:
-                print count
                 debug.append(mass[0])
                 splitZones.append(mass[:-1])
         

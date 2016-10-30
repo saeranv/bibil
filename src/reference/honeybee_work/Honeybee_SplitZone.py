@@ -718,7 +718,8 @@ def getFloorCrvs(buildingMass, floorHeights, maxHeights):
         
         lastFloorHeight = (maxHeights)  - floorHeights[-1]
         
-        if lastFloorHeight == 0.0: lastFloorInc = True
+        if is_near_zero(lastFloorHeight): 
+            lastFloorInc = True
         else:
             if lastFloorHeight < maxHeight:
                 lastFloorInc = False
@@ -877,6 +878,10 @@ def getFloorCrvs(buildingMass, floorHeights, maxHeights):
         finalNurbsList.append(nurbsList)
     
     return splitters, finalCrvsList, finaltopIncList, finalNurbsList, lastFloorInc
+
+def is_near_zero(num,eps=1E-10):
+    return abs(float(num)) < eps
+
 def main(mass, perimeterZoneDepth_):  
     debug = sc.sticky['debug']
     #Import the Ladybug Classes.
