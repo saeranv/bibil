@@ -202,7 +202,7 @@ class Bula:
                     dist_lst.append(dist2fpt)
                 apt_lst_in_fpt_lst_.append(dist_lst)
             return apt_lst_in_fpt_lst_
-        def helper_min_dist4apt(apt_lst_in_fpt_lst_,analysis_pt_lst): 
+        def helper_min_dist4apt(apt_lst_in_fpt_lst_,analysis_pt_lst,smooth_factor_): 
             #Purpose: Find the minimum distance for each apt
             #Loop through each apt
             #Then loop through each dist2fpt for each apt
@@ -223,18 +223,19 @@ class Bula:
                 #Calculate Smoothing factor 
                 #Find all combinations of two for each fref pt
                 comb_dist = self.calculate_combination(dist4fpts,2)
-                #Take sqrt of abs difference btwn each dist2fpt and sum 
-                smooth_factor = 0.
+                #Take sqrt of abs difference btwn each dist2fpt and sum
+                smooth_ = 0. 
                 for fptdist in comb_dist:
-                    smooth_factor += math.pow(math.fabs(fptdist[0]-fptdist[1]),0.5)
+                    smooth_ += math.pow(math.fabs(fptdist[0]-fptdist[1]),smooth_factor_)
                     #print smooth_factor
-                smooth_fac_lst_.append(smooth_factor)
+                smooth_fac_lst_.append(smooth_)
             return min_dist_lst_,min_fptindex_lst_,smooth_fac_lst_
         
         #Purpose: Go through each point and add value based on formula
         formula = formula_ref_[0]
         focal_ref = formula_ref_[1]
         focal_height = formula_ref_[2]
+        smooth_factor = formula_ref_[3]
         
         #Set defaults
         if len(focal_height) != len(focal_ref):
@@ -246,7 +247,7 @@ class Bula:
         #Calculate distance from apt to each focal ref       
         apts_in_fpts = helper_dist2focal_lst(focal_ref,analysis_pts_)
         #Make list of the minimum distance to fpt for each apt
-        min_dist_lst,min_fptindex_lst,smooth_fac_lst = helper_min_dist4apt(apts_in_fpts,analysis_pts_)            
+        min_dist_lst,min_fptindex_lst,smooth_fac_lst = helper_min_dist4apt(apts_in_fpts,analysis_pts_,smooth_factor)            
         
         
         
