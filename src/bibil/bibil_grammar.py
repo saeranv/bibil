@@ -6,6 +6,7 @@ import copy
 import math
 import ghpythonlib.components as ghcomp
 
+
 """import classes"""
 Shape = sc.sticky["Shape"]
 Tree = sc.sticky["Tree"]
@@ -779,22 +780,21 @@ class Grammar:
         if not chk_apt:
             print 'Analysis inputs are missing!'
             chk_apt = False
+        if not chk_sc: 
+            scale_ = 1.
+            chk_sc = True
         if not chk_val:
             val_num = len(analysis_ref)
             value_ref = [0]*val_num
             chk_val = True
-        if not chk_sc: 
-            scale_ = 1.
-            chk_sc = True
-        
-        #Now, if True execute Bula
+        elif type(value_ref[0]) == type(''): #should be more explicit
+            #If value is a formula
+            value_ref = B.apply_formula2points(value_ref,analysis_ref)
+            
         if chk_apt and chk_val and chk_sc: 
             #Convert from guid 
             if S.is_guid(analysis_ref[0]):
                 analysis_pts = map(lambda p: rs.coerce3dpoint(p),analysis_ref)
-            #Check if value is a formula
-            if type(value_ref[0]) == type(''):
-                value_ref = B.apply_formula2points(value_ref,analysis_ref)
             #Sort analysis pts into leaf nodes
             shape_leaves = temp_node_.traverse_tree(lambda n: n,internal=False)
             lst_plain_pt_lst, lst_value_lst = B.getpoints4lot(shape_leaves,analysis_ref,value_ref)
@@ -831,7 +831,7 @@ class Grammar:
                     new_child_node.parent = meta_node
                     #Reset depths
                     root = meta_node.get_root()
-                    root.traverse_tree(lambda n:inc_depth(n),internal=True)
+                    root.traverse_tree(lambda n:inc_deQQQpth(n),internal=True)
                     
 if True:
     sc.sticky["Grammar"] = Grammar

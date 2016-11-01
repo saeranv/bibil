@@ -227,21 +227,19 @@ class Bula:
                 smooth_factor = 0.
                 for fptdist in comb_dist:
                     smooth_factor += math.pow(math.fabs(fptdist[0]-fptdist[1]),0.5)
-                    print smooth_factor
+                    #print smooth_factor
                 smooth_fac_lst_.append(smooth_factor)
             return min_dist_lst_,min_fptindex_lst_,smooth_fac_lst_
         
         #Purpose: Go through each point and add value based on formula
         formula = formula_ref_[0]
         focal_ref = formula_ref_[1]
-        focal_weight = formula_ref_[2]
+        focal_height = formula_ref_[2]
         
         #Set defaults
-        if len(focal_weight) != len(focal_ref):
-            if len(focal_weight) == 1:
-                focal_weight = focal_weight * len(focal_ref)
-            elif len(focal_weight) == 0:
-                focal_weight = [1.] * len(focal_ref)
+        if len(focal_height) != len(focal_ref):
+            if len(focal_height) == 1 and len(focal_ref) > 1:
+                focal_height = focal_height * len(focal_ref)
             else:
                 print 'Correct the number of focal_weight inputs'
                 
@@ -274,9 +272,11 @@ class Bula:
             value_lst_by_fpt[fpt_i].append((val,apt_i))
         
         #Add weights to each
-        wtlst = [1]#[1,121.5/211.5]
+        maxht = max(focal_height)
+        wtlst = map(lambda ht: ht/maxht,focal_height)
+        #print 'wtlst', wtlst
         for fi,val_ind_lst in enumerate(value_lst_by_fpt):
-            weight = wtlst[fi]*100.#148.5
+            weight = wtlst[fi]*maxht
             #Separate value and index
             val_lst = map(lambda v: v[0],val_ind_lst)
             ind_lst = map(lambda v: v[1],val_ind_lst)
@@ -299,7 +299,7 @@ class Bula:
         if len(focal_ref) > 1:
             smooth_fac_lst = self.normalize_list(smooth_fac_lst, 1, 0.0001)
             value_lst = map(lambda vs: vs[0]*vs[1], zip(value_lst,smooth_fac_lst))
-            max_wtd_value = max(wtd_value_lst)
+            max_wtd_value = max(value_lst)
             for i,wtd_val in enumerate(value_lst):
                 sf = smooth_fac_lst[i]
                 wtd_sf_val = wtd_val *sf
