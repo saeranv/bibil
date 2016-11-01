@@ -67,7 +67,12 @@ def node2grammar(node):
     if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
     PD = node.grammar.type
     
-    temp_node = node          
+    ## Everytime we add a rule, we clone a node. 
+    ## That keeps everything clear and consistent.
+    #temp_node = G.helper_clone_node(node,node)
+    #node.loc.append(temp_node)          
+    temp_node = node
+    
     if PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
     elif PD['height'] != False:
@@ -78,7 +83,7 @@ def node2grammar(node):
     elif PD['court'] == True:
         G.court(temp_node,PD)
     elif PD['bula'] == True:
-        G.set_bula_point(temp_node,PD)
+        temp_node = G.set_bula_point(temp_node,PD)
     elif PD['meta_tree'] == True:
         G.meta_tree(temp_node,PD)
     """
@@ -129,8 +134,8 @@ def insert_rule_dict(rule_tree_):
             rdict = copy.deepcopy(Miru)
     #Test
     #for i in nest_rdict:
-    #    print i['height']
-    #    print i['divide']
+    #    print 'bula', i['bula']
+    #    print 'bula', i['bula_value_lst'][0]
     #    print '---'
     
     return nest_rdict

@@ -66,7 +66,11 @@ class Grammar:
                 child_node = Tree(child_shape,child_grammar,parent=parent_node,depth=tree_depth)
         except Exception as e:
             print "Error at Pattern.helper_geom2node", str(e)
-        return child_node                   
+        return child_node
+    def helper_clone_node(self,node_,parent_node=None,label=""):
+        #Purpose: Input node, and output new node with same Shape, new Grammar
+        return self.helper_geom2node(node_.shape.geom,parent_node,label)
+                    
     def solar_envelope_uni(self,node_0,time,seht,stype):
         def helper_get_curve_in_tree(node_,stype_,seht_):
             if stype_ == 3:
@@ -485,6 +489,12 @@ class Grammar:
             bula_node,bptlst = False,False
             setht = 21. #default ht = midrise
             bula_node = n_.search_up_tree(lambda n: n.grammar.type['bula'])
+            ht_node = n_.search_up_tree(lambda n: n.grammar.type['height'])
+            print ht_node
+            print n_.grammar.type['height']
+            print n_.parent
+            print n_.parent.parent.grammar.type['bula']
+            
             #print 'bulalabel', bula_node.grammar.type['label']
             if bula_node:
                 #Purpose: Reference bula pts to newly generated shape_geom boundaries
@@ -502,38 +512,6 @@ class Grammar:
                     setht = ht_factor#1000.*ht_factor
                     ##debug.extend(n_.grammar.type['bula_data'].bpt_lst)
                 return setht
-        def height_from_envelope(n_,envref=None):
-            #TO['solartype'],TO['solartime']
-            #env = sc.sticky['envelope']
-            maxht_env = 150.
-            """
-            if PD_['solartype']>0:
-                starthr = PD_['solartime']
-                endhr = starthr+5.
-                crv = sc.sticky['envelope'][0].shape.bottom_crv
-                env = self.get_solar_zone(starthr,endhr,curve=crv,zonetype='fan')
-                env = [env]
-            """
-            if envref == None:
-                env = sc.sticky['envelope']
-            else:
-                env = envref
-            
-            base_matrix = n_.shape.set_base_matrix()
-            ptlst = map(lambda l:l[0], base_matrix)
-            dir = rc.Geometry.Vector3d(0,0,1) 
-            tol = sc.doc.ModelAbsoluteTolerance
-            projlst = rc.Geometry.Intersect.Intersection.ProjectPointsToBreps(env,ptlst,dir,tol)
-            projlst = filter(lambda pt:abs(pt[2]-200.)>0.5,projlst)
-            projlst = filter(lambda p: abs(p[2]-0)>1.,projlst)
-            if projlst:
-                #debug.extend(projlst)
-                min_index = projlst.index(min(projlst,key=lambda p:p[2]))
-                min_pt = projlst[min_index]
-                envht = min_pt[2]
-            else:
-                envht = 150.
-            return envht
             
         debug = sc.sticky['debug']
         #print 'We are setting height!'
@@ -543,31 +521,8 @@ class Grammar:
             setht_ = height_from_bula(n_)
         else:
             setht_ = ht_
-        
-        """
-        #angle_srf = sc.sticky['angle_srf']
-        #setht_angle = height_from_envelope(n_,envref=angle_srf)
-        ## These are the Anchor points from Yonge/Eglinton and Mount Pleasant/Eglinton
-        #ydist = rs.Distance(n_.shape.cpt,ypt)
-        #mdist = rs.Distance(n_.shape.cpt,mpt)
-        ydist = 121
-        mdist = 121
-        if ydist < mdist:
-            maxht = sc.sticky['max_ht_yonge']# 70 storeys
-        else:
-            maxht = sc.sticky['max_ht_mount']# 40 storeys
-        
-        #IsSolarEnv = type(ht_)==type('') and 'envelope' in ht_
-        IsPodium = 'podium' in n_.get_root().grammar.type['label']
-        IsMaxht = maxht != None and setht_ > maxht
-        if IsMaxht:
-            setht_ = maxht
-        if setht_ > setht_angle:
-            setht_ = setht_angle 
-        if IsPodium:
-            setht_ = sc.sticky['ht_podium']
-        """
         n_.shape.op_extrude(setht_)
+        print '---'
         return temp_node_
     def get_solar_zone(self,start_time,end_time,curve=None,zonetype='envelope'):
         try:
@@ -797,6 +752,7 @@ class Grammar:
                 analysis_pts = map(lambda p: rs.coerce3dpoint(p),analysis_ref)
             #Sort analysis pts into leaf nodes
             shape_leaves = temp_node_.traverse_tree(lambda n: n,internal=False)
+            #shape_leaves = [temp_node_]
             lst_plain_pt_lst, lst_value_lst = B.getpoints4lot(shape_leaves,analysis_ref,value_ref)
             #Make bula point for each lot
             B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst)
@@ -831,7 +787,7 @@ class Grammar:
                     new_child_node.parent = meta_node
                     #Reset depths
                     root = meta_node.get_root()
-                    root.traverse_tree(lambda n:inc_deQQQpth(n),internal=True)
+                    root.traverse_tree(lambda n:inc_depth(n),internal=True)
                     
 if True:
     sc.sticky["Grammar"] = Grammar
