@@ -289,7 +289,7 @@ class Bula:
             #Now merge value and index back
             val_ind_lst = map(lambda x:(x[0],x[1]),zip(val_lst,ind_lst))
             value_lst_by_fpt[fi] = val_ind_lst
-           
+
         #Resort by apt order
         #this is a clever way of handling this problem
         flat_val_ind_lst = reduce(lambda x,y:x+y,value_lst_by_fpt)
@@ -298,13 +298,13 @@ class Bula:
         
         #Add smoothing factor
         if len(focal_ref) > 1:
-            smooth_fac_lst = self.normalize_list(smooth_fac_lst, 1, 0.0001)
+            smooth_fac_lst = self.normalize_list(smooth_fac_lst, 1, 0.001)
             value_lst = map(lambda vs: vs[0]*vs[1], zip(value_lst,smooth_fac_lst))
             max_wtd_value = max(value_lst)
             for i,wtd_val in enumerate(value_lst):
                 sf = smooth_fac_lst[i]
                 wtd_sf_val = wtd_val *sf
-                inc = (1.-sf)*50.
+                inc = (1.-sf)*53.#104.
                 #print '---'
                 #print 'sf: ', sf
                 #print 'inc:', inc

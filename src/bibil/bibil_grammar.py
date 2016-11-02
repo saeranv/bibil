@@ -491,9 +491,9 @@ class Grammar:
             bula_node = n_.search_up_tree(lambda n: n.grammar.type['bula'])
             ht_node = n_.search_up_tree(lambda n: n.grammar.type['height'])
             print ht_node
-            print n_.grammar.type['height']
-            print n_.parent
-            print n_.parent.parent.grammar.type['bula']
+            #print n_.grammar.type['height']
+            #print n_.parent
+            #print n_.parent.parent.grammar.type['bula']
             
             #print 'bulalabel', bula_node.grammar.type['label']
             if bula_node:
@@ -508,7 +508,7 @@ class Grammar:
                     buladata.generate_bula_point(nodecrvlst,lst_bpt_lst_,lst_val_lst_)
                     ## you are now a bulalot!
                     val_lst = n_.grammar.type['bula_data'].value_lst
-                    ht_factor = sum(val_lst)/float(len(val_lst))
+                    ht_factor = min(val_lst)#sum(val_lst)/float(len(val_lst))
                     setht = ht_factor#1000.*ht_factor
                     ##debug.extend(n_.grammar.type['bula_data'].bpt_lst)
                 return setht

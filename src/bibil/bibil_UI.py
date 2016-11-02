@@ -25,7 +25,6 @@ def make_node_lst(copy_node_in_,label_in_):
     L = []
     G = Grammar()
     T = Tree()
-    
     for node_geom in copy_node_in_:
         #if node
         if type(T) == type(node_geom):
@@ -72,7 +71,6 @@ def node2grammar(node):
     #temp_node = G.helper_clone_node(node,node)
     #node.loc.append(temp_node)          
     temp_node = node
-    
     if PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
     elif PD['height'] != False:
@@ -83,7 +81,7 @@ def node2grammar(node):
     elif PD['court'] == True:
         G.court(temp_node,PD)
     elif PD['bula'] == True:
-        temp_node = G.set_bula_point(temp_node,PD)
+        G.set_bula_point(temp_node,PD)
     elif PD['meta_tree'] == True:
         G.meta_tree(temp_node,PD)
     """
