@@ -15,42 +15,36 @@ Grammar = sc.sticky["Grammar"]
 Bula = sc.sticky["Bula"]
 Miru = sc.sticky["Miru"]
 
-def copy_node_lst(nlst):
-    L = []
-    for n in nlst:
-        #L.append(copy.deepcopy(n))
-        yield copy.deepcopy(n)
 
-def make_node_lst(copy_node_in_,label_in_): 
-    L = []
-    G = Grammar()
-    T = Tree()
-    for node_geom in copy_node_in_:
-        #if node
-        if type(T) == type(node_geom):
-            n_ = node_geom
-        else:
-            n_ = G.helper_geom2node(node_geom,label=label_in_)
-        #yield n_
-        L.append(n_)
-    return L
-
-def sort_node2grammar(lst_node_,rule_in_):
-    def type2node(copy_node_,type_):
+def node2grammar(lst_node_,rule_in_,label_):
+    def helper_type2node(copy_node_,type_):
         #type: list of (dictionary of typology parameters)
         copytype = copy.deepcopy(type_)
         copy_node_.grammar.type.update(copytype)
         return copy_node_
+    def helper_generate_node(node_geom,label_in_): 
+        #if node
+        if type(T) == type(node_geom):
+            childn = G.helper_clone_node(node_geom,parent_node=node_geom,label=label_in_)
+            node_geom.loc.append(child_n)  
+        else:
+            n_ = G.helper_geom2node(node_geom,label=label_in_)
+        return n_
     ## Purpose: Input list of nodes, applies type
     ## Applies pattern based on types
     ## outputs node
+    G = Grammar()
+    T = Tree()
     L = []
-    for node_ in lst_node_:
+    for i,node_ in enumerate(lst_node_):
+        ## Everytime we add a rule, we clone a node. 
+        ## Every rule mutates the node, or creates child nodes.
+        child_node_ = helper_generate_node(node_,label_)
         ## Apply type to node
-        node_ = type2node(node_,rule_in_)
+        child_node_ = helper_type2node(child_node_,rule_in_)
         ## Apply pattern
         if True:#try:
-            node_out_ = node2grammar(node_)
+            node_out_ = main_grammar(child_node_)
             RhinoApp.Wait() 
         #yield node_out_
         L.extend(node_out_)
@@ -58,18 +52,14 @@ def sort_node2grammar(lst_node_,rule_in_):
         #    print "Error @ Pattern.main_pattern"
     return L
 
-def node2grammar(node):
+def main_grammar(node):
     #move this back to grammar?
     G = Grammar()
     ## Check geometry
     gb = node.shape.geom
     if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
     PD = node.grammar.type
-    
-    ## Everytime we add a rule, we clone a node. 
-    ## That keeps everything clear and consistent.
-    #temp_node = G.helper_clone_node(node,node)
-    #node.loc.append(temp_node)          
+               
     temp_node = node
     if PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
@@ -146,14 +136,13 @@ def main(node_in_,rule_in_,label__):
         else:
             rule_ = rule_lst.pop(0)
             #apply rule to current list of nodes, get child lists flat
-            lst_node_leaves = sort_node2grammar(lst_node_,rule_)
-            return helper_main_recurse(lst_node_leaves,rule_lst)
+            lst_node_leaves = node2grammar(lst_node_,rule_)
+            return helper_main_recurse(lst_node_leaves,rule_lst,label__)
     
     #prep rules
     nested_rule_dict = insert_rule_dict(rule_in_)
-    lst_node = make_node_lst(node_in_,label__)
-    #apply patterns           
-    lst_node_out = helper_main_recurse(lst_node,nested_rule_dict)
+    #recursively create a child node derived from parent and apply a grammar rule           
+    lst_node_out = helper_main_recurse(node_in_,nested_rule_dict)
 
     return lst_node_out
 
