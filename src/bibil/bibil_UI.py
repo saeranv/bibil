@@ -16,20 +16,18 @@ Bula = sc.sticky["Bula"]
 Miru = sc.sticky["Miru"]
 
 
-def node2grammar(lst_node_,rule_in_,label_):
+def node2grammar(lst_node_,rule_in_):
     def helper_type2node(copy_node_,type_):
         #type: list of (dictionary of typology parameters)
         copytype = copy.deepcopy(type_)
         copy_node_.grammar.type.update(copytype)
         return copy_node_
-    def helper_generate_node(node_geom,label_in_): 
-        #if node
-        if type(T) == type(node_geom):
-            childn = G.helper_clone_node(node_geom,parent_node=node_geom,label=label_in_)
-            node_geom.loc.append(child_n)  
-        else:
-            n_ = G.helper_geom2node(node_geom,label=label_in_)
-        return n_
+    def helper_clone_node(node_geom): 
+        #clone a child
+        childn = G.helper_clone_node(node_geom,parent_node=node_geom)
+        node_geom.loc.append(childn)
+        n_ = node_geom  
+        return n_    
     ## Purpose: Input list of nodes, applies type
     ## Applies pattern based on types
     ## outputs node
@@ -39,7 +37,7 @@ def node2grammar(lst_node_,rule_in_,label_):
     for i,node_ in enumerate(lst_node_):
         ## Everytime we add a rule, we clone a node. 
         ## Every rule mutates the node, or creates child nodes.
-        child_node_ = helper_generate_node(node_,label_)
+        child_node_ = helper_clone_node(node_)
         ## Apply type to node
         child_node_ = helper_type2node(child_node_,rule_in_)
         ## Apply pattern
@@ -50,6 +48,7 @@ def node2grammar(lst_node_,rule_in_,label_):
         L.extend(node_out_)
         #except Exception as e:
         #    print "Error @ Pattern.main_pattern"
+    print '--'
     return L
 
 def main_grammar(node):
@@ -59,12 +58,13 @@ def main_grammar(node):
     gb = node.shape.geom
     if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
     PD = node.grammar.type
-               
     temp_node = node
+    print temp_node
     if PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
     elif PD['height'] != False:
         temp_node = G.set_height(temp_node,PD['height'])
+        print 'bibil ui = set ht'
     elif PD['stepback']:
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
         temp_node = G.stepback(temp_node,PD)
@@ -72,8 +72,10 @@ def main_grammar(node):
         G.court(temp_node,PD)
     elif PD['bula'] == True:
         G.set_bula_point(temp_node,PD)
+        print 'bibil ui = set bula'
     elif PD['meta_tree'] == True:
         G.meta_tree(temp_node,PD)
+        print 'bibil ui = set meta_tree'
     """
     These have to be rewritten
     #elif PD['separate'] == True:
@@ -103,32 +105,38 @@ def main_grammar(node):
     lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
     return lst_childs
     
-def insert_rule_dict(rule_tree_):
-    #Purpose: Extract rules from tree insert nest list of rule dictionaries
-    B = Bula()
-    
-    #Convert tree to flat list
-    flat_lst = B.ghtree2nestlist(rule_tree_,nest=False)
-    
-    #Convert flat list to nested list of typology rules
-    nest_rdict = []
-    rdict = copy.deepcopy(Miru)
-    for parselst in flat_lst:
-        if parselst[0] != 'end_rule':
-            miru_key,miru_val = parselst[0],parselst[1]
-            rdict[miru_key] = miru_val  
-        else:
-            nest_rdict.append(rdict)
-            rdict = copy.deepcopy(Miru)
-    #Test
-    #for i in nest_rdict:
-    #    print 'bula', i['bula']
-    #    print 'bula', i['bula_value_lst'][0]
-    #    print '---'
-    
-    return nest_rdict
     
 def main(node_in_,rule_in_,label__):
+    def helper_insert_rule_dict(rule_tree_):
+        #Purpose: Extract rules from tree insert nest list of rule dictionaries
+        B = Bula()
+        
+        #Convert tree to flat list
+        flat_lst = B.ghtree2nestlist(rule_tree_,nest=False)
+        
+        #Convert flat list to nested list of typology rules
+        nest_rdict = []
+        rdict = copy.deepcopy(Miru)
+        for parselst in flat_lst:
+            if parselst[0] != 'end_rule':
+                miru_key,miru_val = parselst[0],parselst[1]
+                rdict[miru_key] = miru_val  
+            else:
+                nest_rdict.append(rdict)
+                rdict = copy.deepcopy(Miru)
+        #Test
+        #for i in nest_rdict:
+        #    print 'bula', i['bula']
+        #    print 'bula', i['bula_value_lst'][0]
+        #    print '---'
+        
+        return nest_rdict
+    def helper_clone_UI_node(nodein,labelin):
+        if type(T) == type(node_geom):
+            pass
+        else:
+            n_ = G.helper_geom2node(node_geom,label=label_in_)
+        return n_
     def helper_main_recurse(lst_node_,rule_lst):
         #print rule_lst
         if rule_lst == []:
@@ -137,17 +145,20 @@ def main(node_in_,rule_in_,label__):
             rule_ = rule_lst.pop(0)
             #apply rule to current list of nodes, get child lists flat
             lst_node_leaves = node2grammar(lst_node_,rule_)
-            return helper_main_recurse(lst_node_leaves,rule_lst,label__)
-    
+            return helper_main_recurse(lst_node_leaves,rule_lst)
     #prep rules
-    nested_rule_dict = insert_rule_dict(rule_in_)
+    nested_rule_dict = helper_insert_rule_dict(rule_in_)
+    #create empty node with label
+    #having doubts about this: should label be a rule
+    node_in_ = helper_clone_UI_node(node_in_,label__)
     #recursively create a child node derived from parent and apply a grammar rule           
-    lst_node_out = helper_main_recurse(node_in_,nested_rule_dict)
+    lst_node_out = helper_main_recurse(node_in_,nested_rule_dict,0)
 
     return lst_node_out
 
 
 node_in = filter(lambda n: n!=None,node_in)
+if label_ = None: label_ = ""
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]

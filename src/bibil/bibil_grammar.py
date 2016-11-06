@@ -490,7 +490,7 @@ class Grammar:
             setht = 21. #default ht = midrise
             bula_node = n_.search_up_tree(lambda n: n.grammar.type['bula'])
             ht_node = n_.search_up_tree(lambda n: n.grammar.type['height'])
-            print ht_node
+            #print ht_node
             #print n_.grammar.type['height']
             #print n_.parent
             #print n_.parent.parent.grammar.type['bula']
@@ -522,7 +522,7 @@ class Grammar:
         else:
             setht_ = ht_
         n_.shape.op_extrude(setht_)
-        print '---'
+        #print '---'
         return temp_node_
     def get_solar_zone(self,start_time,end_time,curve=None,zonetype='envelope'):
         try:
