@@ -20,7 +20,7 @@ class Tree:
         self.depth = depth
         
     def __repr__(self):
-        ret = str(self.grammar.type['label']) \
+        ret = "nd__" + str(self.grammar.type['label']) \
         + "__%s__%s" % (self.grammar.type['grammar'],self.depth)
         #for child in self.loc:
         #    ret += child.__repr__()

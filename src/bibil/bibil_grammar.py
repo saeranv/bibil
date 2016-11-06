@@ -489,12 +489,7 @@ class Grammar:
             bula_node,bptlst = False,False
             setht = 21. #default ht = midrise
             bula_node = n_.search_up_tree(lambda n: n.grammar.type['bula'])
-            ht_node = n_.search_up_tree(lambda n: n.grammar.type['height'])
-            #print ht_node
-            #print n_.grammar.type['height']
-            #print n_.parent
-            #print n_.parent.parent.grammar.type['bula']
-            
+            print bula_node
             #print 'bulalabel', bula_node.grammar.type['label']
             if bula_node:
                 #Purpose: Reference bula pts to newly generated shape_geom boundaries
