@@ -21,7 +21,7 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"",'axis':"NS",'ratio':0.}
+        self.type = {'label':"x",'grammar':"",'axis':"NS",'ratio':0.}
         empty_rule_dict = copy.deepcopy(Miru)
         self.type.update(empty_rule_dict)
         

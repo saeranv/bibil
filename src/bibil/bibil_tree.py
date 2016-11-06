@@ -20,8 +20,8 @@ class Tree:
         self.depth = depth
         
     def __repr__(self):
-        """ http://cbio.ufs.ac.za/live_docs/nbn_tut/trees.html """
-        ret = str(self.grammar.type['label']) + "__%s" % (self.depth)
+        ret = str(self.grammar.type['label']) \
+        + "__%s__%s" % (self.grammar.type['grammar'],self.depth)
         #for child in self.loc:
         #    ret += child.__repr__()
         return ret

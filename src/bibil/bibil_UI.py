@@ -60,7 +60,8 @@ def node2grammar(lst_node_,rule_in_):
         L.extend(node_out_)
         #except Exception as e:
         #    print "Error @ Pattern.main_pattern"
-    print '--'
+        #print node_out_[0]
+    #print '--'
     return L
 
 def main_grammar(node):
@@ -71,26 +72,29 @@ def main_grammar(node):
     if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
     PD = node.grammar.type
     temp_node = node
-    #print temp_node
-    if PD['label'] == True:
+    if PD['label_UI'] == True:
         #simple therefore keep in UI for now...
-        temp_node.data.type['label'] = PD['label_string']
+        temp_node.grammar.type['label'] = PD['label']
+        temp_node.grammar.type['grammar'] = 'label'
     elif PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
+        temp_node.grammar.type['grammar'] = 'divide'
     elif PD['height'] != False:
         temp_node = G.set_height(temp_node,PD['height'])
-        print 'bibil ui = set ht'
+        temp_node.grammar.type['grammar'] = 'height'
     elif PD['stepback']:
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
         temp_node = G.stepback(temp_node,PD)
+        temp_node.grammar.type['grammar'] = 'stepback'
     elif PD['court'] == True:
         G.court(temp_node,PD)
+        temp_node.grammar.type['grammar'] = 'court'
     elif PD['bula'] == True:
         G.set_bula_point(temp_node,PD)
-        print 'bibil ui = set bula'
+        temp_node.grammar.type['grammar'] = 'bula'
     elif PD['meta_tree'] == True:
         G.meta_tree(temp_node,PD)
-        print 'bibil ui = set meta_tree'
+        temp_node.grammar.type['grammar'] = 'meta_tree'
     """
     These have to be rewritten
     #elif PD['separate'] == True:
@@ -122,12 +126,15 @@ def main_grammar(node):
     
     
 def main(node_in_,rule_in_,label__):
-    def helper_insert_rule_dict(rule_tree_):
+    def helper_insert_rule_dict(label_lst_,rule_tree_):
         #Purpose: Extract rules from tree insert nest list of rule dictionaries
         B = Bula()
         
         #Convert tree to flat list
-        flat_lst = B.ghtree2nestlist(rule_tree_,nest=False)
+        #Also we will add label rules to top
+        flat_lst = label_lst_
+        flat_lst_ = B.ghtree2nestlist(rule_tree_,nest=False)
+        flat_lst += flat_lst_ 
         
         #Convert flat list to nested list of typology rules
         nest_rdict = []
@@ -147,17 +154,13 @@ def main(node_in_,rule_in_,label__):
         
         return nest_rdict
     def helper_label2rule(labelin): 
-        rule = DataTree[object]()
+        rule_ = []
         if labelin:
             rule_ = [\
-            ['label', True],\
-            ['label_string', labelin],\
+            ['label_UI', True],\
+            ['label', labelin],\
             ['end_rule']]
-        else:
-            rule_ = []
-        for i, r in enumerate(rule_):
-            rule.Add(r)
-        return rule
+        return rule_
     def helper_main_recurse(lst_node_,rule_lst):
         #if no rules/label_rules node is just passed through
         if rule_lst == []:
@@ -169,19 +172,16 @@ def main(node_in_,rule_in_,label__):
             return helper_main_recurse(lst_node_leaves,rule_lst)
     
     #label is treated as a rule
-    label_rule = helper_label2rule(label__,rule_in_)
-    rule_in += label_rule #test to see if this works
+    label_rule_ = helper_label2rule(label__)
     #nest rules
-    nested_rule_dict = helper_insert_rule_dict(rule_in_)
+    nested_rule_dict = helper_insert_rule_dict(label_rule_,rule_in_)
     #make label a rule
     #recursively create a child node derived from parent and apply a grammar rule           
-    lst_node_out = helper_main_recurse(node_in_,nested_rule_dict,0)
-
+    lst_node_out = helper_main_recurse(node_in_,nested_rule_dict)
     return lst_node_out
 
 
 node_in = filter(lambda n: n!=None,node_in)
-if label_ = None: label_ = ""
 if run and node_in != []:
     sc.sticky["debug"] = []
     debug = sc.sticky["debug"]
