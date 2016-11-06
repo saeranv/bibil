@@ -7,6 +7,12 @@ import Rhino as rc
 from Rhino import RhinoApp
 import scriptcontext as sc
 import copy
+import clr
+
+clr.AddReference("Grasshopper")
+from Grasshopper.Kernel.Data import GH_Path
+from Grasshopper import DataTree
+    
 
 ## Import classes
 Shape = sc.sticky["Shape"]
@@ -23,11 +29,17 @@ def node2grammar(lst_node_,rule_in_):
         copy_node_.grammar.type.update(copytype)
         return copy_node_
     def helper_clone_node(node_geom): 
-        #clone a child
-        childn = G.helper_clone_node(node_geom,parent_node=node_geom)
-        node_geom.loc.append(childn)
-        n_ = node_geom  
-        return n_    
+        #Purpose: Create a node from geometry/parent node
+        #if geometry, turned into node w/ blank label
+        #if node, clone a child node w/ blank label 
+        
+        if type(T) == type(node_geom):
+            childn = G.helper_clone_node(node_geom,parent_node=node_geom)
+            node_geom.loc.append(childn)
+            n_ = childn
+        else:
+            n_ = G.helper_geom2node(node_geom)
+        return n_       
     ## Purpose: Input list of nodes, applies type
     ## Applies pattern based on types
     ## outputs node
@@ -59,8 +71,11 @@ def main_grammar(node):
     if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
     PD = node.grammar.type
     temp_node = node
-    print temp_node
-    if PD['divide'] == True:
+    #print temp_node
+    if PD['label'] == True:
+        #simple therefore keep in UI for now...
+        temp_node.data.type['label'] = PD['label_string']
+    elif PD['divide'] == True:
         temp_node = G.divide(temp_node,PD)
     elif PD['height'] != False:
         temp_node = G.set_height(temp_node,PD['height'])
@@ -131,14 +146,20 @@ def main(node_in_,rule_in_,label__):
         #    print '---'
         
         return nest_rdict
-    def helper_clone_UI_node(nodein,labelin):
-        if type(T) == type(node_geom):
-            pass
+    def helper_label2rule(labelin): 
+        rule = DataTree[object]()
+        if labelin:
+            rule_ = [\
+            ['label', True],\
+            ['label_string', labelin],\
+            ['end_rule']]
         else:
-            n_ = G.helper_geom2node(node_geom,label=label_in_)
-        return n_
+            rule_ = []
+        for i, r in enumerate(rule_):
+            rule.Add(r)
+        return rule
     def helper_main_recurse(lst_node_,rule_lst):
-        #print rule_lst
+        #if no rules/label_rules node is just passed through
         if rule_lst == []:
             return lst_node_
         else:
@@ -146,11 +167,13 @@ def main(node_in_,rule_in_,label__):
             #apply rule to current list of nodes, get child lists flat
             lst_node_leaves = node2grammar(lst_node_,rule_)
             return helper_main_recurse(lst_node_leaves,rule_lst)
-    #prep rules
+    
+    #label is treated as a rule
+    label_rule = helper_label2rule(label__,rule_in_)
+    rule_in += label_rule #test to see if this works
+    #nest rules
     nested_rule_dict = helper_insert_rule_dict(rule_in_)
-    #create empty node with label
-    #having doubts about this: should label be a rule
-    node_in_ = helper_clone_UI_node(node_in_,label__)
+    #make label a rule
     #recursively create a child node derived from parent and apply a grammar rule           
     lst_node_out = helper_main_recurse(node_in_,nested_rule_dict,0)
 
