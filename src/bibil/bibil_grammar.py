@@ -488,25 +488,28 @@ class Grammar:
         def height_from_bula(n_):
             setht = 6. #default ht = midrise
             bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
-            min_bula_node_sum = 2.
-            for bula_node in bula_node_lst:
+            #temp
+            min_bula_node_sum = 200000000000000000.
+            min_bula_node_index = 0
+            
+            for bula_ref_index,bula_node in enumerate(bula_node_lst):
                 bula_node_sum = 0
                 buladata = bula_node.grammar.type['bula_data']
                 lpl_,lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
                 for vl_ in lvl_:
-                    print vl_
                     bula_node_sum += sum(vl_)
-                #if min_bula_node_sum > bula_node_sum:
-                    
-            print '--'
+                if min_bula_node_sum > bula_node_sum:
+                    min_bula_node_sum = bula_node_sum
+                    min_bula_node_index = bula_ref_index
+            
+            buladata = bula_node_lst[min_bula_node_index].grammar.type['bula_data']
+            lpl_,lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node_lst[min_bula_node_index])
             if lpl_ != [[]]:
-                n_ = buladata.generate_bula_point([n_],lpl_,lvl_)
-            #input: bula_node_ref,curr_node,
-            #val_lst = n_.grammar.type['bula_data'].value_lst
-            #min_ht = min(val_lst)#sum(val_lst)/float(len(val_lst))
-            ##return min_ht
-            #return setht
+                n_ = buladata.generate_bula_point([n_],lpl_,lvl_)[0]
+                val_lst = n_.grammar.type['bula_data'].value_lst
+                setht = min(val_lst)#sum(val_lst)/float(len(val_lst))
             return setht
+        
         debug = sc.sticky['debug']
         #print 'We are setting height!'
         n_ = temp_node_
