@@ -75,6 +75,18 @@ class Bula:
             cpt[2] = norm
             cpt_lst_[i] = cpt
         return cpt_lst_ 
+    def set_node_bula_pt_ref(self,curr_node,bula_node_ref):
+        #Purpose: Reference bula pts to curr_node's shape_geom boundaries
+        #Input: curr_node,bula_node_ref
+        #Output: mutated curr_node w/ bula_data if exists
+        buladata = bula_node_ref.grammar.type['bula_data']
+        curr_node_lst = [curr_node]
+        #Input Point list, Value list
+        shape_point_lst = buladata.bpt_lst
+        shape_value_lst = buladata.value_lst
+        #Call getpoints4lst
+        lst_bpt_lst_,lst_val_lst_  = buladata.getpoints4lot(curr_node_lst,shape_point_lst,shape_value_lst)
+        return lst_bpt_lst_,lst_val_lst_
     def getpoints4lot(self,lots_,cpt_,value_ref_):
         ## Loop through tree lots and add the point_nodes
         ## to each lot; returns lst of (listof points inside each lot)
@@ -126,7 +138,12 @@ class Bula:
             avg_val = reduce(lambda x,y: x+y,val_lst)
             ## Make a bpt for each lot
             bpt = Bula(bpt_lst_,val_lst,avg_val)
+            #if shape_node.grammar.type.has_key('bula_data'):
+            #    shape_node.grammar.type['bula_data'].append(bpt)
+            #else:
             shape_node.grammar.type['bula_data'] = bpt
+            shapes_[i] = shape_node
+        return shapes_
     def calculate_node_gfa(self,lots_,ref_density):
         ##It would be a lot easier to do all these additions
         ## and operations on lists with numpy!!

@@ -22,6 +22,7 @@ class Grammar:
     """Grammar """
     def __init__(self):
         self.type = {'label':"x",'grammar':"",'axis':"NS",'ratio':0.}
+        #need to move axis, NS, ratio to divide
         empty_rule_dict = copy.deepcopy(Miru)
         self.type.update(empty_rule_dict)
         
@@ -70,7 +71,6 @@ class Grammar:
     def helper_clone_node(self,node_,parent_node=None,label=""):
         #Purpose: Input node, and output new node with same Shape, new Grammar
         return self.helper_geom2node(node_.shape.geom,parent_node,label)
-                    
     def solar_envelope_uni(self,node_0,time,seht,stype):
         def helper_get_curve_in_tree(node_,stype_,seht_):
             if stype_ == 3:
@@ -486,28 +486,27 @@ class Grammar:
         return temp_node_topo
     def set_height(self,temp_node_,ht_):
         def height_from_bula(n_):
-            bula_node,bptlst = False,False
-            setht = 21. #default ht = midrise
-            bula_node = n_.search_up_tree(lambda n: n.grammar.type['bula'])
-            print bula_node
-            #print 'bulalabel', bula_node.grammar.type['label']
-            if bula_node:
-                #Purpose: Reference bula pts to newly generated shape_geom boundaries
-                #make this function in bula
+            setht = 6. #default ht = midrise
+            bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
+            min_bula_node_sum = 2.
+            for bula_node in bula_node_lst:
+                bula_node_sum = 0
                 buladata = bula_node.grammar.type['bula_data']
-                nodecrvlst = [n_]
-                shape_pt_lst = buladata.bpt_lst
-                shape_value_lst = buladata.value_lst
-                lst_bpt_lst_,lst_val_lst_  = buladata.getpoints4lot(nodecrvlst,shape_pt_lst,shape_value_lst)
-                if lst_bpt_lst_ != [[]]:
-                    buladata.generate_bula_point(nodecrvlst,lst_bpt_lst_,lst_val_lst_)
-                    ## you are now a bulalot!
-                    val_lst = n_.grammar.type['bula_data'].value_lst
-                    ht_factor = min(val_lst)#sum(val_lst)/float(len(val_lst))
-                    setht = ht_factor#1000.*ht_factor
-                    ##debug.extend(n_.grammar.type['bula_data'].bpt_lst)
-                return setht
-            
+                lpl_,lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
+                for vl_ in lvl_:
+                    print vl_
+                    bula_node_sum += sum(vl_)
+                #if min_bula_node_sum > bula_node_sum:
+                    
+            print '--'
+            if lpl_ != [[]]:
+                n_ = buladata.generate_bula_point([n_],lpl_,lvl_)
+            #input: bula_node_ref,curr_node,
+            #val_lst = n_.grammar.type['bula_data'].value_lst
+            #min_ht = min(val_lst)#sum(val_lst)/float(len(val_lst))
+            ##return min_ht
+            #return setht
+            return setht
         debug = sc.sticky['debug']
         #print 'We are setting height!'
         n_ = temp_node_

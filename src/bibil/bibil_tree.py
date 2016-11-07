@@ -25,35 +25,7 @@ class Tree:
         #for child in self.loc:
         #    ret += child.__repr__()
         return ret
-    
-    
-    """        
-    def insert_node(self,node,depth):
-        #NEEDS TO BE TESTED
-        #Purpose: Insert node at the depth specified
-        #Base case 1: equal to depth
-        if self.depth == depth:
-            #add as sibling
-            node.parent = self.parent
-            node.depth = self.depth
-        elif self.depth < depth:
-            #Base case 2: empty child
-            if self.loc == []:
-                node.parent = self
-                node.depth = self.depth + 1
-                self.loc.append(node)
-            else: 
-                self.loc[0].insert_node(node,depth)
-        elif self.depth > depth:
-            #Base case 3: root
-            if self.parent == None:
-                node.loc.append(self)
-                self.parent = node
-                self.traverse_tree(lambda n:n.increase_depth(node.depth),internal=True)
-            else:
-                self.parent.insert_node(node,depth)
-       """     
-            
+                
     def delete_node(self):
         if self is not None:
             self.loc = []
@@ -71,30 +43,22 @@ class Tree:
         else:
             return self.parent.get_root()
     
-    def search_up_tree(self,foo):
-        """ 
-        Backtracks tree, applies function argument to every
-        node until parent.
-        """
-        if foo(self)==True:
-            return self
-        elif self.parent == None:
-            return False
-        else:
-            return self.parent.search_up_tree(foo)
-    
-    def backtrack_tree(self,foo):
-        def helper_backtrack_tree(node,foo,accumulator):
-            accumulator.append(foo(node))
-            if node.parent == None:
+    def backtrack_tree(self,foo,accumulate=False):
+        def helper_backtrack_tree(node,foo,accumulator,acc_):
+            #tail-end recursion backtracking
+            if foo(node)==True:
+                if acc_ == False:
+                    return node
+                else:
+                    accumulator.append(node) 
+            elif node.parent == None:
                 return accumulator
-            else:
-                return helper_backtrack_tree(node.parent,foo,accumulator)
+            return helper_backtrack_tree(node.parent,foo,accumulator,acc_)
         """ 
         Backtracks tree, applies function argument to every
         node until parent. Use tail-end recurusion
         """
-        return helper_backtrack_tree(self,foo,[])
+        return helper_backtrack_tree(self,foo,[],accumulate)
             
     def traverse_tree(self,foo,internal=True):
         """ 
