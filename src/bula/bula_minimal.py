@@ -130,7 +130,7 @@ class Bula:
             lst_bpt_lst_.append(neighbor)
             lst_val_lst_.append(neighbor_val)
         return lst_bpt_lst_,lst_val_lst_ 
-    def generate_bula_point(self,shapes_,lst_bpt_lst_,lst_value_lst):
+    def generate_bula_point(self,shapes_,lst_bpt_lst_,lst_value_lst,value_ref_actual_):
         ## Loop through shape nodes w/ bula_pts
         for i,shape_node in enumerate(shapes_):
             bpt_lst_ = lst_bpt_lst_[i]
@@ -138,6 +138,7 @@ class Bula:
             avg_val = reduce(lambda x,y: x+y,val_lst)
             ## Make a bpt for each lot
             bpt = Bula(bpt_lst_,val_lst,avg_val)
+            bpt.value_actual = value_ref_actual_
             #if shape_node.grammar.type.has_key('bula_data'):
             #    shape_node.grammar.type['bula_data'].append(bpt)
             #else:
@@ -292,19 +293,30 @@ class Bula:
         #Add weights to each
         maxht = max(focal_height)
         wtlst = map(lambda ht: ht/maxht,focal_height)
+        val_actual_flt = [0]*len(value_lst_by_fpt)
         #print 'wtlst', wtlst
         for fi,val_ind_lst in enumerate(value_lst_by_fpt):
             weight = wtlst[fi]*maxht
+            
             #Separate value and index
             val_lst = map(lambda v: v[0],val_ind_lst)
             ind_lst = map(lambda v: v[1],val_ind_lst)
             #print 'val', val_lst
             #Calculate weighted value
+            #
+            val_actual = []
+            for v in val_lst:
+                val_actual.append(float(v) * 100.0)
+            #
             max_bound = weight * max(val_lst)
             min_bound = weight * min(val_lst)
             val_lst = self.normalize_list(val_lst,max_bound,min_bound)
             #Now merge value and index back
             val_ind_lst = map(lambda x:(x[0],x[1]),zip(val_lst,ind_lst))
+            
+            val_actual = map(lambda x: (x[0],x[1]),zip(val_actual,ind_lst))
+            val_actual_flt[fi] = val_actual
+            
             value_lst_by_fpt[fi] = val_ind_lst
 
         #Resort by apt order
@@ -312,6 +324,11 @@ class Bula:
         flat_val_ind_lst = reduce(lambda x,y:x+y,value_lst_by_fpt)
         flat_val_ind_lst.sort(key=lambda n:n[1])
         value_lst = map(lambda x: x[0],flat_val_ind_lst)
+        
+        #Resort by apt order ACTUAL
+        flat_val_ind_lst_actual = reduce(lambda x,y:x+y,val_actual_flt)
+        flat_val_ind_lst_actual.sort(key=lambda n:n[1])
+        value_lst_actual = map(lambda x: x[0],flat_val_ind_lst_actual)
         
         #Add smoothing factor
         if len(focal_ref) > 1:
@@ -331,7 +348,7 @@ class Bula:
                 wtd_val_inc = wtd_val + inc
                 value_lst[i] = wtd_val_inc 
         #Done!
-        return value_lst
+        return value_lst, value_lst_actual
     def set_bula_height4viz(self,shape_node_lst):
         for shape_node in shape_node_lst:
             buladata = shape_node.grammar.type['bula_data']

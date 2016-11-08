@@ -737,8 +737,8 @@ class Grammar:
         elif chk_val and type(value_ref[0]) == type(''): #should be more explicit
             #If value is a formula
             if chk_apt:
-                value_ref = B.apply_formula2points(value_ref,analysis_ref)
-            
+                value_ref,value_ref_actual = B.apply_formula2points(value_ref,analysis_ref)
+                
         if chk_apt and chk_val: 
             #Convert from guid 
             if S.is_guid(analysis_ref[0]):
@@ -748,7 +748,7 @@ class Grammar:
             #shape_leaves = [temp_node_]
             lst_plain_pt_lst, lst_value_lst = B.getpoints4lot(shape_leaves,analysis_ref,value_ref)
             #Make bula point for each lot
-            B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst)
+            B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst,value_ref_actual)
             B.set_bula_height4viz(shape_leaves)
     def meta_tree(self,temp_node_,PD_):
         def inc_depth(n):
