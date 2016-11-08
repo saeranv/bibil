@@ -20,7 +20,7 @@ Miru = \
 'concentric_divide': False,\
 'dist_lst':None,'delete_dist':None,\
 'label_UI':False,"label":"x",\
-'bula':False,'bula_point_lst':None,'bula_value_lst':None,'bula_scale':None,\
+'bula':False,'bula_point_lst':None,'bula_value_lst':None,\
 'meta_tree':False,'meta_insert':None, 'meta_relation':None,'meta_node':None}
 """--------------------------------"""
 

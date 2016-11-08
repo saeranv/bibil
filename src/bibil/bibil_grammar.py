@@ -489,8 +489,8 @@ class Grammar:
             setht = 6. #default ht = midrise
             bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
             #temp
-            min_bula_node_sum = 200000000000000000.
-            min_bula_node_index = 0
+            min_bula_node_sum = None
+            min_bula_node_index = None
             
             for bula_ref_index,bula_node in enumerate(bula_node_lst):
                 bula_node_sum = 0
@@ -499,7 +499,7 @@ class Grammar:
                 #for vl_ in lvl_:
                 bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
                 
-                if min_bula_node_sum > bula_node_min:
+                if min_bula_node_sum == None or min_bula_node_sum > bula_node_min:
                     min_bula_node_sum = bula_node_min
                     min_bula_node_index = bula_ref_index
             buladata = bula_node_lst[min_bula_node_index].grammar.type['bula_data']
@@ -721,29 +721,25 @@ class Grammar:
         #Get the inputs
         analysis_ref = PD_['bula_point_lst']
         value_ref = PD_['bula_value_lst']
-        scale_ = PD_['bula_scale']
         
         ##Check to see what are input combo
         chk_apt = filter(lambda x: x!=None,analysis_ref) != []
         chk_val = filter(lambda x: x!=None,value_ref) != []
-        chk_sc = scale_ != None
         
         #Set defaults or add warnings
         if not chk_apt:
             print 'Analysis inputs are missing!'
             chk_apt = False
-        if not chk_sc: 
-            scale_ = 1.
-            chk_sc = True
         if not chk_val:
             val_num = len(analysis_ref)
             value_ref = [0]*val_num
             chk_val = True
-        elif type(value_ref[0]) == type(''): #should be more explicit
+        elif chk_val and type(value_ref[0]) == type(''): #should be more explicit
             #If value is a formula
-            value_ref = B.apply_formula2points(value_ref,analysis_ref)
+            if chk_apt:
+                value_ref = B.apply_formula2points(value_ref,analysis_ref)
             
-        if chk_apt and chk_val and chk_sc: 
+        if chk_apt and chk_val: 
             #Convert from guid 
             if S.is_guid(analysis_ref[0]):
                 analysis_pts = map(lambda p: rs.coerce3dpoint(p),analysis_ref)
@@ -753,7 +749,7 @@ class Grammar:
             lst_plain_pt_lst, lst_value_lst = B.getpoints4lot(shape_leaves,analysis_ref,value_ref)
             #Make bula point for each lot
             B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst)
-            B.set_bula_height4viz(shape_leaves,scale_)
+            B.set_bula_height4viz(shape_leaves)
     def meta_tree(self,temp_node_,PD_):
         def inc_depth(n):
             if n.parent:

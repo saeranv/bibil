@@ -332,14 +332,14 @@ class Bula:
                 value_lst[i] = wtd_val_inc 
         #Done!
         return value_lst
-    def set_bula_height4viz(self,shape_node_lst,scale_factor):
+    def set_bula_height4viz(self,shape_node_lst):
         for shape_node in shape_node_lst:
             buladata = shape_node.grammar.type['bula_data']
             bpt_lst = buladata.bpt_lst
             val_lst =  buladata.value_lst
             for i,bp_tuple in enumerate(zip(bpt_lst,val_lst)):
                 bpt,val = bp_tuple[0],bp_tuple[1]
-                vizpt = rc.Geometry.Point3d(bpt[0],bpt[1],val*scale_factor)
+                vizpt = rc.Geometry.Point3d(bpt[0],bpt[1],val)
                 buladata.bpt_viz_lst[i] = vizpt
     def set_bula_line4viz(self):
         pass
