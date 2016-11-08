@@ -253,6 +253,7 @@ class Bula:
         formula = formula_ref_[0]
         focal_ref = formula_ref_[1]
         focal_height = formula_ref_[2]
+        focal_ht_min = focal_height.pop(-1)
         smooth_factor = formula_ref_[3]
         
         #Set defaults
@@ -261,13 +262,11 @@ class Bula:
                 focal_height = focal_height * len(focal_ref)
             else:
                 print 'Correct the number of focal_weight inputs'
-                
+        
         #Calculate distance from apt to each focal ref       
         apts_in_fpts = helper_dist2focal_lst(focal_ref,analysis_pts_)
         #Make list of the minimum distance to fpt for each apt
         min_dist_lst,min_fptindex_lst,smooth_fac_lst = helper_min_dist4apt(apts_in_fpts,analysis_pts_,smooth_factor)            
-        
-        
         
         #Main function apply formula to min dist of each apt
         #This is ordered by fpt so we can weight it later
@@ -333,20 +332,24 @@ class Bula:
         #Add smoothing factor
         if len(focal_ref) > 1:
             smooth_fac_lst = self.normalize_list(smooth_fac_lst, 1, 0.001)
-            value_lst = map(lambda vs: vs[0]*vs[1], zip(value_lst,smooth_fac_lst))
-            max_wtd_value = max(value_lst)
-            for i,wtd_val in enumerate(value_lst):
-                sf = smooth_fac_lst[i]
-                wtd_sf_val = wtd_val *sf
-                inc = (1.-sf)*53.#104.
-                #print '---'
-                #print 'sf: ', sf
-                #print 'inc:', inc
-                #print 'ht: ', wtd_val
-                #if sf <= 0.999:
-                #    if (wtd_val + inc) <= max_wtd_value:
-                wtd_val_inc = wtd_val + inc
-                value_lst[i] = wtd_val_inc 
+        else:
+            smooth_fac_lst = self.normalize_list(value_lst,1, 0.001)
+        
+        value_lst = map(lambda vs: vs[0]*vs[1], zip(value_lst,smooth_fac_lst))
+        #max_wtd_value = max(value_lst)
+        for i,wtd_val in enumerate(value_lst):
+            sf = smooth_fac_lst[i]
+            #wtd_sf_val = wtd_val *sf
+            inc = (1.-sf)*focal_ht_min
+            #print '---'
+            #print 'sf: ', sf
+            #print 'inc:', inc
+            #print 'ht: ', wtd_val
+            #if sf <= 0.999:
+            #    if (wtd_val + inc) <= max_wtd_value:
+            wtd_val_inc = wtd_val + inc
+            value_lst[i] = wtd_val_inc 
+            
         #Done!
         return value_lst, value_lst_actual
     def set_bula_height4viz(self,shape_node_lst):
