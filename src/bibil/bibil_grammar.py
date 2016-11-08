@@ -496,12 +496,12 @@ class Grammar:
                 bula_node_sum = 0
                 buladata = bula_node.grammar.type['bula_data']
                 lpl_,lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
-                for vl_ in lvl_:
-                    bula_node_sum += sum(vl_)
-                if min_bula_node_sum > bula_node_sum:
-                    min_bula_node_sum = bula_node_sum
+                #for vl_ in lvl_:
+                bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
+                
+                if min_bula_node_sum > bula_node_min:
+                    min_bula_node_sum = bula_node_min
                     min_bula_node_index = bula_ref_index
-            
             buladata = bula_node_lst[min_bula_node_index].grammar.type['bula_data']
             lpl_,lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node_lst[min_bula_node_index])
             if lpl_ != [[]]:
