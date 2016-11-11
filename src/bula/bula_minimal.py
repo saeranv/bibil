@@ -32,7 +32,8 @@ class Bula:
         self.value_lst = value_lst
         self.avg_value = avg_val
         self.bpt_viz_lst = copy.copy(bpt_lst)
-         
+        self.value_actual = []
+        
     def normalize_list(self,lov,hibound,lobound):
         """normalized_val = ( (val-min)*(hibound-lobound) )/(max-min) + lobound"""
         max_ = max(lov)
@@ -84,20 +85,25 @@ class Bula:
         #Input Point list, Value list
         shape_point_lst = buladata.bpt_lst
         shape_value_lst = buladata.value_lst
+        shape_value_lst_actual = buladata.value_actual
+    
         #Call getpoints4lst
-        lst_bpt_lst_,lst_val_lst_  = buladata.getpoints4lot(curr_node_lst,shape_point_lst,shape_value_lst)
-        return lst_bpt_lst_,lst_val_lst_
-    def getpoints4lot(self,lots_,cpt_,value_ref_):
+        lst_bpt_lst_,lst_val_lst_,lst_val_lst_actual_  = buladata.getpoints4lot(curr_node_lst,shape_point_lst,shape_value_lst,shape_value_lst_actual)
+        return lst_bpt_lst_,lst_val_lst_,lst_val_lst_actual_
+    def getpoints4lot(self,lots_,cpt_,value_ref_,actual_value_ref_):
         ## Loop through tree lots and add the point_nodes
         ## to each lot; returns lst of (listof points inside each lot)
         ## bpt_lst,lots: listof(listof(point data) 
         debug = sc.sticky['debug']
         lst_bpt_lst_ = []
         lst_val_lst_ = []
+        lst_val_lst_actual_ = []
+
         for j,lot in enumerate(lots_):
             boundary = lot.shape.bottom_crv
             neighbor = []
             neighbor_val= []
+            neighbor_val_actual = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
                 """
@@ -125,20 +131,23 @@ class Bula:
                 if abs(float(in_lot) - 1.) <= 0.1:
                     neighbor.append(cp)#,datalst[i]])
                     neighbor_val.append(value_ref_[i])
+                    neighbor_val_actual.append(actual_value_ref_[i])
                     #d = rs.AddPoint(copy_cp[0], copy_cp[1],0)
                     #debug.append(d)
             lst_bpt_lst_.append(neighbor)
             lst_val_lst_.append(neighbor_val)
-        return lst_bpt_lst_,lst_val_lst_ 
-    def generate_bula_point(self,shapes_,lst_bpt_lst_,lst_value_lst,value_ref_actual_):
+            lst_val_lst_actual_.append(neighbor_val_actual)
+        return lst_bpt_lst_,lst_val_lst_,lst_val_lst_actual_ 
+    def generate_bula_point(self,shapes_,lst_bpt_lst_,lst_value_lst,lst_value_lst_actual_):
         ## Loop through shape nodes w/ bula_pts
         for i,shape_node in enumerate(shapes_):
             bpt_lst_ = lst_bpt_lst_[i]
             val_lst = lst_value_lst[i]
+            actual_val_lst = lst_value_lst_actual_[i]
             avg_val = reduce(lambda x,y: x+y,val_lst)
             ## Make a bpt for each lot
             bpt = Bula(bpt_lst_,val_lst,avg_val)
-            bpt.value_actual = value_ref_actual_
+            bpt.value_actual = actual_val_lst
             #if shape_node.grammar.type.has_key('bula_data'):
             #    shape_node.grammar.type['bula_data'].append(bpt)
             #else:

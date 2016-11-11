@@ -495,7 +495,7 @@ class Grammar:
             for bula_ref_index,bula_node in enumerate(bula_node_lst):
                 bula_node_sum = 0
                 buladata = bula_node.grammar.type['bula_data']
-                lpl_,lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
+                lpl_,lvl_, lvl_actual = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
                 #for vl_ in lvl_:
                 bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
                 
@@ -503,9 +503,9 @@ class Grammar:
                     min_bula_node_sum = bula_node_min
                     min_bula_node_index = bula_ref_index
             buladata = bula_node_lst[min_bula_node_index].grammar.type['bula_data']
-            lpl_,lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node_lst[min_bula_node_index])
+            lpl_,lvl_,actual_lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node_lst[min_bula_node_index])
             if lpl_ != [[]]:
-                n_ = buladata.generate_bula_point([n_],lpl_,lvl_)[0]
+                n_ = buladata.generate_bula_point([n_],lpl_,lvl_,actual_lvl_)[0]
                 val_lst = n_.grammar.type['bula_data'].value_lst
                 setht = min(val_lst)#sum(val_lst)/float(len(val_lst))
             return setht
@@ -725,7 +725,7 @@ class Grammar:
         ##Check to see what are input combo
         chk_apt = filter(lambda x: x!=None,analysis_ref) != []
         chk_val = filter(lambda x: x!=None,value_ref) != []
-        
+        value_ref_actual = None
         #Set defaults or add warnings
         if not chk_apt:
             print 'Analysis inputs are missing!'
@@ -738,7 +738,8 @@ class Grammar:
             #If value is a formula
             if chk_apt:
                 value_ref,value_ref_actual = B.apply_formula2points(value_ref,analysis_ref)
-                
+        if value_ref_actual == None:
+                value_ref_actual = copy.copy(value_ref)
         if chk_apt and chk_val: 
             #Convert from guid 
             if S.is_guid(analysis_ref[0]):
@@ -746,9 +747,9 @@ class Grammar:
             #Sort analysis pts into leaf nodes
             shape_leaves = temp_node_.traverse_tree(lambda n: n,internal=False)
             #shape_leaves = [temp_node_]
-            lst_plain_pt_lst, lst_value_lst = B.getpoints4lot(shape_leaves,analysis_ref,value_ref)
+            lst_plain_pt_lst, lst_value_lst,lst_value_lst_actual = B.getpoints4lot(shape_leaves,analysis_ref,value_ref,value_ref_actual)
             #Make bula point for each lot
-            B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst,value_ref_actual)
+            B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst,lst_value_lst_actual)
             B.set_bula_height4viz(shape_leaves)
     def meta_tree(self,temp_node_,PD_):
         def inc_depth(n):
