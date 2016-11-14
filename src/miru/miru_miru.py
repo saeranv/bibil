@@ -21,6 +21,7 @@ Miru = \
 'dist_lst':None,'delete_dist':None,\
 'label_UI':False,"label":"x",\
 'bula':False,'bula_point_lst':None,'bula_value_lst':None,\
+'landuse':False, 'landuse_zone':None,'landuse_label': "",\
 'meta_tree':False,'meta_insert':None, 'meta_relation':None,'meta_node':None}
 """--------------------------------"""
 

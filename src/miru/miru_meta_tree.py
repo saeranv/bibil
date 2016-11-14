@@ -14,9 +14,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['meta_tree', True],\
-    ['meta_insert', insert],\
     ['meta_node', node],\
-    ['meta_relation', relation],\
     ['end_rule']]
     
     for i, r in enumerate(rule_):
