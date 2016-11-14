@@ -783,9 +783,9 @@ class Grammar:
             root = meta_node.get_root()
             root.traverse_tree(lambda n:inc_depth(n),internal=True)
     def landuse(self,temp_node_,PD_):
-        landuse_node = PD_['landuse_zone']
-        landuse_label = PD_['landuse_label']
+        nodes2bucket = PD_['nodes2bucket']
         node_lst = []
+        """
         #Make nodes/labels of inputs
         for node,label in zip(landuse_node,landuse_label):
             emptyrules = DataTree[object]()
@@ -794,8 +794,9 @@ class Grammar:
             landuse_node = self.main_UI([node],emptyrules,label)
             node_lst.append(landuse_node)
         temp_node_.loc.extend(node_lst)
+        """
         return temp_node_
-    
+        
     def node2grammar(self,lst_node_,rule_in_):
         def helper_type2node(copy_node_,type_):
             #type: list of (dictionary of typology parameters)
@@ -805,8 +806,7 @@ class Grammar:
         def helper_clone_node(node_geom): 
             #Purpose: Create a node from geometry/parent node
             #if geometry, turned into node w/ blank label
-            #if node, clone a child node w/ blank label 
-            
+            #if node, clone a child node w/ blank label
             if type(T) == type(node_geom):
                 childn = self.helper_clone_node(node_geom,parent_node=node_geom)
                 node_geom.loc.append(childn)
@@ -835,6 +835,7 @@ class Grammar:
             #    print "Error @ Pattern.main_pattern"
             #print node_out_[0]
         #print '--'
+
         return L
     def main_grammar(self,node):
         ## Check geometry
@@ -893,11 +894,12 @@ class Grammar:
             except Exception as e:
                     print "Error @ solartype 1 or 3", str(e)
         """
+        #print temp_node.grammar.type['grammar']
         ## 7. Finish
         lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
         return lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
-        def helper_insert_rule_dict(label_lst_,rule_tree_):
+        def helper_nest_rules(label_lst_,rule_tree_):
             #Purpose: Extract rules from tree insert nest list of rule dictionaries
             B = Bula()
             
@@ -942,17 +944,42 @@ class Grammar:
                 lst_node_leaves = self.node2grammar(lst_node_,rule_)
                 return helper_main_recurse(lst_node_leaves,rule_lst)
         
-        #label is treated as a rule
-        label_rule_ = helper_label2rule(label__)
-        #nest rules
-        nested_rule_dict = helper_insert_rule_dict(label_rule_,rule_in_)
-        #make label a rule
-        #recursively create a child node derived from parent and apply a grammar rule           
-        lst_node_out = helper_main_recurse(node_in_,nested_rule_dict)
-        return lst_node_out
-         
-         
-         
+        
+        lst_node_out = []
+        #Check inputs
+        chk_input_len = False
+        #if node and label are ==
+        if abs(len(label__)-len(node_in_)) < 0.5:
+            chk_input_len = True
+        #if llabel = 1
+        elif abs(len(label__)-1.) < 0.5:
+            chk_input_len = True
+            
+        if chk_input_len:
+            if abs(len(label__)-1.) < 0.5:
+                #label is treated as a rule
+                label_rule_ = helper_label2rule(label__[0])
+                #nest rules
+                nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
+                #make label a rule
+                #recursively create a child node derived from parent and apply a grammar rule           
+                lst_node_out_ = helper_main_recurse(node_in_,nested_rule_dict)
+                lst_node_out.extend(lst_node_out_)
+            else:
+                #print 'multiple labels'                
+                #Map label num to label num if multiple labels
+                for lab,node_ in zip(label__,node_in_):
+                    #label is treated as a rule
+                    label_rule_ = helper_label2rule(lab)
+                    #nest rules
+                    nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
+                    #make label a rule
+                    #recursively create a child node derived from parent and apply a grammar rule           
+                    lst_node_out_ = helper_main_recurse([node_],nested_rule_dict)
+                    lst_node_out.extend(lst_node_out_)
+        else:
+            print 'Check the length of your inputs!'
+        return lst_node_out 
                     
 if True:
     sc.sticky["Grammar"] = Grammar
