@@ -25,7 +25,6 @@ class Tree:
         #for child in self.loc:
         #    ret += child.__repr__()
         return ret
-                
     def delete_node(self):
         if self is not None:
             self.loc = []
@@ -52,7 +51,10 @@ class Tree:
                 else:
                     accumulator.append(node) 
             elif node.parent == None:
-                return accumulator
+                if acc_ == False:
+                    return None
+                else:
+                    return accumulator
             return helper_backtrack_tree(node.parent,foo,accumulator,acc_)
         """ 
         Backtracks tree, applies function argument to every

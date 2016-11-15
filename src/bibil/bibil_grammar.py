@@ -69,7 +69,8 @@ class Grammar:
                 if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
                     child_shape.op_extrude(6.)
                 child_grammar = Grammar()
-                child_grammar.type["label"] = "nd__"+label
+                if label != "":
+                    child_grammar.type["label"] = label
                 child_node = Tree(child_shape,child_grammar,parent=parent_node,depth=tree_depth)
         except Exception as e:
             print "Error at Pattern.helper_geom2node", str(e)
@@ -589,26 +590,43 @@ class Grammar:
                 childnode = self.helper_geom2node(ring,subdiv)
                 subdiv.loc.append(childnode)
         return temp_node_
-    def court(self,temp_node_,PD_):        
-        #Abstract this as helper to parse ref geoms
-        def helper_court_refcrv(court_ref_,subdiv_):
-            N = Tree()
-            ##Checks the input type and outputs the a Shape obj based on reference
+    #Abstract this as helper to parse ref geoms
+    def helper_get_ref_shape(self,shape_ref_,node_):
+        ##Checks the input type and outputs the a Shape obj based on reference
+        N = Tree()
+        S = Shape()
+        refshape_ = None
+        #Base case
+        if shape_ref_ == None:
+            refshape_ = node_.shape
+        else:
             #Check if number reference to index of depth in binary data tree
-            if type(court_ref_) == type(1) or type(court_ref_) == type(1.):
-                if int(court_ref_) == 0:
-                    root = subdiv_.get_root()
-                    refshape_ = root.shape
+            if type(shape_ref_)==type(""): shape_ref_ = int(shape_ref_)
+            if type(shape_ref_) == type(1) or type(shape_ref_) == type(1.):
+                shape_ref_ = int(shape_ref_)
+                #positive or zero or negative
+                if shape_ref_ > -0.5:
+                    refdepth = shape_ref_
                 else:
-                    refshape_ = subdiv_.shape
-            ##Check if node ref
-            elif type(court_ref) == type(N):
-                refshape_ = court_ref_.shape
-            ##Assume geometry ref, let helper deal with different geoms
+                    refdepth = node_.depth + (shape_ref_ + 1)
+                refshape_backtrack = node_.backtrack_tree(lambda n:n.depth==refdepth,accumulate=False)
+                if refshape_backtrack:
+                    refshape_ = refshape_backtrack.shape
+            #Check if node
+            elif type(shape_ref_) == type(N):
+                refshape_ = node_.shape
+            #Assume geom
             else:
-                court_node = self.helper_geom2node(court_ref)
-                refshape_ = court_node.shape 
-            return refshape_  
+                try:
+                    shape_node = self.helper_geom2node(shape_ref_)
+                    refshape_ = shape_node.shape
+                except:
+                    pass
+        #check if nothing matches
+        if refshape_ == None:
+            refshape_ = node_.shape
+        return refshape_  
+    def court(self,temp_node_,PD_):        
         def court_slice(curr_node,rootshape,width_):
             def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count,count_subdiv):
                 #print count, curr_node_
@@ -692,6 +710,8 @@ class Grammar:
                     n.depth = curr_node.depth+1
                     n.parent = curr_node
                     L[i] = n
+                    print 'lbl', n.grammar.type['label']
+                    n.grammar.type['grammar'] = 'courtslice'
                 curr_node.loc = L##<<
             else:
                 diff = None
@@ -705,10 +725,9 @@ class Grammar:
         debug = sc.sticky['debug']
         diff = None
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
-        
         for subdiv in lon:
             subdiv.shape.convert_rc('3d')
-            refshape = helper_court_refcrv(court_ref,subdiv)
+            refshape = self.helper_get_ref_shape(court_ref,subdiv)
             if court_slice_bool:
                 try:
                     diff = court_slice(subdiv,refshape,court_width)
@@ -796,7 +815,6 @@ class Grammar:
         temp_node_.loc.extend(node_lst)
         """
         return temp_node_
-        
     def node2grammar(self,lst_node_,rule_in_):
         def helper_type2node(copy_node_,type_):
             #type: list of (dictionary of typology parameters)
