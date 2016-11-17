@@ -50,6 +50,7 @@ class Grammar:
                 return rc_brep
             else:
                 return rs.coercebrep(geom_)     
+        
         debug = sc.sticky['debug']
         child_node,child_shape = None, None
         IsDegenerate = False
