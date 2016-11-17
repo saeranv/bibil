@@ -86,9 +86,10 @@ class Bula:
         shape_point_lst = buladata.bpt_lst
         shape_value_lst = buladata.value_lst
         shape_value_lst_actual = buladata.value_actual
-    
+        
         #Call getpoints4lst
         lst_bpt_lst_,lst_val_lst_,lst_val_lst_actual_  = buladata.getpoints4lot(curr_node_lst,shape_point_lst,shape_value_lst,shape_value_lst_actual)
+        #print 'bula', lst_bpt_lst_, lst_val_lst_
         return lst_bpt_lst_,lst_val_lst_,lst_val_lst_actual_
     def getpoints4lot(self,lots_,cpt_,value_ref_,actual_value_ref_):
         ## Loop through tree lots and add the point_nodes
@@ -106,7 +107,7 @@ class Bula:
             neighbor_val_actual = []
             # look through all cpts from dpts and add to neighborlst
             for i,cp in enumerate(cpt_):
-                """
+                
                 movedist = abs(lot.shape.cpt[2]-cp[2])
                 if abs(movedist-0.0)>0.1:
                     if lot.shape.cpt[2] < cp[2]:
@@ -118,8 +119,8 @@ class Bula:
                     cp = sc.doc.Objects.AddPoint(cp)
                 copy_cp = rs.CopyObject(cp,vec)
                 #copy_cp = rs.coerce3dpoint() 
-                """
-                copy_cp = cp
+                
+                #copy_cp = cp
                 in_lot = 0
                 try:
                     in_lot = int(rs.PointInPlanarClosedCurve(copy_cp,boundary,lot.shape.cplane))
@@ -129,6 +130,7 @@ class Bula:
                 #1 = point is inside of the curve
                 #2 = point in on the curve
                 if abs(float(in_lot) - 1.) <= 0.1:
+                    cp = rs.coerce3dpoint(cp)
                     neighbor.append(cp)#,datalst[i]])
                     neighbor_val.append(value_ref_[i])
                     neighbor_val_actual.append(actual_value_ref_[i])

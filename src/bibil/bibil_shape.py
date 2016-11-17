@@ -189,17 +189,20 @@ class Shape:
                 sc_ = 3,3,3
                 line_cpt = rs.DivideCurve(split_line,2)[1]
                 split_line_sc = rs.ScaleObject(split_line,line_cpt,sc_)
+                #split_line_sc = rs.coercecurve(split_line_sc)
                 return split_line_sc
             except Exception as e:
                 pass#print "Error @ shape.helper_make_split_srf_xy"
                 #print str(e)#sys.exc_traceback.tb_lineno 
-        def helper_make_split_surf(split_line_):
+        def helper_make_split_surf(split_line__):
             if self.ht < 1: 
                 ht = 1.
             else: 
                 ht = self.ht
             split_path = rs.AddCurve([[0,0,0],[0,0,ht*2]],1)    
-            split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line_,split_path))
+            if not self.is_guid(split_line__):
+                split_line__ = sc.doc.Objects.AddCurve(split_line__)
+            split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line__,split_path))
             return split_surf
         def helper_get_split_line_surf(ratio_,axis_,deg_,split_line_ref_):
             split_line_, split_surf_ = None,None
@@ -220,7 +223,9 @@ class Shape:
                 split_surf_ = helper_make_split_surf_z(ratio_)
             else:
                 split_line_ = helper_make_split_line_xy(ratio_,deg_)
-                split_surf_ = helper_make_split_surf(split_line_)           
+                split_line_ = rs.coercecurve(split_line_)
+                split_surf_ = helper_make_split_surf(split_line_)
+                
             return split_line_, split_surf_
         
         rs.EnableRedraw(False)

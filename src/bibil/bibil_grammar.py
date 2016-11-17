@@ -425,29 +425,43 @@ class Grammar:
             ##init divide
             shape2keep_lst = []
             shape2omit_lst = []
-            try:
+            if True:
                 for child_ in topo_child_lst:
                     simple_ratio = child_.shape.calculate_ratio_from_dist(cut_axis,seconddiv_[0],dir_=0.)
                     child_param_lst = [0.,0.,0.,simple_ratio,"simple_divide",cut_axis]
-                    self.divide(child_,child_param_lst)
-                    for gchild_ in child_.traverse_tree(lambda n:n,internal=False):
+                    try:
+                        self.divide(child_,child_param_lst)
+                    except:
+                        pass
+                    topo_gchild_lst = child_.traverse_tree(lambda n:n,internal=False)
+                    for gchild_ in topo_gchild_lst:
+                        #debug.append(gchild_)
                         cut_axis_alt = "EW" if cut_axis == "NS" else "NS" 
                         IsDim = gchild_.shape.check_shape_dim(cut_axis_alt,seconddiv_[0],tol=1.)
                         #print IsDim, gchild_.shape.x_dist, gchild_.shape.y_dist
                         if IsDim:
                             gsimple_ratio = gchild_.shape.calculate_ratio_from_dist(cut_axis_alt,seconddiv_[1],dir_=0.)
                             gchild_param_lst = [0.,0.,0.,gsimple_ratio,"simple_divide",cut_axis_alt]
-                            self.divide(gchild_,gchild_param_lst)
+                            try:
+                                self.divide(gchild_,gchild_param_lst)
+                            except:
+                                pass
                             for ggchild_ in gchild_.traverse_tree(lambda n:n,internal=False):
-                                IsDim = ggchild_.shape.check_shape_dim(cut_axis,seconddiv_[1],tol=1.)
-                                if IsDim:
+                                IsDimT1 = ggchild_.shape.check_shape_dim(cut_axis,seconddiv_[1],tol=1.)
+                                IsDimT2 = ggchild_.shape.check_shape_dim(cut_axis_alt,seconddiv_[0],tol=1.)
+                                #IsArea = abs(ggchild_.shape.get_area() - (seconddiv_[0]*seconddiv_[1]) < 5.
+                                
+                                if IsDimT1 and IsDimT2:# and IsArea:
+                                    #print IsArea
+                                    #print ggchild_.shape.x_dist
+                                    #print ggchild_.shape.y_dist
                                     shape2keep_lst.append(ggchild_)
-                                else:
-                                    shape2omit_lst.append(ggchild_)
+                                #else:
+                                    #shape2omit_lst.append(ggchild_)
                         else:
                             shape2omit_lst.append(gchild_)
-            except:
-                pass                
+            #except:
+            #    pass                
             return shape2omit_lst,shape2keep_lst
         def check_base_with_offset(base_,offsetlst):
             # check if interect with tower-seperation list
@@ -532,6 +546,7 @@ class Grammar:
         seconddiv = (dim2keep[0],dim2keep[1])     
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,firstdiv,seconddiv,cut_axis)
         temp_node_topo.loc = shapes2keep
+        debug.extend(shapes2omit)
         if False==True:    
             ## Second subdivision of the topo curves by min dim
             #try:
@@ -569,6 +584,7 @@ class Grammar:
                 bula_node_sum = 0
                 buladata = bula_node.grammar.type['bula_data']
                 lpl_,lvl_, lvl_actual = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
+                
                 #for vl_ in lvl_:
                 bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
                 
