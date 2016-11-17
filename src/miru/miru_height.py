@@ -13,6 +13,7 @@ from Grasshopper import DataTree
 if run:
     rule = DataTree[object]()
     rule_ = [['height',height],\
+             ['height_randomize',randomize],\
              ['end_rule']]
     
     for i, r in enumerate(rule_):

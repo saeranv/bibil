@@ -97,7 +97,7 @@ class Shape:
         except Exception as e:
             #print str(e)#sys.exc_traceback.tb_lineno 
             self.ht, self.z_dist = None, None
-    def calculate_ratio_from_dist(self,axis,dist,dir=0.):
+    def calculate_ratio_from_dist(self,axis,dist,dir_=0.):
         # Direction of cut   
         # Long axis: YAxis
         # 1.0 ^
@@ -123,7 +123,7 @@ class Shape:
         # Cut from bottom
         ratio = dist/float(total_dist)
         # Cut from top
-        if dir > 0.5: 
+        if dir_ > 0.5: 
             ratio = 1. - ratio
         return ratio
     def vector2axis(self,ref_vector):
@@ -226,7 +226,7 @@ class Shape:
         rs.EnableRedraw(False)
         split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
         
-        if True:#try:#if True:
+        try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:
                 geom = rs.coercebrep(self.geom) if self.is_guid(self.geom) else self.geom 
@@ -264,9 +264,9 @@ class Shape:
                 geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
                 lst_child.extend(geom_childs)
                 #debug.extend(geom_childs)
-        #except Exception as e:
-        #    print "Error @ shape.op_split while splitting"
-        #    print str(e)#, sys.traceback.tb_lineno 
+        except Exception as e:
+            print "Error @ shape.op_split while splitting"
+            print str(e)#, sys.traceback.tb_lineno 
             
         ## Clean up or rearrange or cap the split child geometries
         try:
@@ -307,9 +307,9 @@ class Shape:
         if shape==None:
             shape = self
         if "EW" in axis_:    
-            shapedim = self.x_dist
+            shapedim = shape.x_dist
         else:
-            shapedim = self.y_dist
+            shapedim = shape.y_dist
         if min_or_max != False:
             ## Check if more than min
             if 'min' in min_or_max: 

@@ -5,19 +5,19 @@ import copy
 import scriptcontext as sc
 import rhinoscriptsyntax as rs
 import clr
+Grammar = sc.sticky["Grammar"]
 
 clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
  
 if run:   
-    """
     if court_ref:
-        if type(court_ref) != type(int(1)):
-            court_ref = rs.coercecurve(court_ref)
-    else:
-        parent_ref = 1
-    """
+        G = Grammar()
+        type_info = G.helper_get_type(court_ref)
+        if type_info == "geometry":
+            court_ref = rs.coercegeometry(court_ref)
+            
     rule = DataTree[object]()
     rule_ = [\
     ['court', True],\

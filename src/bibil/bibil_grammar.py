@@ -51,23 +51,30 @@ class Grammar:
             else:
                 return rs.coercebrep(geom_)     
         debug = sc.sticky['debug']
-        child_node = None
+        child_node,child_shape = None, None
+        IsDegenerate = False
+        tree_depth = 0
         try:
-            geom = helper_curve2srf(geom)
-            cplane_ref = None
-            tree_depth = 0
+            if geom:
+                geom = helper_curve2srf(geom)
+                cplane_ref = None
+                if parent_node: 
+                    cplane_ref = parent_node.shape.cplane
+                try:
+                    child_shape = Shape(geom,cplane=cplane_ref)
+                except Exception as e: 
+                    print 'Bibil has detected a degenerate shape', str(e)
+                    child_shape = Shape(geom,parent_node.shape.cplane)
+                IsDegenerate = abs(child_shape.x_dist-0.) < 0.01 or abs(child_shape.y_dist-0.) < 0.01
+            elif parent_node:
+                #cloned nodes get link to parent_node.shape
+                child_shape = parent_node.shape
             if parent_node: 
-                cplane_ref = parent_node.shape.cplane
                 tree_depth = parent_node.depth+1
-            try:
-                child_shape = Shape(geom,cplane=cplane_ref)
-            except Exception as e: 
-                print 'Bibil has detected a degenerate shape', str(e)
-                child_shape = Shape(geom,parent_node.shape.cplane)
-            IsDegenerate = abs(child_shape.x_dist-0.) < 0.0001 or abs(child_shape.y_dist-0.) < 0.0001
-            if not IsDegenerate:
-                if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
-                    child_shape.op_extrude(6.)
+            if IsDegenerate == False:
+                if geom:
+                    if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
+                        child_shape.op_extrude(1.)
                 child_grammar = Grammar()
                 if label != "":
                     child_grammar.type["label"] = label
@@ -77,7 +84,7 @@ class Grammar:
         return child_node
     def helper_clone_node(self,node_,parent_node=None,label=""):
         #Purpose: Input node, and output new node with same Shape, new Grammar
-        return self.helper_geom2node(node_.shape.geom,parent_node,label)
+        return self.helper_geom2node(None,parent_node,label)
     def solar_envelope_uni(self,node_0,time,seht,stype):
         def helper_get_curve_in_tree(node_,stype_,seht_):
             if stype_ == 3:
@@ -187,16 +194,40 @@ class Grammar:
             print e
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
-        sb_geom = PD_['stepback_geom']
-        sb_node = PD_['stepback_node']
-        sb_data = PD_['stepback_data']
+        sb_ref = PD_['stepback_ref']
+        sb_data = PD_['stepback_data'] #height:stepback
+        sb_random = PD_['stepback_randomize']
         ##sb_data: [(height,distance),(height,distance)...]     
-        try:
+        if True:#try:
+            #Parse setback data
+            for i,sbd in enumerate(sb_data):
+                sb_data[i] = map(lambda s: float(s), sbd.split(':'))
+            #Parse setback_randomize
+            if sb_random:
+                random_bounds = sb_random.split(':')
+                for i,rb in enumerate(random_bounds):
+                    random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
+                randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
+                randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
+                
+            #Get data if not geometry
+            sbg_type = self.helper_get_type(sb_ref[0])
+            if sbg_type != "geometry":
+                sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
+                axis_matrix = sb_node_ref.shape.set_base_matrix()
+                line_lst = []
+                for vectors in axis_matrix:
+                    line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
+                    line_lst.append(line)
+                sb_ref = line_lst
             ## Loop through the height,setback tuples
             for sbd in sb_data:
                 ht, dist = sbd[0], sbd[1]
-                ## Not efficient, but for now: loop through all sb_geoms
-                for sbg in sb_geom:
+                if sb_random:
+                    ht += random.randrange(randht_lo,randht_hi)
+                    dist += random.randrange(randsb_lo,randsb_hi)
+                ##Loop through all sb_geoms
+                for sbg in sb_ref:
                     # move sbref
                     move_vector= rc.Geometry.Vector3d(0,0,float(ht))
                     sbref_crv = sc.doc.Objects.AddCurve(sbg)
@@ -210,9 +241,9 @@ class Grammar:
                     if cut_geom:
                         tnode.shape.geom = cut_geom[0]
                         tnode.shape.reset(xy_change=True)
-        except Exception as e:
-            print str(e)#,sys.exc_traceback.tb_lineno 
-            print "Error at Pattern.stepback"
+        #except Exception as e:
+        #    print str(e)#,sys.exc_traceback.tb_lineno 
+        #    print "Error at Pattern.stepback"
         return tnode    
     def divide(self,node,PD_):       
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
@@ -300,16 +331,24 @@ class Grammar:
                     #print child_node.shape.y_dist
                     if child_node: node_.loc.append(child_node)
                 #print ''
-                #if 'simple_divide' not in grid_type: 
-                for nc in node_.loc:
-                    helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
+                if 'simple_divide' not in grid_type: 
+                    for nc in node_.loc:
+                        helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
         debug = sc.sticky['debug']
-        div = PD_['div_num']
-        div_deg = PD_['div_deg']
-        cut_width = PD_['div_cut']
-        ratio = PD_['div_ratio']
-        grid_type = PD_['div_type']
-        axis = PD_['axis']
+        if type(PD_)==type([]):
+            div = PD_[0]
+            div_deg = PD_[1]
+            cut_width = PD_[2]
+            ratio = PD_[3]
+            grid_type = PD_[4]
+            axis = PD_[5]
+        else:
+            div = PD_['div_num']
+            div_deg = PD_['div_deg']
+            cut_width = PD_['div_cut']
+            ratio = PD_['div_ratio']
+            grid_type = PD_['div_type']
+            axis = PD_['axis']
         tree_depth = 0.
         helper_divide_recurse(node,grid_type,div,tree_depth,cut_width,ratio,axis,0)
         return node
@@ -370,35 +409,46 @@ class Grammar:
         ##debug.append(line)
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
-    def separate_by_dist(self,temp_node_,distlst,dellst):
+    def separate_by_dist(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
             pt = n_.shape.cpt
             refpt = rs.AddPoint(pt[0],pt[1],ht_)
             topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
             childn = self.helper_geom2node(topcrv,n_,"")
             n_.loc.append(childn)
-            childn.shape.op_extrude(6.)
             return childn 
-        def subdivide_by_dim(temp_node_topo_,cut_axis,distlst_,dellst_):
-            ## Subdivide by large dist
-            cutwidth_first = distlst_[0] + distlst_[1]
-            firstdiv = (cutwidth_first,cutwidth_first)
-            self.divide(temp_node_topo_,"subdivide_dim",firstdiv,cut_axis)#,2.)
-            ## Subdivide by small dist
-            #cutwidth_second = distlst_[0] if distlst_[1] in dellst_ else distlst_[0]#distlst_[0] if distlst_[0] > distlst_[1] else distlst_[1]
-            # can't cut smaller height?
-            if distlst_[0] < distlst_[1]:
-                cutwidth_second = distlst_[1]
-            else:
-                cutwidth_second = distlst_[0]
+        def separate_dim(temp_node_topo_,firstdiv_,seconddiv_,cut_axis):
+            ##This needs to be a helper function w/ defaults preset
+            param_lst = [firstdiv_,0.,0.,0.5,"subdivide_dim",cut_axis]
+            self.divide(temp_node_topo_,param_lst)
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
-            for tnc in topo_child_lst:
-                seconddiv = (cutwidth_second,cutwidth_second)
-                try:
-                    self.divide(tnc,'subdivide_dim',seconddiv,cut_axis)#,2.)
-                except Exception as e: 
-                    print 'error at subbydim', str(e)
-            return temp_node_topo_
+            ##init divide
+            shape2keep_lst = []
+            shape2omit_lst = []
+            try:
+                for child_ in topo_child_lst:
+                    simple_ratio = child_.shape.calculate_ratio_from_dist(cut_axis,seconddiv_[0],dir_=0.)
+                    child_param_lst = [0.,0.,0.,simple_ratio,"simple_divide",cut_axis]
+                    self.divide(child_,child_param_lst)
+                    for gchild_ in child_.traverse_tree(lambda n:n,internal=False):
+                        cut_axis_alt = "EW" if cut_axis == "NS" else "NS" 
+                        IsDim = gchild_.shape.check_shape_dim(cut_axis_alt,seconddiv_[0],tol=1.)
+                        #print IsDim, gchild_.shape.x_dist, gchild_.shape.y_dist
+                        if IsDim:
+                            gsimple_ratio = gchild_.shape.calculate_ratio_from_dist(cut_axis_alt,seconddiv_[1],dir_=0.)
+                            gchild_param_lst = [0.,0.,0.,gsimple_ratio,"simple_divide",cut_axis_alt]
+                            self.divide(gchild_,gchild_param_lst)
+                            for ggchild_ in gchild_.traverse_tree(lambda n:n,internal=False):
+                                IsDim = ggchild_.shape.check_shape_dim(cut_axis,seconddiv_[1],tol=1.)
+                                if IsDim:
+                                    shape2keep_lst.append(ggchild_)
+                                else:
+                                    shape2omit_lst.append(ggchild_)
+                        else:
+                            shape2omit_lst.append(gchild_)
+            except:
+                pass                
+            return shape2omit_lst,shape2keep_lst
         def check_base_with_offset(base_,offsetlst):
             # check if interect with tower-seperation list
             intersect_offset = False
@@ -452,46 +502,62 @@ class Grammar:
                     sep_dist_ = dstlst[0]
                     set_separation_record(t_,sep_dist_,separation_tol_)
         debug = sc.sticky['debug']
-        #temp_node_topo = extract_topo(temp_node_,0.)
-        temp_node_topo = temp_node_
-        #delete base node
-        temp_node_topo.grammar.type['print']=False
+        
+        #Extract data
+        dim2keep = PD_['dim2keep']
+        dim2omit = PD_['dim2delete']
+        sep_ref = PD_['sep_ref']
+        
+        #Parse the data
+        dim2keep = map(lambda s: float(s), dim2keep.split(','))
+        dim2omit = map(lambda s: float(s), dim2omit.split(','))
+        
+        #Get the reference curve
+        sep_type = self.helper_get_type(sep_ref[0])
+        if sep_type == "node":
+            sep_node_ref = self.helper_get_ref_node(sep_ref,temp_node_)
+        else:
+            sep_node_ref = temp_node_
+        
+        #Get the top curve of the reference node
+        temp_node_topo = extract_topo(sep_node_ref,sep_node_ref.shape.ht)
+        #temp_node_topo = temp_node_
         
         ## Get normal to exterior srf
         normal2srf = self.helper_normal2extsrf(temp_node_topo)
         cut_axis = temp_node_topo.shape.vector2axis(normal2srf)
         
-        ## Recursively subdivide the lot crvs
-        temp_node_topo = subdivide_by_dim(temp_node_topo,cut_axis,distlst,dellst)
-        topo_grand_child_lst_ = temp_node_topo.traverse_tree(lambda n:n, internal=False)
-        
-        #try:
-        EL = []
-        for topo in topo_grand_child_lst_:
-            g = self.divide(topo,'subdivide_dim',(27.4,27.4),cut_axis)#,tol=3.)
-            g = g.traverse_tree(lambda n:n,internal=False)
-            gsh = map(lambda n:n.shape.geom,g)
-            #debug.extend(gsh)
-            #print 'test'
-            #print 'g'
-            EL.extend(g)
-        topo_grand_child_lst_ = EL
-        #except:
-        #    pass
-        
-        # Check base dim, check base separation
-        # Llabel bases that are valid separations
-        if not sc.sticky.has_key('seperation_offset_lst'):
-            sc.sticky['seperation_offset_lst'] = []
-        
-        sep_lst = sc.sticky['seperation_offset_lst']
-        separation_tol = 0.5
-        for t in topo_grand_child_lst_:
-            #debug.append(t.shape.geom)
-            check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
+        ## Get cut dimensions
+        firstdiv = (dim2keep[0] + dim2omit[0],dim2keep[1] + dim2omit[1])
+        seconddiv = (dim2keep[0],dim2keep[1])     
+        shapes2omit,shapes2keep = separate_dim(temp_node_topo,firstdiv,seconddiv,cut_axis)
+        temp_node_topo.loc = shapes2keep
+        if False==True:    
+            ## Second subdivision of the topo curves by min dim
+            #try:
+            EL = []
+            for topo in topo_grand_child_lst_:
+                g = self.divide(topo,'subdivide_dim',(27.4,27.4),cut_axis)#,tol=3.)
+                g = g.traverse_tree(lambda n:n,internal=False)
+                gsh = map(lambda n:n.shape.geom,g)
+                EL.extend(g)
+            topo_grand_child_lst_ = EL
+            #except:
+            #    pass
+            
+            # Check base dim, check base separation
+            # Llabel bases that are valid separations
+            if not sc.sticky.has_key('seperation_offset_lst'):
+                sc.sticky['seperation_offset_lst'] = []
+            
+            sep_lst = sc.sticky['seperation_offset_lst']
+            separation_tol = 0.5
+            for t in topo_grand_child_lst_:
+                #debug.append(t.shape.geom)
+                check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
         
         return temp_node_topo
-    def set_height(self,temp_node_,ht_):
+    def set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
             setht = 6. #default ht = midrise
             bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
@@ -519,6 +585,12 @@ class Grammar:
         
         debug = sc.sticky['debug']
         #print 'We are setting height!'
+        ht_ = PD_['height']
+        randomize_ht = PD_['height_randomize']
+        if randomize_ht:
+            random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
+            randht_lo,randht_hi = random_bounds[0],random_bounds[1]
+            ht_ += random.randrange(randht_lo,randht_hi)
         n_ = temp_node_
         #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
         if type(ht_)==type('') and 'bula' in ht_:
@@ -591,18 +663,37 @@ class Grammar:
                 subdiv.loc.append(childnode)
         return temp_node_
     #Abstract this as helper to parse ref geoms
-    def helper_get_ref_shape(self,shape_ref_,node_):
-        ##Checks the input type and outputs the a Shape obj based on reference
+    def helper_get_type(self,type_ref_):
+        type_info = None
         N = Tree()
         S = Shape()
+        #Check if number reference to index of depth in binary data tree
+        if type_ref_ == None:
+            type_info = None
+        elif type(type_ref_)==type(""): 
+            type_info = "string"
+        elif type(type_ref_) == type(1) or type(type_ref_) == type(1.):
+            type_info = "number"
+        elif type(type_ref_) == type(N):
+            type_info = "tree"
+        elif type(type_ref_) == type(S):
+            type_info = "shape"
+        else:
+            type_info = "geometry"
+        return type_info
+    def helper_get_ref_node(self,shape_ref_,node_):
+        ##Checks the input type and outputs the a Node based on reference
         refshape_ = None
         #Base case
-        if shape_ref_ == None:
-            refshape_ = node_.shape
+        type_info = self.helper_get_type(shape_ref_)
+        if type_info == None:
+            refshape_ = node_
         else:
             #Check if number reference to index of depth in binary data tree
-            if type(shape_ref_)==type(""): shape_ref_ = int(shape_ref_)
-            if type(shape_ref_) == type(1) or type(shape_ref_) == type(1.):
+            if type_info == "string": 
+                shape_ref_ = int(shape_ref_)
+                type_info = "number"
+            if type_info == "number":
                 shape_ref_ = int(shape_ref_)
                 #positive or zero or negative
                 if shape_ref_ > -0.5:
@@ -611,21 +702,21 @@ class Grammar:
                     refdepth = node_.depth + (shape_ref_ + 1)
                 refshape_backtrack = node_.backtrack_tree(lambda n:n.depth==refdepth,accumulate=False)
                 if refshape_backtrack:
-                    refshape_ = refshape_backtrack.shape
+                    refshape_ = refshape_backtrack
             #Check if node
-            elif type(shape_ref_) == type(N):
-                refshape_ = node_.shape
+            elif type_info == "node":
+                refshape_ = node_
             #Assume geom
             else:
                 try:
                     shape_node = self.helper_geom2node(shape_ref_)
-                    refshape_ = shape_node.shape
+                    refshape_ = shape_node
                 except:
                     pass
         #check if nothing matches
         if refshape_ == None:
-            refshape_ = node_.shape
-        return refshape_  
+            refshape_ = node_
+        return refshape_
     def court(self,temp_node_,PD_):        
         def court_slice(curr_node,rootshape,width_):
             def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count,count_subdiv):
@@ -710,7 +801,6 @@ class Grammar:
                     n.depth = curr_node.depth+1
                     n.parent = curr_node
                     L[i] = n
-                    print 'lbl', n.grammar.type['label']
                     n.grammar.type['grammar'] = 'courtslice'
                 curr_node.loc = L##<<
             else:
@@ -727,7 +817,8 @@ class Grammar:
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
         for subdiv in lon:
             subdiv.shape.convert_rc('3d')
-            refshape = self.helper_get_ref_shape(court_ref,subdiv)
+            refshape_node = self.helper_get_ref_node(court_ref,subdiv)
+            refshape = refshape_node.shape
             if court_slice_bool:
                 try:
                     diff = court_slice(subdiv,refshape,court_width)
@@ -826,10 +917,12 @@ class Grammar:
             #if geometry, turned into node w/ blank label
             #if node, clone a child node w/ blank label
             if type(T) == type(node_geom):
+                #print 'make cloned node'
                 childn = self.helper_clone_node(node_geom,parent_node=node_geom)
                 node_geom.loc.append(childn)
                 n_ = childn
             else:
+                #print 'make a geom'
                 n_ = self.helper_geom2node(node_geom)
             return n_       
         ## Purpose: Input list of nodes, applies type
@@ -847,6 +940,8 @@ class Grammar:
             if True:#try:
                 node_out_ = self.main_grammar(child_node_)
                 RhinoApp.Wait() 
+            #print 'label', node_out_
+            #print '---'
             #yield node_out_
             L.extend(node_out_)
             #except Exception as e:
@@ -857,8 +952,10 @@ class Grammar:
         return L
     def main_grammar(self,node):
         ## Check geometry
-        gb = node.shape.geom
-        if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
+        if node.shape:
+            gb = node.shape.geom
+            if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
+        
         PD = node.grammar.type
         temp_node = node
         if PD['label_UI'] == True:
@@ -869,7 +966,7 @@ class Grammar:
             temp_node = self.divide(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'divide'
         elif PD['height'] != False:
-            temp_node = self.set_height(temp_node,PD['height'])
+            temp_node = self.set_height(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'height'
         elif PD['stepback']:
             ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
@@ -887,12 +984,10 @@ class Grammar:
         elif PD['landuse'] == True:
             temp_node = self.landuse(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'landuse'
+        elif PD['separate'] == True:
+            temp_node = self.separate_by_dist(temp_node,PD)
         """
         These have to be rewritten
-        #elif PD['separate'] == True:
-        #    dist_lst = PD['dist_lst']
-        #    del_lst = PD['delete_dist']
-        #    temp_node = G.separate_by_dist(temp_node,dist_lst,del_lst)
         if solartype == 2: # multi_cell
             try:
                 temp_node = self.solar_envelope_multi(temp_node,solartime,node.grammar,solarht)
