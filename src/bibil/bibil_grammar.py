@@ -548,6 +548,7 @@ class Grammar:
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,firstdiv,seconddiv,cut_axis)
         temp_node_topo.loc = shapes2keep
         debug.extend(shapes2omit)
+        
         if False==True:    
             ## Second subdivision of the topo curves by min dim
             #try:
