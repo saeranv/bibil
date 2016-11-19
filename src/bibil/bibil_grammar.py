@@ -924,6 +924,9 @@ class Grammar:
         temp_node_.loc.extend(node_lst)
         """
         return temp_node_
+    def shape_angle(self,temp_node_,PD_):
+        print 'we are shape angling!'
+        return temp_node_
     def node2grammar(self,lst_node_,rule_in_):
         def helper_type2node(copy_node_,type_):
             #type: list of (dictionary of typology parameters)
@@ -1004,6 +1007,10 @@ class Grammar:
             temp_node.grammar.type['grammar'] = 'landuse'
         elif PD['separate'] == True:
             temp_node = self.separate_by_dist(temp_node,PD)
+            temp_node.grammar.type['grammar'] = 'separate'
+        elif PD['shape_angle'] == True:
+            temp_node = self.shape_angle(temp_node,PD)
+            temp_node.grammar.type['grammar'] = 'shape_angle'
         """
         These have to be rewritten
         if solartype == 2: # multi_cell

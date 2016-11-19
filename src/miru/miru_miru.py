@@ -20,7 +20,8 @@ Miru = \
 'label_UI':False,\
 'bula':False,\
 'landuse':False,\
-'meta_tree':False,}
+'meta_tree':False
+'shape_angle':False}
 """--------------------------------"""
 
 if True:
