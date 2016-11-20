@@ -398,14 +398,18 @@ class Shape:
                 return 2
             else:
                 return 1
-    def get_normal_point_inwards(self,refline_):
+    def get_normal_point_inwards(self,refline_,to_outside=False):
         ## Input a reference line and self.shape.polygon
         ## Returns the normal vector pointing
         ## into the polygon
         z_vector = rs.VectorCreate([0,0,0],[0,0,1]) 
         ## Make sure the line is CCW, else reverse order
         IsCCW = self.check_vertex_order(refline=refline_)
-        end_pts = self.get_endpt4line(refline_)
+        #Check to see if reffline is not a list of two points already
+        if type(refline_) != type([]):
+            end_pts = self.get_endpt4line(refline_)
+        else:
+            end_pts = refline_
         if not IsCCW:
             end_pts = [end_pts[1],end_pts[0]]
         #To check the CCW dir
@@ -416,7 +420,15 @@ class Shape:
         # Create to_inner vector using crossproduct
         # CCW dir_vector X z_vector = to_inner vector 
         to_inner = rs.VectorCrossProduct(dir_vector,z_vector) 
+        if to_outside == True:
+            to_inner.Reverse()
         return to_inner
+    def extrude_pt_perpendicular_to_pt(self,basept_,reflineptlst,to_inside=False):
+        #Input: basept, list of line pts, boolean for out or in
+        #Output: pt that is 90 degrees from that pt
+        normvector = self.get_normal_point_inwards(reflineptlst)
+        perppt = basept_ + normvector
+        return perppt
     def check_vertex_order(self,refline=None):
         ### Check if the shape is counter-clockwise
         ### This is achieved by walking the polygon, 
@@ -428,7 +440,10 @@ class Shape:
         ### Ref: http://stackoverflow.com/posts/1167206/revisions
         if refline!=None:
             endpts_lst = []
-            linepts = self.get_endpt4line(refline)
+            if type(refline) != type([]):
+                linepts = self.get_endpt4line(refline)
+            else:
+                linepts = refline
             # Make triangle
             endpts_lst.append([self.cpt,linepts[0]])
             endpts_lst.append(linepts)
@@ -457,6 +472,50 @@ class Shape:
             return True
         else:
             return False
+    def rotate_vector(self,vector,deg,axis=[0,0,1]):
+        axis = rs.coerce3dvector(axis)
+        angle_radians = rc.RhinoMath.ToRadians(deg)
+        rotvec = rc.Geometry.Vector3d(vector.X, vector.Y, vector.Z)
+        rotvec.Rotate(angle_radians, axis)
+        return rotvec
+    def rotate_vector_from_axis(self,angle_,lineveclst,movehead=True,to_inside=False):
+        #Rotates the lst of vectors (of line) around axis pt
+        
+        #if we are moving the tail, you ahve to flip the vector so rotate vector works
+        if movehead==True:
+            dir_vec = lineveclst[1]-lineveclst[0]
+            refvec4axis = lineveclst[0]
+        else:
+            dir_vec = lineveclst[0]-lineveclst[1]
+            refvec4axis = lineveclst[1]
+        #Vectors in rhino want to move inwards (ccounterwclockwise)
+        #However if you are moving the tail then dsire to flip out so reverse vector
+        if movehead==False:
+            angle_ = angle_ * -1.0
+        if to_inside == False:
+            angle_ = angle_ * -1.0
+        #print rotatehead
+        rot_vector = self.rotate_vector(dir_vec,angle_,axis=[0,0,1])
+        rot_vector.Unitize()
+        magnitude = dir_vec.Length
+        rot_vector = rot_vector * magnitude
+        rotated_linept = rot_vector + refvec4axis
+        
+        if movehead==True:
+            linept_ = [refvec4axis,rotated_linept]
+        else:
+            linept_ = [rotated_linept,refvec4axis]
+        return linept_
+    def get_pt_of_intersection(self,line2intersect):
+        #Takes to list of pts for lines
+        #Returns the pt of intersection and bool of is intersection exist
+        linelst4int = map(lambda lpt: rc.Geometry.Curve.CreateControlPointCurve(lpt,0),line2intersect)
+        linelst4int = map(lambda crv: rs.coerceline(crv),linelst4int)    
+        lineA,lineB = linelst4int[0], linelst4int[1]
+        IsIntersect,a,b = rc.Geometry.Intersect.Intersection.LineLine(lineA,lineB)
+        if IsIntersect:
+            a = lineA.PointAt(a)
+        return IsIntersect,a
     def get_endpt4line(self,line_):
         if self.is_guid(line_):
             line_ = rs.coercecurve(line_)

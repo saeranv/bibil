@@ -924,8 +924,66 @@ class Grammar:
         temp_node_.loc.extend(node_lst)
         """
         return temp_node_
+    def transform2height(self,PD_):
+        pass
     def shape_angle(self,temp_node_,PD_):
-        print 'we are shape angling!'
+        #Purpose: Input node, angle degree
+        #Output a shape2d with angle chagned according to degree
+        #Could this be used to stepbacks? 
+        debug = sc.sticky['debug']
+        #Get base matrix
+        base_matrix = temp_node_.shape.set_base_matrix()
+        lines2rotate = [base_matrix[0],base_matrix[1]]
+        line2intersect = []
+        angle = 10.0
+        #newline = rc.Geometry.Curve.CreateControlPointCurve(linept,0)
+        #norm_vector =   temp_node_.shape.get_normal_point_inwards(refline)    
+        #This is for squeezing the angles
+        for i,linept_ in enumerate(lines2rotate):
+            #roteate intersection lines outside
+            if i%2==0:
+                heta = False
+                basept_index = 0
+            else:
+                heta = True
+                basept_index = 1 
+            toin = False
+            linept_ = temp_node_.shape.rotate_vector_from_axis(angle,linept_,movehead=heta,to_inside=toin)    
+            lines2rotate[i] = linept_
+            newbasept = lines2rotate[i][basept_index]
+            
+            #Getting the perp pt for each rotated line
+            perppt = temp_node_.shape.extrude_pt_perpendicular_to_pt(newbasept,linept_)
+            if i%2==0:
+                perp_linept_ = [perppt,newbasept]
+            else:
+                perp_linept_ = [newbasept,perppt]
+            line2intersect.append(perp_linept_)
+        #lines2rotate: first two lines that we rotated
+        #line2intersect: lines we are going to intersect
+        #Intersecting the lines
+        IsIntersect,intpt = temp_node_.shape.get_pt_of_intersection(line2intersect)
+        if IsIntersect:
+            for i,linept in enumerate(line2intersect):
+                if i%2==0:
+                    line2intersect[i] = [intpt,linept[1]]
+                else:
+                    line2intersect[i] = [linept[0],intpt]
+           
+            # To perserve the ccw order
+            line2intersect = [line2intersect[1],line2intersect[0]]
+            # Now add everything together and draw the lines
+            base_matrix = lines2rotate + line2intersect
+            pts4crv = []
+            for i,b in enumerate(base_matrix):
+                #newline = rc.Geometry.Curve.CreateControlPointCurve(b,0)
+                #debug.append(newline)
+                #debug.append(b[0])
+                pts4crv.append(b[0])
+            pts4crv += [pts4crv[0]]
+            shapecrv = rc.Geometry.Curve.CreateControlPointCurve(pts4crv,1)
+            #mutate the ndoe
+            temp_node_ = self.helper_geom2node(shapecrv,temp_node_.parent)
         return temp_node_
     def node2grammar(self,lst_node_,rule_in_):
         def helper_type2node(copy_node_,type_):
