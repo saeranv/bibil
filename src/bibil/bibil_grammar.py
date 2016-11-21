@@ -27,12 +27,12 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"x",'grammar':"",'axis':"NS",'ratio':0.}
+        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.}
         #need to move axis, NS, ratio to divide
         empty_rule_dict = copy.deepcopy(Miru)
         self.type.update(empty_rule_dict)
         
-    def helper_geom2node(self,geom,parent_node=None,label=""):
+    def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
             curve_guid = None
@@ -77,15 +77,17 @@ class Grammar:
                     if child_shape.z_dist!=None and int(child_shape.z_dist) <= 0.0001:
                         child_shape.op_extrude(1.)
                 child_grammar = Grammar()
-                if label != "":
-                    child_grammar.type["label"] = label
+                child_grammar.type["label"] = label
+                child_grammar.type["grammar"] = grammar
                 child_node = Tree(child_shape,child_grammar,parent=parent_node,depth=tree_depth)
         except Exception as e:
             print "Error at Pattern.helper_geom2node", str(e)
         return child_node
-    def helper_clone_node(self,node_,parent_node=None,label=""):
+    def helper_clone_node(self,node_,parent_node=None,label="x"):
         #Purpose: Input node, and output new node with same Shape, new Grammar
         return self.helper_geom2node(None,parent_node,label)
+    def is_near_zero(self,num,eps=1E-10):
+        return abs(float(num)) < eps
     def solar_envelope_uni(self,node_0,time,seht,stype):
         def helper_get_curve_in_tree(node_,stype_,seht_):
             if stype_ == 3:
@@ -735,6 +737,27 @@ class Grammar:
         if refshape_ == None:
             refshape_ = node_
         return refshape_
+    def flatten_node_tree_single_child(self,lstofchild,parent_ref_node,grammar="null"):
+        #Input list of nodes at different depths, a parent, grammar
+        #Create flat list of nodes w/ same parent
+        def clean_child_nodes(loc):
+            #Clean child nodes of links to parent or childs
+            for i,c in enumerate(loc):
+                c.loc = []
+                c.parent = None
+                loc[i] = c
+            return loc
+        
+        parent_ref_node.loc = []
+        lstofchild = clean_child_nodes(lstofchild)
+        for i,n in enumerate(lstofchild):
+            n.depth = parent_ref_node.depth+1
+            n.parent = parent_ref_node
+            lstofchild[i] = n
+            if grammar != "null":
+                n.grammar.type['grammar'] = grammar
+        parent_ref_node.loc = lstofchild
+        return parent_ref_node
     def court(self,temp_node_,PD_):        
         def court_slice(curr_node,rootshape,width_):
             def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count,count_subdiv):
@@ -815,12 +838,8 @@ class Grammar:
                 #debug.extend(map(lambda n:n.shape.geom,L))
                 #debug.append(diff.shape.geom)
                 #print diff
-                for i,n in enumerate(L):
-                    n.depth = curr_node.depth+1
-                    n.parent = curr_node
-                    L[i] = n
-                    n.grammar.type['grammar'] = 'courtslice'
-                curr_node.loc = L##<<
+                curr_node = self.flatten_node_tree_single_child(L,curr_node,grammar="courtslice")
+                
             else:
                 diff = None
             return diff
@@ -924,23 +943,41 @@ class Grammar:
         temp_node_.loc.extend(node_lst)
         """
         return temp_node_
-    def transform2height(self,PD_):
-        pass
-    def shape_angle(self,temp_node_,PD_):
+    def shape2height(self,temp_node_,PD_):
+        angle = 1.25
+        ht_inc = 3.0
+        side_inc = -0.1
+        ht = temp_node_.shape.ht
+        floor_div = int(math.floor(ht/ht_inc))
+        input_node = temp_node_
+        #print 'floordiv', floor_div
+        for i,fdiv in enumerate(range(floor_div)):
+            print 'fdiv', fdiv
+            if fdiv > 5.0:
+                inc_angle = angle * -1.0
+            else:
+                inc_angle = angle
+            print 'angle', inc_angle
+            input_node_with_child = self.squeeze_angle(input_node,inc_angle,ht_inc,side_inc)
+            input_node = input_node_with_child.loc[0]
+        loc = temp_node_.traverse_tree(lambda n:n,internal=True)
+        loc.pop(0)
+        temp_node_ = self.flatten_node_tree_single_child(loc,temp_node_)
+        
+        return temp_node_
+    def squeeze_angle(self,temp_node_,angle,ht_inc,side_inc):
         #Purpose: Input node, angle degree
         #Output a shape2d with angle chagned according to degree
-        #Could this be used to stepbacks? 
+        
+        ## Prep inputs
         debug = sc.sticky['debug']
         #Get base matrix
         base_matrix = temp_node_.shape.set_base_matrix()
         lines2rotate = [base_matrix[0],base_matrix[1]]
         line2intersect = []
-        angle = 10.0
-        #newline = rc.Geometry.Curve.CreateControlPointCurve(linept,0)
-        #norm_vector =   temp_node_.shape.get_normal_point_inwards(refline)    
-        #This is for squeezing the angles
+        
+        ## Roteate intersection lines outside 
         for i,linept_ in enumerate(lines2rotate):
-            #roteate intersection lines outside
             if i%2==0:
                 heta = False
                 basept_index = 0
@@ -949,9 +986,18 @@ class Grammar:
                 basept_index = 1 
             toin = False
             linept_ = temp_node_.shape.rotate_vector_from_axis(angle,linept_,movehead=heta,to_inside=toin)    
+            
+            ## Increment side length
+            if not self.is_near_zero(side_inc,eps=1E-10): 
+                newdirvec = linept_[1] - linept_[0]
+                newdirvec.Unitize()
+                sideincvec = newdirvec * side_inc
+                orig_vec = linept_[1] - linept_[0]
+                extended_vec = orig_vec + sideincvec
+                linept_[1] = linept_[0] + extended_vec
+            
             lines2rotate[i] = linept_
             newbasept = lines2rotate[i][basept_index]
-            
             #Getting the perp pt for each rotated line
             perppt = temp_node_.shape.extrude_pt_perpendicular_to_pt(newbasept,linept_)
             if i%2==0:
@@ -959,6 +1005,8 @@ class Grammar:
             else:
                 perp_linept_ = [newbasept,perppt]
             line2intersect.append(perp_linept_)
+        
+        ## Intersect the two lines
         #lines2rotate: first two lines that we rotated
         #line2intersect: lines we are going to intersect
         #Intersecting the lines
@@ -969,21 +1017,26 @@ class Grammar:
                     line2intersect[i] = [intpt,linept[1]]
                 else:
                     line2intersect[i] = [linept[0],intpt]
-           
             # To perserve the ccw order
             line2intersect = [line2intersect[1],line2intersect[0]]
             # Now add everything together and draw the lines
             base_matrix = lines2rotate + line2intersect
             pts4crv = []
             for i,b in enumerate(base_matrix):
-                #newline = rc.Geometry.Curve.CreateControlPointCurve(b,0)
-                #debug.append(newline)
-                #debug.append(b[0])
                 pts4crv.append(b[0])
             pts4crv += [pts4crv[0]]
             shapecrv = rc.Geometry.Curve.CreateControlPointCurve(pts4crv,1)
-            #mutate the ndoe
-            temp_node_ = self.helper_geom2node(shapecrv,temp_node_.parent)
+            
+            ## Increment height
+            if not self.is_near_zero(ht_inc,eps=1E-10):
+                htvec = rc.Geometry.Vector3d(0,0,ht_inc)
+                shapecrv_guid = sc.doc.Objects.AddCurve(shapecrv)
+                movevec = temp_node_.shape.move_geom(shapecrv_guid,htvec) 
+                shapecrv = rs.coercecurve(movevec)
+            
+            ## Mutate the node
+            temp_node_child = self.helper_geom2node(shapecrv,temp_node_,grammar="squeeze_angle")
+            temp_node_.loc.append(temp_node_child)
         return temp_node_
     def node2grammar(self,lst_node_,rule_in_):
         def helper_type2node(copy_node_,type_):
@@ -1066,9 +1119,9 @@ class Grammar:
         elif PD['separate'] == True:
             temp_node = self.separate_by_dist(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'separate'
-        elif PD['shape_angle'] == True:
-            temp_node = self.shape_angle(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'shape_angle'
+        elif PD['shape2height'] == True:
+            temp_node = self.shape2height(temp_node,PD)
+            temp_node.grammar.type['grammar'] = 'shape2height'
         """
         These have to be rewritten
         if solartype == 2: # multi_cell

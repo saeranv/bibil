@@ -373,6 +373,16 @@ class Shape:
         except Exception as e:
             print "Error @ shape.get_bottom"
             print str(e)#sys.exc_traceback.tb_lineno 
+    def move_geom(self,obj,dir_vector,copy=False):
+        #Moves a geometry
+        #Note, you will likely have to convert to guid and convert back to rc geom
+        xf = rc.Geometry.Transform.Translation(dir_vector)
+        xform = rs.coercexform(xf, True)
+        id = rs.coerceguid(obj, False)
+        id = sc.doc.Objects.Transform(id, xform, not copy)
+        return id
+    def is_near_zero(self,num,eps=1E-10):
+        return abs(float(num)) < eps
     def check_region(self,crvA,crvB=None,tol=0.1):
             """
             If disjoint, output 0 else returns 1.
@@ -387,7 +397,7 @@ class Shape:
             if crvB == None:
                 crvB = self.bottom_crv
             if self.is_guid(crvB):
-               crvB = rs.coercecurve(crvB)
+                crvB = rs.coercecurve(crvB)
             if self.is_guid(crvA):
                 crvA = rs.coercecurve(crvA) 
             refplane = self.cplane
@@ -472,15 +482,14 @@ class Shape:
             return True
         else:
             return False
-    def rotate_vector(self,vector,deg,axis=[0,0,1]):
-        axis = rs.coerce3dvector(axis)
-        angle_radians = rc.RhinoMath.ToRadians(deg)
-        rotvec = rc.Geometry.Vector3d(vector.X, vector.Y, vector.Z)
-        rotvec.Rotate(angle_radians, axis)
-        return rotvec
     def rotate_vector_from_axis(self,angle_,lineveclst,movehead=True,to_inside=False):
+        def helper_rotate_vector(vector,deg,axis=[0,0,1]):
+            axis = rs.coerce3dvector(axis)
+            angle_radians = rc.RhinoMath.ToRadians(deg)
+            rotvec = rc.Geometry.Vector3d(vector.X, vector.Y, vector.Z)
+            rotvec.Rotate(angle_radians, axis)
+            return rotvec
         #Rotates the lst of vectors (of line) around axis pt
-        
         #if we are moving the tail, you ahve to flip the vector so rotate vector works
         if movehead==True:
             dir_vec = lineveclst[1]-lineveclst[0]
@@ -488,14 +497,14 @@ class Shape:
         else:
             dir_vec = lineveclst[0]-lineveclst[1]
             refvec4axis = lineveclst[1]
-        #Vectors in rhino want to move inwards (ccounterwclockwise)
+        #Vectors in rhino want to move inwards (counterwclockwise)
         #However if you are moving the tail then dsire to flip out so reverse vector
         if movehead==False:
             angle_ = angle_ * -1.0
         if to_inside == False:
             angle_ = angle_ * -1.0
         #print rotatehead
-        rot_vector = self.rotate_vector(dir_vec,angle_,axis=[0,0,1])
+        rot_vector = helper_rotate_vector(dir_vec,angle_,axis=[0,0,1])
         rot_vector.Unitize()
         magnitude = dir_vec.Length
         rot_vector = rot_vector * magnitude
