@@ -1154,6 +1154,7 @@ class Grammar:
             
             #Convert tree to flat list
             #Also we will add label rules to top
+            
             flat_lst = label_lst_
             flat_lst_ = B.ghtree2nestlist(rule_tree_,nest=False)
             flat_lst += flat_lst_ 
@@ -1186,6 +1187,10 @@ class Grammar:
         def helper_main_recurse(lst_node_,rule_lst):
             #if no rules/label_rules node is just passed through
             if rule_lst == []:
+                for i,ng in enumerate(lst_node_):
+                    if type(T) != type(ng):
+                        ng = self.helper_geom2node(ng)
+                        lst_node_[i] = ng
                 return lst_node_
             else:
                 rule_ = rule_lst.pop(0)
@@ -1193,7 +1198,7 @@ class Grammar:
                 lst_node_leaves = self.node2grammar(lst_node_,rule_)
                 return helper_main_recurse(lst_node_leaves,rule_lst)
         
-        
+        T = Tree()
         lst_node_out = []
         #Check inputs
         chk_input_len = False
@@ -1203,13 +1208,18 @@ class Grammar:
         #if llabel = 1
         elif abs(len(label__)-1.) < 0.5:
             chk_input_len = True
-            
+        elif len(label__) <= 0.5:
+            chk_input_len = True
+
         if chk_input_len:
-            if abs(len(label__)-1.) < 0.5:
+            if abs(len(label__)-1.) < 0.5 or abs(len(label__)-0.) < 0.5:
                 #label is treated as a rule
-                label_rule_ = helper_label2rule(label__[0])
+                if len(label__) > 0.5:
+                    label_rule_ = helper_label2rule(label__[0])
+                else:
+                    label_rule_ = []
                 #nest rules
-                nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
+                nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)    
                 #make label a rule
                 #recursively create a child node derived from parent and apply a grammar rule           
                 lst_node_out_ = helper_main_recurse(node_in_,nested_rule_dict)
