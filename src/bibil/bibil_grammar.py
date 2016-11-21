@@ -944,16 +944,16 @@ class Grammar:
         """
         return temp_node_
     def shape2height(self,temp_node_,PD_):
-        angle = 1.25
+        angle = 1.
         ht_inc = 3.0
-        side_inc = -0.1
+        side_inc = 0.1
         ht = temp_node_.shape.ht
         floor_div = int(math.floor(ht/ht_inc))
         input_node = temp_node_
         #print 'floordiv', floor_div
         for i,fdiv in enumerate(range(floor_div)):
             print 'fdiv', fdiv
-            if fdiv > 5.0:
+            if fdiv > 10.0:
                 inc_angle = angle * -1.0
             else:
                 inc_angle = angle
