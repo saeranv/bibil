@@ -527,10 +527,11 @@ class Grammar:
         dim2keep = map(lambda s: float(s), dim2keep.split(','))
         dim2omit = map(lambda s: float(s), dim2omit.split(','))
         
-        print 'extract topt'
+        
+        sep_ref_node = self.helper_get_ref_node(sep_ref,temp_node_)
         #Get the top curve of the reference node
-        extract_dict = {'extract_slice_height':None,'extract_slice_ref':sep_ref}
-        temp_node_topo = self.extract_slice(temp_node_,extract_dict)
+        extract_dict = {'extract_slice_height':None}
+        temp_node_topo = self.extract_slice(sep_ref_node,extract_dict)
         #temp_node_topo = temp_node_
         
         ## Get normal to exterior srf
@@ -541,7 +542,8 @@ class Grammar:
         ## Get cut dimensions
         firstdiv = (dim2keep[0] + dim2omit[0],dim2keep[1] + dim2omit[1])
         seconddiv = (dim2keep[0],dim2keep[1])     
-        shapes2omit,shapes2keep = separate_dim(temp_node_topo,firstdiv,seconddiv,cut_axis,noncut_axis)
+        shapes2omit = []
+        #shapes2omit,shapes2keep = separate_dim(temp_node_topo,firstdiv,seconddiv,cut_axis,noncut_axis)
         #flatten_node_tree_single_child(lstofchild,parent_ref_node,grammar="null")
         print '---'
         if shapes2omit:    
@@ -573,22 +575,19 @@ class Grammar:
             pt = n_.shape.cpt
             refpt = rs.AddPoint(pt[0],pt[1],ht_)
             topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
-            childn = self.helper_geom2node(topcrv,n_,"")
+            childn = self.helper_geom2node(topcrv,n_,"extract_slice")
             n_.loc.append(childn)
-            print 'extract ht', ht_
             return childn
+        
+        ## Warning: this function will raise height of geom 1m.
         slice_ht = PD_['extract_slice_height']
-        slice_ref = PD_['extract_slice_ref']
         
         #Check inputs
-        if slice_ref == None: slice_ref = -1
         if type(slice_ht) != type([]): slice_ht = [slice_ht]
         if slice_ht == [] or slice_ht == [None]: slice_ht = ['max']
         
-        if slice_ht and slice_ref:
-            # Backtrack node ref
-            node2slice = self.helper_get_ref_node(slice_ref,temp_node_)
-            print node2slice
+        if slice_ht:
+            node2slice = temp_node_
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
                     slice_ht = [node2slice.shape.ht]
