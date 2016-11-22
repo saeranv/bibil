@@ -413,16 +413,14 @@ class Grammar:
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
     def separate_by_dist(self,temp_node_,PD_):
-        def extract_topo(n_,ht_):
-            pt = n_.shape.cpt
-            refpt = rs.AddPoint(pt[0],pt[1],ht_)
-            topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
-            childn = self.helper_geom2node(topcrv,n_,"")
-            n_.loc.append(childn)
-            return childn 
-        def separate_dim(temp_node_topo_,firstdiv_,seconddiv_,cut_axis):
+        def separate_dim(temp_node_topo_,firstdiv_,seconddiv_,cut_axis,cut_axis_alt):
             ##This needs to be a helper function w/ defaults preset
-            param_lst = [firstdiv_,0.,0.,0.5,"subdivide_dim",cut_axis]
+            #Axis issue:
+            param_lst = [firstdiv_,0.,0.,0.5,"subdivide_dim","NS"]
+            firstdiv_x = firstdiv_[0]
+            print firstdiv_x
+            print firstdiv_
+            print seconddiv_ 
             self.divide(temp_node_topo_,param_lst)
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
             ##init divide
@@ -430,16 +428,16 @@ class Grammar:
             shape2omit_lst = []
             if True:
                 for child_ in topo_child_lst:
-                    simple_ratio = child_.shape.calculate_ratio_from_dist(cut_axis,seconddiv_[0],dir_=0.)
+                    simple_ratio = child_.shape.calculate_ratio_from_dist(cut_axis,seconddiv_[1],dir_=0.)
                     child_param_lst = [0.,0.,0.,simple_ratio,"simple_divide",cut_axis]
                     try:
                         self.divide(child_,child_param_lst)
                     except:
                         pass
+                    """
                     topo_gchild_lst = child_.traverse_tree(lambda n:n,internal=False)
                     for gchild_ in topo_gchild_lst:
                         #debug.append(gchild_)
-                        cut_axis_alt = "EW" if cut_axis == "NS" else "NS" 
                         IsDim = gchild_.shape.check_shape_dim(cut_axis_alt,seconddiv_[0],tol=1.)
                         #print IsDim, gchild_.shape.x_dist, gchild_.shape.y_dist
                         if IsDim:
@@ -463,6 +461,7 @@ class Grammar:
                                     #shape2omit_lst.append(ggchild_)
                         else:
                             shape2omit_lst.append(gchild_)
+                    """
             #except:
             #    pass                
             return shape2omit_lst,shape2keep_lst
@@ -491,33 +490,32 @@ class Grammar:
             ## Append crv
             sc.sticky['seperation_offset_lst'].append(sep_crv)
             #check_base_separation_.grammar.type["print"] = True
-        def check_shape_validity(t_,cut_axis_,dstlst,dellst,sep_lst_,separation_tol_):
-            ## Check dimension then check if collision w/ offset dist
-            dim_ = dstlst[0] if dstlst[1] in dellst else dstlst[1]
-            # flip cut axis to check the resulting dim
-            IsEWDim,IsNSDim = False, False
+        def tempfigureoutwhattodowiththis():
+            exist_lst = sc.sticky['existing_tower']
+            check_separation_new = check_base_with_offset(t_,sep_lst_)
+            check_separation_exist = check_base_with_offset(t_,exist_lst)
+            #print 'new', check_separation_new
+            #print 'exis', check_separation_exist
+            IsIntersect = check_separation_new and check_separation_exist
+            #print IsIntersect
+            #print ''
+            #print len(exist_lst)
+            if IsIntersect == True:# != None:
+                sep_dist_ = dstlst[0]
+                set_separation_record(t_,sep_dist_,separation_tol_)
+        def check_shape_validity(t_,axis2chk_tuple,dim2chk_tuple,minarea):
+            ## Move this to shape class
+            ## Flip cut axis to check the resulting dim
+            IsEWDim,IsNSDim,IsMinArea = False, False, False
             try:
                 IsEWDim = t_.shape.check_shape_dim("EW",dim_,tol=2.)
                 IsNSDim = t_.shape.check_shape_dim("NS",dim_,tol=2.)
                 IsMinArea = t_.shape.get_area() >= 740.
             except:
                 pass
-            #print IsNSDim, IsEWDim
-            
-            #debug.append(t_.shape.geom)
-            if IsEWDim and IsNSDim and IsMinArea:
-                exist_lst = sc.sticky['existing_tower']
-                check_separation_new = check_base_with_offset(t_,sep_lst_)
-                check_separation_exist = check_base_with_offset(t_,exist_lst)
-                #print 'new', check_separation_new
-                #print 'exis', check_separation_exist
-                IsIntersect = check_separation_new and check_separation_exist
-                #print IsIntersect
-                #print ''
-                #print len(exist_lst)
-                if IsIntersect == True:# != None:
-                    sep_dist_ = dstlst[0]
-                    set_separation_record(t_,sep_dist_,separation_tol_)
+            #print IsNSDim, IsEWDim, IsMinArea
+            return IsEWDim and IsNSDim and IsMinArea
+                
         debug = sc.sticky['debug']
         
         #Extract data
@@ -529,41 +527,34 @@ class Grammar:
         dim2keep = map(lambda s: float(s), dim2keep.split(','))
         dim2omit = map(lambda s: float(s), dim2omit.split(','))
         
-        #Get the reference curve
-        sep_type = self.helper_get_type(sep_ref[0])
-        if sep_type == "node":
-            sep_node_ref = self.helper_get_ref_node(sep_ref,temp_node_)
-        else:
-            sep_node_ref = temp_node_
-        
+        print 'extract topt'
         #Get the top curve of the reference node
-        temp_node_topo = extract_topo(sep_node_ref,sep_node_ref.shape.ht)
+        extract_dict = {'extract_slice_height':None,'extract_slice_ref':sep_ref}
+        temp_node_topo = self.extract_slice(temp_node_,extract_dict)
         #temp_node_topo = temp_node_
         
         ## Get normal to exterior srf
         normal2srf = self.helper_normal2extsrf(temp_node_topo)
         cut_axis = temp_node_topo.shape.vector2axis(normal2srf)
-        
+        noncut_axis = "EW" if "NS" in cut_axis else "NS"
+         
         ## Get cut dimensions
         firstdiv = (dim2keep[0] + dim2omit[0],dim2keep[1] + dim2omit[1])
         seconddiv = (dim2keep[0],dim2keep[1])     
-        shapes2omit,shapes2keep = separate_dim(temp_node_topo,firstdiv,seconddiv,cut_axis)
-        temp_node_topo.loc = shapes2keep
-        debug.extend(shapes2omit)
-        
-        if False==True:    
-            ## Second subdivision of the topo curves by min dim
-            #try:
-            EL = []
-            for topo in topo_grand_child_lst_:
-                g = self.divide(topo,'subdivide_dim',(27.4,27.4),cut_axis)#,tol=3.)
-                g = g.traverse_tree(lambda n:n,internal=False)
-                gsh = map(lambda n:n.shape.geom,g)
-                EL.extend(g)
-            topo_grand_child_lst_ = EL
-            #except:
-            #    pass
-            
+        shapes2omit,shapes2keep = separate_dim(temp_node_topo,firstdiv,seconddiv,cut_axis,noncut_axis)
+        #flatten_node_tree_single_child(lstofchild,parent_ref_node,grammar="null")
+        print '---'
+        if shapes2omit:    
+            #Check shape validity
+            axis2chk = (cut_axis,noncut_axis)
+            dim2chk = dim2omit
+            minarea = dim2omit[0] * dim2omit[1]
+            #print axis2chk
+            #print dim2chk
+            #print minarea
+            #print '--'
+            #check_shape_validity(temp_node_topo,axis2chk,dim2chk,minarea)
+            """
             # Check base dim, check base separation
             # Llabel bases that are valid separations
             if not sc.sticky.has_key('seperation_offset_lst'):
@@ -574,8 +565,41 @@ class Grammar:
             for t in topo_grand_child_lst_:
                 #debug.append(t.shape.geom)
                 check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
-        
+            """
+            
         return temp_node_topo
+    def extract_slice(self,temp_node_,PD_):
+        def extract_topo(n_,ht_):
+            pt = n_.shape.cpt
+            refpt = rs.AddPoint(pt[0],pt[1],ht_)
+            topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
+            childn = self.helper_geom2node(topcrv,n_,"")
+            n_.loc.append(childn)
+            print 'extract ht', ht_
+            return childn
+        slice_ht = PD_['extract_slice_height']
+        slice_ref = PD_['extract_slice_ref']
+        
+        #Check inputs
+        if slice_ref == None: slice_ref = -1
+        if type(slice_ht) != type([]): slice_ht = [slice_ht]
+        if slice_ht == [] or slice_ht == [None]: slice_ht = ['max']
+        
+        if slice_ht and slice_ref:
+            # Backtrack node ref
+            node2slice = self.helper_get_ref_node(slice_ref,temp_node_)
+            print node2slice
+            if self.helper_get_type(slice_ht[0]) == "string":
+                if slice_ht[0] == 'max':
+                    slice_ht = [node2slice.shape.ht]
+                else:
+                    slice_ht = map(lambda s: float(s),slice_ht)
+            
+            #Extract topo
+            for slht in slice_ht:
+                extract_topo(node2slice,slht)
+        
+        return temp_node_
     def set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
             setht = 6. #default ht = midrise
@@ -1122,6 +1146,9 @@ class Grammar:
         elif PD['shape2height'] == True:
             temp_node = self.shape2height(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'shape2height'
+        elif PD['extract_slice'] == True:
+            temp_node = self.extract_slice(temp_node,PD)
+            temp_node.grammar.type['grammar'] = 'extract_slice'
         """
         These have to be rewritten
         if solartype == 2: # multi_cell

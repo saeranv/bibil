@@ -21,6 +21,7 @@ Miru = \
 'bula':False,\
 'landuse':False,\
 'meta_tree':False,\
+'extract_slice':False,\
 'shape2height':False}
 """--------------------------------"""
 

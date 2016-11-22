@@ -19,7 +19,8 @@ if run:
         type_info = G.helper_get_type(stepback_ref[0])
         if type_info == "geometry":
             stepback_ref =  map(lambda l: rs.coercecurve(l),stepback_ref)
-            
+    else:
+        stepback_ref = [-1]
     rule = DataTree[object]()
     rule_ = [\
     ['stepback', True],\
