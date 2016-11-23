@@ -414,6 +414,18 @@ class Grammar:
         return normal2srf
     def separate_by_dist(self,temp_node_,PD_):
         def separate_dim(temp_node_topo_,x_keep_omit_,y_keep_omit_,cut_axis,cut_axis_alt):
+            def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis):
+                #Now cut the valid shapes
+                VL = []
+                for validshape in lstvalidshape_:
+                    simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=0.)
+                    validshape_param_lst = [1.,dummy_deg,0.,simple_ratio,"simple_divide",dimaxis]
+                    try:
+                        self.divide(validshape,validshape_param_lst)
+                    except:
+                        pass
+                    VL.extend(validshape.traverse_tree(lambda n:n, internal=False))
+                return VL
             #Axis issue:
             #cut_axis: axis that cuts perpendicular to primary axis of shape
             #EW will cut y_dist
@@ -428,54 +440,35 @@ class Grammar:
             divbydim = (x_keep_+x_omit_,y_keep_+y_omit_)
             dummy_ratio, dummy_axis, dummy_deg = 0.5, "NS", 0.
             param_lst = [divbydim,dummy_deg,0.,dummy_ratio,"subdivide_dim",dummy_axis]
-            self.divide(temp_node_topo_,param_lst)
-            
+            try:
+                self.divide(temp_node_topo_,param_lst)
+            except:
+                pass
             ##Now recursively divide once for dim keep and check dim...
             shape2keep_lst = []
             shape2omit_lst = []
             
-            ## make this into a helper_function... with auto-recuruse or no? auto-Backtracking?
+            #Set inputs for simple divide
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
-            for child_ in topo_child_lst:
-                #Cut the y_axis
-                simple_ratio = child_.shape.calculate_ratio_from_dist(cut_axis,y_keep_,dir_=0.)
-                child_param_lst = [1.,dummy_deg,0.,simple_ratio,"simple_divide",cut_axis]
-                try:
-                    self.divide(child_,child_param_lst)
-                except:
-                    pass
-                ##tail-end recurse!!!
-                topo_gchild_lst = child_.traverse_tree(lambda n:n,internal=False)
-                
-                """
-                for gchild_ in topo_gchild_lst:
-                    #debug.append(gchild_)
-                    IsDim = gchild_.shape.check_shape_dim(cut_axis_alt,y_keep_,tol=1.)
-                    #print IsDim, gchild_.shape.x_dist, gchild_.shape.y_dist
-                    if IsDim:
-                        gsimple_ratio = gchild_.shape.calculate_ratio_from_dist(cut_axis_alt,seconddiv_[1],dir_=0.)
-                        gchild_param_lst = [0.,0.,0.,gsimple_ratio,"simple_divide",cut_axis_alt]
-                        try:
-                            self.divide(gchild_,gchild_param_lst)
-                        except:
-                            pass
-                        for ggchild_ in gchild_.traverse_tree(lambda n:n,internal=False):
-                            IsDimT1 = ggchild_.shape.check_shape_dim(cut_axis,seconddiv_[1],tol=1.)
-                            IsDimT2 = ggchild_.shape.check_shape_dim(cut_axis_alt,seconddiv_[0],tol=1.)
-                            #IsArea = abs(ggchild_.shape.get_area() - (seconddiv_[0]*seconddiv_[1]) < 5.
-                            
-                            if IsDimT1 and IsDimT2:# and IsArea:
-                                #print IsArea
-                                #print ggchild_.shape.x_dist
-                                #print ggchild_.shape.y_dist
-                                shape2keep_lst.append(ggchild_)
-                            #else:
-                                #shape2omit_lst.append(ggchild_)
-                    else:
-                        shape2omit_lst.append(gchild_)
-                """
-            #except:
-            #    pass                
+            #EW checks x_dist, NS checks y_dist << THIS SHOULD BE CHANGED TO HAVE SAME NAME        
+            if "EW" in cut_axis:##then the we are cutting y axis, give y dims
+                dimprimekeep = y_keep_
+                dimsecondkeep = x_keep_
+            else:
+                dimprimekeep = x_keep_
+                dimsecondkeep = y_keep_
+            lstfirkeepnodes = helper_simple_divide(topo_child_lst,dimprimekeep,cut_axis)
+            lstseckeepnodes = helper_simple_divide(lstfirkeepnodes,dimsecondkeep,cut_axis_alt)
+            
+            for final_node in lstseckeepnodes:
+                min_area = x_keep_ * y_keep_
+                div2keep = (x_keep_,y_keep_)
+                IsValidDimKeepOmit = check_shape_validity(final_node,div2keep,min_area,tol_=2.)
+                if IsValidDimKeepOmit:
+                    shape2keep_lst.append(final_node)
+                else:
+                    shape2omit_lst.append(final_node)
+            debug.extend(map(lambda n: n.shape.geom,shape2keep_lst))
             return shape2omit_lst,shape2keep_lst
         def check_base_with_offset(base_,offsetlst):
             # check if interect with tower-seperation list
@@ -515,14 +508,17 @@ class Grammar:
             if IsIntersect == True:# != None:
                 sep_dist_ = dstlst[0]
                 set_separation_record(t_,sep_dist_,separation_tol_)
-        def check_shape_validity(t_,axis2chk_tuple,dim2chk_tuple,minarea):
+        def check_shape_validity(t_,dim2chk_tuple,minarea,tol_=2.):
             ## Move this to shape class
             ## Flip cut axis to check the resulting dim
+            ## EW akways checks x axis, NS always checks y axis
             IsEWDim,IsNSDim,IsMinArea = False, False, False
+            x_dim = dim2chk_tuple[0]
+            y_dim = dim2chk_tuple[1]
             try:
-                IsEWDim = t_.shape.check_shape_dim("EW",dim_,tol=2.)
-                IsNSDim = t_.shape.check_shape_dim("NS",dim_,tol=2.)
-                IsMinArea = t_.shape.get_area() >= 740.
+                IsEWDim = t_.shape.check_shape_dim("EW",x_dim,tol=tol_)
+                IsNSDim = t_.shape.check_shape_dim("NS",y_dim,tol=tol_)
+                IsMinArea = abs(t_.shape.get_area() - minarea) <= tol_
             except:
                 pass
             #print IsNSDim, IsEWDim, IsMinArea
@@ -539,12 +535,11 @@ class Grammar:
         x_keep_omit = map(lambda s: float(s), x_keep_omit.split(','))
         y_keep_omit = map(lambda s: float(s), y_keep_omit.split(','))
         
-        
         sep_ref_node = self.helper_get_ref_node(sep_ref,temp_node_)
         #Get the top curve of the reference node
-        extract_dict = {'extract_slice_height':None}
-        temp_node_topo = self.extract_slice(sep_ref_node,extract_dict)
-        #temp_node_topo = temp_node_
+        #extract_dict = {'extract_slice_height':None}
+        #temp_node_topo = self.extract_slice(sep_ref_node,extract_dict)
+        temp_node_topo = sep_ref_node
         
         ## Get normal to exterior srf
         normal2srf = self.helper_normal2extsrf(temp_node_topo)
@@ -552,20 +547,12 @@ class Grammar:
         noncut_axis = "EW" if "NS" in cut_axis else "NS" 
         
         ## Get cut dimensions     
-        shapes2omit = []
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,x_keep_omit,y_keep_omit,cut_axis,noncut_axis)
-        #flatten_node_tree_single_child(lstofchild,parent_ref_node,grammar="null")
-        print '---'
-        if shapes2omit:    
-            #Check shape validity
-            axis2chk = (cut_axis,noncut_axis)
-            dim2chk = dim2omit
-            minarea = dim2omit[0] * dim2omit[1]
-            #print axis2chk
-            #print dim2chk
-            #print minarea
-            #print '--'
-            #check_shape_validity(temp_node_topo,axis2chk,dim2chk,minarea)
+        if not shapes2keep:    
+            pass
+            #flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep")
+            #flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2omit")
+            
             """
             # Check base dim, check base separation
             # Llabel bases that are valid separations
