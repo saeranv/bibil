@@ -401,6 +401,9 @@ class Shape:
             if self.is_guid(crvA):
                 crvA = rs.coercecurve(crvA) 
             refplane = self.cplane
+            print 'crvchk'
+            print crvA, crvB
+            print refplane
             setrel = rc.Geometry.Curve.PlanarClosedCurveRelationship (crvA,crvB,refplane,tol)
             if disjoint == setrel:
                 return 0

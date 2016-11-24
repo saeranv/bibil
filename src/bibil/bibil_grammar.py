@@ -413,6 +413,21 @@ class Grammar:
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
     def separate_by_dist(self,temp_node_,PD_):
+        def check_shape_validity(t_,dim2chk_tuple,minarea,tol_=2.):
+            ## Move this to shape class
+            ## Flip cut axis to check the resulting dim
+            ## EW akways checks x axis, NS always checks y axis
+            IsEWDim,IsNSDim,IsMinArea = False, False, False
+            x_dim = dim2chk_tuple[0]
+            y_dim = dim2chk_tuple[1]
+            try:
+                IsEWDim = t_.shape.check_shape_dim("EW",x_dim,tol=tol_)
+                IsNSDim = t_.shape.check_shape_dim("NS",y_dim,tol=tol_)
+                IsMinArea = abs(t_.shape.get_area() - minarea) <= tol_
+            except:
+                pass
+            #print IsNSDim, IsEWDim, IsMinArea
+            return IsEWDim and IsNSDim and IsMinArea
         def separate_dim(temp_node_topo_,x_keep_omit_,y_keep_omit_,cut_axis,cut_axis_alt):
             def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis):
                 #Now cut the valid shapes
@@ -468,78 +483,42 @@ class Grammar:
                     shape2keep_lst.append(final_node)
                 else:
                     shape2omit_lst.append(final_node)
-            debug.extend(map(lambda n: n.shape.geom,shape2keep_lst))
+            #debug.extend(map(lambda n: n.shape.geom,shape2keep_lst))
             return shape2omit_lst,shape2keep_lst
-        def check_base_with_offset(base_,offsetlst):
+        def check_base_with_offset(shape2off,GLOBLST):
             # check if interect with tower-seperation list
             intersect_offset = False
-            for offset in offsetlst:
+            for offset in GLOBLST:
                 crvA = offset
-                crvB = base_.shape.bottom_crv
+                crvB = shape2off.shape.bottom_crv
                 ##debug.append(offset)
-                setrel = base_.shape.check_region(crvA,crvB,tol=0.1)
+                print crvA
+                setrel = shape2off.shape.check_region(crvA,crvB,tol=0.1)
                 #If not disjoint
                 if not abs(setrel-0.)<0.1:
                     intersect_offset = True
                     break
             return not intersect_offset
-        def set_separation_record(check_base_separation_,sep_dist,separation_tol_):
+        def set_separation_record(shape2record,sep_dist,separation_tol_):
             ## Add some tolerance to separation distance
-            separation_tol_ = 0.5
             sep_dist_tol = (sep_dist - separation_tol_) * -1
-            sep_crv = check_base_separation_.shape.op_offset_crv(sep_dist_tol,corner=2)
+            sep_crv = shape2record.shape.op_offset_crv(sep_dist_tol,corner=3)
             #debug.append(check_base_separation_.shape.bottom_crv)
-            ## For viz
-            sep_crv_viz = check_base_separation_.shape.op_offset_crv(sep_dist*-1,corner=2)
-            debug.append(sep_crv_viz)
+            debug.append(sep_crv)
             ## Append crv
-            sc.sticky['seperation_offset_lst'].append(sep_crv)
-            #check_base_separation_.grammar.type["print"] = True
-        def tempfigureoutwhattodowiththis():
-            exist_lst = sc.sticky['existing_tower']
-            check_separation_new = check_base_with_offset(t_,sep_lst_)
-            check_separation_exist = check_base_with_offset(t_,exist_lst)
-            #print 'new', check_separation_new
-            #print 'exis', check_separation_exist
-            IsIntersect = check_separation_new and check_separation_exist
-            #print IsIntersect
-            #print ''
-            #print len(exist_lst)
-            if IsIntersect == True:# != None:
-                sep_dist_ = dstlst[0]
-                set_separation_record(t_,sep_dist_,separation_tol_)
-        def check_shape_validity(t_,dim2chk_tuple,minarea,tol_=2.):
-            ## Move this to shape class
-            ## Flip cut axis to check the resulting dim
-            ## EW akways checks x axis, NS always checks y axis
-            IsEWDim,IsNSDim,IsMinArea = False, False, False
-            x_dim = dim2chk_tuple[0]
-            y_dim = dim2chk_tuple[1]
-            try:
-                IsEWDim = t_.shape.check_shape_dim("EW",x_dim,tol=tol_)
-                IsNSDim = t_.shape.check_shape_dim("NS",y_dim,tol=tol_)
-                IsMinArea = abs(t_.shape.get_area() - minarea) <= tol_
-            except:
-                pass
-            #print IsNSDim, IsEWDim, IsMinArea
-            return IsEWDim and IsNSDim and IsMinArea
-                
+            sc.sticky['GLOBAL_COLLISION_LIST'].append(rs.coercecurve(sep_crv))
+            
         debug = sc.sticky['debug']
         
         #Extract data
         x_keep_omit = PD_['x_keep_omit']
         y_keep_omit = PD_['y_keep_omit']
-        sep_ref = PD_['sep_ref']
         
         #Parse the data
         x_keep_omit = map(lambda s: float(s), x_keep_omit.split(','))
         y_keep_omit = map(lambda s: float(s), y_keep_omit.split(','))
         
-        sep_ref_node = self.helper_get_ref_node(sep_ref,temp_node_)
-        #Get the top curve of the reference node
-        #extract_dict = {'extract_slice_height':None}
-        #temp_node_topo = self.extract_slice(sep_ref_node,extract_dict)
-        temp_node_topo = sep_ref_node
+        temp_node_topo = temp_node_#copy.deepcopy(sep_ref_node)
         
         ## Get normal to exterior srf
         normal2srf = self.helper_normal2extsrf(temp_node_topo)
@@ -548,24 +527,32 @@ class Grammar:
         
         ## Get cut dimensions     
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,x_keep_omit,y_keep_omit,cut_axis,noncut_axis)
-        if not shapes2keep:    
-            pass
-            #flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep")
-            #flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2omit")
+        
+        temp_node_topo.loc = []
+        
+        if shapes2keep:
+            #Flatten tree
+            temp_node_topo = self.flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep",empty_parent=True)
+            #temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
             
-            """
-            # Check base dim, check base separation
-            # Llabel bases that are valid separations
-            if not sc.sticky.has_key('seperation_offset_lst'):
-                sc.sticky['seperation_offset_lst'] = []
+            # Make/call global collision list
+            #if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
+            sc.sticky['GLOBAL_COLLISION_LIST'] = []
             
-            sep_lst = sc.sticky['seperation_offset_lst']
-            separation_tol = 0.5
-            for t in topo_grand_child_lst_:
-                #debug.append(t.shape.geom)
-                check_shape_validity(t,cut_axis,distlst,dellst,sep_lst,separation_tol)    
-            """
-            
+            offset_dist = x_keep_omit[1]
+            seperate_tol = 0.5
+            # Check shape separation
+            for i,t in enumerate(temp_node_topo.loc):
+                if 'shape2keep' in t.grammar.type['grammar']:
+                    GLOBAL_LST = sc.sticky['GLOBAL_COLLISION_LIST']
+                    GLOBAL_LST = filter(lambda offcrv: offcrv!=None,GLOBAL_LST)
+                    isSeperate = check_base_with_offset(t,GLOBAL_LST)
+                    if isSeperate == True:
+                        #offset_tuple
+                        set_separation_record(t,offset_dist,seperate_tol)
+        else: 
+            temp_node_topo.loc = [] 
+        
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
@@ -584,16 +571,15 @@ class Grammar:
         if slice_ht == [] or slice_ht == [None]: slice_ht = ['max']
         
         if slice_ht:
-            node2slice = temp_node_
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
-                    slice_ht = [node2slice.shape.ht]
+                    slice_ht = [temp_node_.shape.ht]
                 else:
                     slice_ht = map(lambda s: float(s),slice_ht)
             
             #Extract topo
             for slht in slice_ht:
-                extract_topo(node2slice,slht)
+                extract_topo(temp_node_,slht)
         
         return temp_node_
     def set_height(self,temp_node_,PD_):
@@ -757,18 +743,24 @@ class Grammar:
         if refshape_ == None:
             refshape_ = node_
         return refshape_
-    def flatten_node_tree_single_child(self,lstofchild,parent_ref_node,grammar="null"):
+    def flatten_node_tree_single_child(self,lstofchild,parent_ref_node,grammar="null",empty_parent=True):
         #Input list of nodes at different depths, a parent, grammar
         #Create flat list of nodes w/ same parent
         def clean_child_nodes(loc):
             #Clean child nodes of links to parent or childs
             for i,c in enumerate(loc):
+                for lc in c.loc:
+                    try:
+                        del lc.shape.geom
+                    except:
+                        pass
+                    del lc
                 c.loc = []
                 c.parent = None
                 loc[i] = c
             return loc
-        
-        parent_ref_node.loc = []
+        if empty_parent == True:
+            parent_ref_node.loc = []
         lstofchild = clean_child_nodes(lstofchild)
         for i,n in enumerate(lstofchild):
             n.depth = parent_ref_node.depth+1
@@ -776,7 +768,7 @@ class Grammar:
             lstofchild[i] = n
             if grammar != "null":
                 n.grammar.type['grammar'] = grammar
-        parent_ref_node.loc = lstofchild
+        parent_ref_node.loc.extend(lstofchild)
         return parent_ref_node
     def court(self,temp_node_,PD_):        
         def court_slice(curr_node,rootshape,width_):

@@ -30,7 +30,6 @@ if run:
     ['separate', True],\
     ['x_keep_omit',x_keep_omit],\
     ['y_keep_omit',y_keep_omit],\
-    ['sep_ref', seperation_ref],\
     ['end_rule']]   
     for i, r in enumerate(rule_):
         rule.Add(r)
