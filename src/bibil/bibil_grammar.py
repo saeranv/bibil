@@ -971,6 +971,103 @@ class Grammar:
         temp_node_.loc.extend(node_lst)
         """
         return temp_node_
+    def building_analysis(self,node_in,height,GFA,groundFloor_ht,restFloor_ht):
+        def get_label(n):
+            label_ = []
+            root = n[0].get_root()
+            L = root.traverse_tree(lambda n:n,internal=True) 
+            for nl in L:
+                #print nl
+                label_.append(nl)
+            return label_
+        def make_analysis(nodelen,pd):
+            ## Input: dictionary of parameter key, list of data value 
+            ## Output: Filtered list of str: with keys and value
+            L = [""] * nodelen
+            if pd.has_key('height'):
+                for i,ht in enumerate(pd['height']):
+                    valstr = 'height: %s' % (ht)
+                    L[i] += valstr
+            if pd.has_key('GFA'):
+                for i,gfa in enumerate(pd['GFA']):
+                    valstr = '\nGFA: %s' % (gfa)
+                    L[i] += valstr
+            return L
+        def get_ht(node_):
+            L = []
+            for n_ in node_:
+                storey = str(round(n_.shape.ht,1))
+                L.append(storey)
+            return L
+        def get_GFA(node_,ght,rht):
+            def helper_by_floor_div(n__,groundht):
+                ratio = groundht/n__.shape.ht
+                PD = {}
+                PD['div_num'] = 1
+                PD['div_deg'] = 0.
+                PD['div_cut'] = 0.
+                PD['div_ratio'] = ratio
+                PD['div_type'] = 'simple_divide'
+                PD['axis'] = "Z"
+                divnode = n__.grammar.divide(n_,PD)
+                
+                if abs(divnode.loc[0].shape.ht - groundht) < 0.01:
+                    groundfloor = divnode.loc[0]
+                    restfloor = divnode.loc[1]
+                else:
+                    groundfloor = divnode.loc[1]
+                    restfloor = divnode.loc[0]
+                return groundfloor,restfloor
+            def helper_by_floor_calc(n__,htdiv):
+                n__.shape.geom = ghcomp.CapHolesEx(n__.shape.geom)[0]
+                shapevol = rc.Geometry.VolumeMassProperties.Compute(n__.shape.geom).Volume
+                shapegfa = shapevol/htdiv
+                return shapegfa
+            debug = sc.sticky['debug']
+            ReadMe_ = ""
+            L = []
+            for n_ in node_:
+                if abs(ght-rht)<0.1:
+                    gfacalc = helper_by_floor_calc(n_,rht)
+                else:
+                    try:
+                        grndshape,rstshape = helper_by_floor_div(n_,ght)
+                        grndgfa = grndshape.shape.get_area()
+                        rstgfa = helper_by_floor_calc(rstshape,rht)
+                        gfacalc = grndgfa + rstgfa
+                    except:
+                        ReadMe_ = "Calculating by specific floor heights has failed, probably because the geometry was too complicated. GFA is now based on restfloorht."
+                        gfacalc = helper_by_floor_calc(rstshape,3.)
+                #debug.extend(map(lambda n:n.shape.geom,divnode.loc))
+                L.append(str(round(abs(gfacalc),1)))
+            return L,ReadMe_
+        
+        node = filter(lambda n: n!=None,node_in)
+        if node and node != []:
+            node = map(lambda n: copy.deepcopy(n),node)
+            debug = sc.sticky['debug']
+            ReadMe = ""
+            
+            #These always appear by default
+            label_out = get_label(node)
+            geom_out = map(lambda n:n.shape.geom,node)
+            pt_out = map(lambda n:n.shape.cpt,node)
+            #Analysis paramaters
+            param_dict = {}
+            if height==True:
+                ht_out = get_ht(node)
+                param_dict['height'] = ht_out
+            if GFA == True:
+                if not groundFloor_ht:
+                    groundFloor_ht = 3.0
+                if not restFloor_ht:
+                    restFloor_ht = 3.0
+                gfa_out,readmegfa = get_GFA(node,groundFloor_ht,restFloor_ht)
+                param_dict['GFA'] = gfa_out
+                ReadMe += readmegfa
+            analysis_out = make_analysis(len(node),param_dict)
+            if not ReadMe:
+                ReadMe = "Successfully calculated"
     def shape2height(self,temp_node_,PD_):
         angle = 0.5
         ht_inc = 3.0

@@ -3,11 +3,21 @@ Trinco UI
 """
 
 import scriptcontext as sc
+import clr
 
 Grammar = sc.sticky["Grammar"]
+clr.AddReference("Grasshopper")
+from Grasshopper.Kernel.Data import GH_Path
+from Grasshopper import DataTree
 
-    
+   
 node_in = filter(lambda n: n!=None,node_in)
+if rule_in.BranchCount < 0.5:
+    rule_in = DataTree[object]()
+    rule_ = []
+    for i, r in enumerate(rule_):
+        rule_in.Add(r)
+
 if run and node_in != []:
     G = Grammar()
     sc.sticky["debug"] = []
