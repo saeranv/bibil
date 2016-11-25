@@ -227,8 +227,10 @@ class Grammar:
             for sbd in sb_data:
                 ht, dist = sbd[0], sbd[1]
                 if sb_random:
-                    ht += random.randrange(randht_lo,randht_hi)
-                    dist += random.randrange(randsb_lo,randsb_hi)
+                    if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
+                        ht += random.randrange(randht_lo,randht_hi)
+                    if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
+                        dist += random.randrange(randsb_lo,randsb_hi)
                 ##Loop through all sb_geoms
                 for sbg in sb_ref:
                     # move sbref
@@ -504,7 +506,7 @@ class Grammar:
             sep_dist_tol = (sep_dist - separation_tol_) * -1
             sep_crv = shape2record.shape.op_offset_crv(sep_dist_tol,corner=3)
             #debug.append(check_base_separation_.shape.bottom_crv)
-            debug.append(sep_crv)
+            #debug.append(sep_crv)
             ## Append crv
             sc.sticky['GLOBAL_COLLISION_LIST'].append(rs.coercecurve(sep_crv))
             
@@ -533,7 +535,7 @@ class Grammar:
         if shapes2keep:
             #Flatten tree
             temp_node_topo = self.flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep",empty_parent=True)
-            #temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
+            temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
             
             # Make/call global collision list
             #if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
@@ -552,7 +554,12 @@ class Grammar:
                         set_separation_record(t,offset_dist,seperate_tol)
         else: 
             temp_node_topo.loc = [] 
-        
+        ##TEMP4MEETING
+        for i,t in enumerate(temp_node_topo.loc):
+            if 'omit' in t.grammar.type['grammar']:
+                temp_node_topo.loc[i] = None
+                debug.append(t)
+        temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
@@ -771,8 +778,8 @@ class Grammar:
         parent_ref_node.loc.extend(lstofchild)
         return parent_ref_node
     def court(self,temp_node_,PD_):        
-        def court_slice(curr_node,rootshape,width_):
-            def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count,count_subdiv):
+        def court_slice(curr_node,rootshape,width_,cut_width_):
+            def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count,count_subdiv,cut_width__):
                 #print count, curr_node_
                 cmax = 20.
                 tol = 2.
@@ -797,9 +804,10 @@ class Grammar:
                             midpt = curr_node_.shape.get_midpoint(line)
                             sc_ = 5,5,0
                             split_crv = rs.ScaleObject(split_crv,midpt,sc_)
-                            try:
+                            if True:#try:
+                                print cut_width__
                                 split_node_lst = []
-                                split_geoms = curr_node_.shape.op_split("NS",0.5,split_depth=0,split_line_ref=split_crv)
+                                split_geoms = curr_node_.shape.op_split("NS",0.5,split_depth=cut_width__,split_line_ref=split_crv)
                                 for geom in split_geoms:
                                     #if type(geom)!= type(rootshape.shape.geom):
                                     #    ##debug.append(geom)
@@ -811,8 +819,8 @@ class Grammar:
                                         valid_node = split_node
                                     else:
                                         invalid_node = split_node
-                            except:
-                                pass## Split fail, so test the next line split
+                            #except:
+                                #pass## Split fail, so test the next line split
                         matrice_max = len(matrice)==i+1
                         if invalid_node != None and valid_node != None:
                             valid_node_lst.append(valid_node)
@@ -826,7 +834,7 @@ class Grammar:
                             set_rel = curr_node_.shape.check_region(chk_offset_out,split_crv,tol=0.1)
                             if abs(set_rel-2.)<0.1 and count_subdiv < 1.:
                                 try:
-                                    L_,diff_ = recurse_slice(sn,shape_matrix,[],None,0,count_subdiv+1)
+                                    L_,diff_ = recurse_slice(sn,shape_matrix,[],None,0,count_subdiv+1,cut_width__)
                                     valid_node_lst.extend(L_)
                                     #debug.extend(map(lambda n:n.shape.geom,L_))
                                 except:
@@ -835,7 +843,7 @@ class Grammar:
                 # If the node has been split (invalid_node!= None)
                 # OR the node has no valid split lines (invalid_node == None)
                 # then we send it back into the recurser.
-                return recurse_slice(invalid_node,matrice,valid_node_lst,diff,count+1,count_subdiv)
+                return recurse_slice(invalid_node,matrice,valid_node_lst,diff,count+1,count_subdiv,cut_width__)
             
             ### REWRITE AS EXTRUSION OF BASE_MATRIX
             ### O(2n) complexity time
@@ -846,7 +854,7 @@ class Grammar:
                 off_node = self.helper_geom2node(offset,curr_node)
                 shape_matrix = off_node.shape.set_base_matrix()
                 #debug.append(curr_node.shape.geom)
-                L,diff = recurse_slice(curr_node,shape_matrix,[],None,0,0)
+                L,diff = recurse_slice(curr_node,shape_matrix,[],None,0,0,cut_width_)
                 #debug.extend(map(lambda n:n.shape.geom,L))
                 #debug.append(diff.shape.geom)
                 #print diff
@@ -860,6 +868,14 @@ class Grammar:
         court_ref = PD_['court_ref']
         court_width = PD_['court_width']
         court_slice_bool = PD_['court_slice']
+        court_randomize = PD_['court_randomize']
+        cut_width = PD_['court_cut_width']
+        if not cut_width:
+            cut_width = 0.
+        if court_randomize:
+            random_bounds = map(lambda r: int(float(r)),court_randomize.split('>'))
+            randct_lo,randct_hi = random_bounds[0],random_bounds[1]
+            court_width += random.randrange(randct_lo,randct_hi)
         
         debug = sc.sticky['debug']
         diff = None
@@ -870,7 +886,7 @@ class Grammar:
             refshape = refshape_node.shape
             if court_slice_bool:
                 try:
-                    diff = court_slice(subdiv,refshape,court_width)
+                    diff = court_slice(subdiv,refshape,court_width,cut_width)
                 except Exception as e:
                     print 'Error @ court_slice', str(e)
             elif court_width > 0.:
@@ -956,7 +972,7 @@ class Grammar:
         """
         return temp_node_
     def shape2height(self,temp_node_,PD_):
-        angle = 1.
+        angle = 0.5
         ht_inc = 3.0
         side_inc = 0.1
         ht = temp_node_.shape.ht

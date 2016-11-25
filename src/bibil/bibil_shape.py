@@ -186,7 +186,7 @@ class Shape:
                 if float(degree) > 0.5:
                     cpt = rs.DivideCurve(split_line,2,True,True)[1] 
                     split_line = rs.RotateObject(split_line,cpt,degree)
-                sc_ = 3,3,3
+                sc_ = 1.5,1.5,1.5
                 line_cpt = rs.DivideCurve(split_line,2)[1]
                 split_line_sc = rs.ScaleObject(split_line,line_cpt,sc_)
                 #split_line_sc = rs.coercecurve(split_line_sc)
@@ -401,9 +401,6 @@ class Shape:
             if self.is_guid(crvA):
                 crvA = rs.coercecurve(crvA) 
             refplane = self.cplane
-            print 'crvchk'
-            print crvA, crvB
-            print refplane
             setrel = rc.Geometry.Curve.PlanarClosedCurveRelationship (crvA,crvB,refplane,tol)
             if disjoint == setrel:
                 return 0

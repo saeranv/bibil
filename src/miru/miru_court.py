@@ -24,6 +24,8 @@ if run:
     ['court_width', width],\
     ['court_node', -1],\
     ['court_slice', True],\
+    ['court_randomize',randomize],\
+    ['court_cut_width',cut_width],\
     ['court_ref', court_ref],\
     ['end_rule']]
     
