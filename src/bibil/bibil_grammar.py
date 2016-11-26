@@ -1338,8 +1338,16 @@ class Grammar:
             chk_input_len = True
         elif len(label__) <= 0.5:
             chk_input_len = True
-
-        if chk_input_len:
+        
+        #Check if rule has already propogated
+        IsLeaf = True
+        for n in node_in_:
+            if type(n) == type(T) and len(n.loc) > 0.5:
+                IsLeaf = False
+                lst_node_out = node_in_
+                break
+                
+        if chk_input_len and IsLeaf:
             if abs(len(label__)-1.) < 0.5 or abs(len(label__)-0.) < 0.5:
                 #label is treated as a rule
                 if len(label__) > 0.5:
@@ -1365,7 +1373,7 @@ class Grammar:
                     lst_node_out_ = helper_main_recurse([node_],nested_rule_dict)
                     lst_node_out.extend(lst_node_out_)
         else:
-            print 'Check the length of your inputs!'
+            print 'Either check the length of your inputs or you have already ran this component'
         return lst_node_out 
                     
 if True:
