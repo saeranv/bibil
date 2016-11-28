@@ -27,7 +27,7 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.}
+        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.,'top':False}
         #need to move axis, NS, ratio to divide
         empty_rule_dict = copy.deepcopy(Miru)
         self.type.update(empty_rule_dict)
@@ -212,7 +212,7 @@ class Grammar:
                     random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
                 randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
                 randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
-                
+            
             #Get data if not geometry
             sbg_type = self.helper_get_type(sb_ref[0])
             if sbg_type != "geometry":
@@ -231,25 +231,62 @@ class Grammar:
                         ht += random.randrange(randht_lo,randht_hi)
                     if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
                         dist += random.randrange(randsb_lo,randsb_hi)
+                
+                #Dissect floor
+                sh_top_node = tnode#None
+                #if ht < tnode.shape.ht:
+                #    sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
+                
                 ##Loop through all sb_geoms
-                for sbg in sb_ref:
-                    # move sbref
-                    move_vector= rc.Geometry.Vector3d(0,0,float(ht))
-                    sbref_crv = sc.doc.Objects.AddCurve(sbg)
-                    sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
-                    cut_geom = None
-                    try: 
-                        cut_geom = tnode.shape.op_split("EW",0.5,deg=0.,\
-                                            split_depth=float(dist*2.),split_line_ref=sbref_crv)
-                    except:
-                        pass
-                    if cut_geom:
-                        tnode.shape.geom = cut_geom[0]
-                        tnode.shape.reset(xy_change=True)
+                if sh_top_node:
+                    for sbg in sb_ref:
+                        # move sbref
+                        move_vector= sh_top_node.shape.normal*float(ht)
+                        sbref_crv = sc.doc.Objects.AddCurve(sbg)
+                        sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
+                        cut_geom = None
+                        #cut at ht
+                        #then take top node and split that
+                        try: 
+                            cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
+                                                split_depth=float(dist*2.),split_line_ref=sbref_crv)
+                        except:
+                            pass
+                        if cut_geom:
+                            sh_top_node.shape.geom = cut_geom[0]
+                            sh_top_node.shape.reset(xy_change=True)
         #except Exception as e:
         #    print str(e)#,sys.exc_traceback.tb_lineno 
         #    print "Error at Pattern.stepback"
         return tnode    
+    def helper_divide_through_normal(self,temp_node_,dist_):
+        #Need to rewrite this so all variables in divide is null
+        #and option to orient results vertically exists
+        #Divides based on 'height'
+        bottom_shape,top_shape = None, None
+        ratio_ = (dist_ - temp_node_.shape.cpt[2])/temp_node_.shape.z_dist
+        PD = {}
+        PD['div_num'] = 1
+        PD['div_deg'] = 0.
+        PD['div_cut'] = 0.
+        PD['div_ratio'] = ratio_
+        PD['div_type'] = 'simple_divide'
+        PD['axis'] = "Z"
+        temp_node_ = self.divide(temp_node_,PD)
+        if temp_node_.loc:
+            ext_pt = temp_node_.shape.cpt + (temp_node_.shape.normal * dist_)
+            dist_0 = temp_node_.loc[0].shape.cpt - ext_pt
+            dist_1 = temp_node_.loc[1].shape.cpt - ext_pt
+            
+            if dist_0.Length > dist_1.Length:
+                bottom_shape = temp_node_.loc[0]
+                top_shape = temp_node_.loc[1]
+            else:
+                bottom_shape = temp_node_.loc[1]
+                top_shape = temp_node_.loc[0]
+            temp_node_.grammar.type['top'] = False
+            top_shape.grammar.type['top'] = True
+        return bottom_shape,top_shape
     def divide(self,node,PD_):       
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
             #print 'divdepth, div', div_depth,',', div
@@ -326,7 +363,7 @@ class Grammar:
                 #node_.grammar.type['ratio'] = 1. - node_.grammar.type['ratio']
                 #debug.extend(node_.shape.bbpts)
                 loc = node_.shape.op_split(node_.grammar.type['axis'],node_.grammar.type['ratio'],0.,split_depth=cwidth_)
-                ###debug.extend(loc)
+                #debug.extend(loc)
                 #print len(loc)
                 for i,child_geom in enumerate(loc):
                     #print 'child nodes'
@@ -335,7 +372,8 @@ class Grammar:
                     #print child_node.shape.x_dist
                     #print child_node.shape.y_dist
                     if child_node: node_.loc.append(child_node)
-                #print ''
+                #print loc
+                #print '----'
                 if 'simple_divide' not in grid_type: 
                     for nc in node_.loc:
                         helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
@@ -569,15 +607,18 @@ class Grammar:
             childn = self.helper_geom2node(topcrv,n_,"extract_slice")
             n_.loc.append(childn)
             return childn
-        
+
         ## Warning: this function will raise height of geom 1m.
         slice_ht = PD_['extract_slice_height']
-        
+        IsTop = True
         #Check inputs
         if type(slice_ht) != type([]): slice_ht = [slice_ht]
-        if slice_ht == [] or slice_ht == [None]: slice_ht = ['max']
-        
-        if slice_ht:
+        if slice_ht == [] or slice_ht == [None]: 
+            slice_ht = ['max']
+            ##unsure about this but works for now...
+            IsTop = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'])
+                   
+        if slice_ht and IsTop:
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
                     slice_ht = [temp_node_.shape.ht]
@@ -687,6 +728,7 @@ class Grammar:
         debug = sc.sticky['debug']
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
         rootref = temp_node_.get_root()
+        
         for subdiv in lon:
             ringlst = helper_recurse(subdiv,rootref,distlst,0.,dellst,[],None,0)
             ringlst = filter(lambda n: n!=None,ringlst)
@@ -805,7 +847,6 @@ class Grammar:
                             sc_ = 5,5,0
                             split_crv = rs.ScaleObject(split_crv,midpt,sc_)
                             if True:#try:
-                                print cut_width__
                                 split_node_lst = []
                                 split_geoms = curr_node_.shape.op_split("NS",0.5,split_depth=cut_width__,split_line_ref=split_crv)
                                 for geom in split_geoms:
@@ -850,6 +891,7 @@ class Grammar:
             offset = rootshape.op_offset_crv(width_)
             ###debug.append(rootshape.bottom_crv)
             chk_offset = rootshape.op_offset_crv(width_+0.21)
+            diff = None
             if chk_offset:
                 off_node = self.helper_geom2node(offset,curr_node)
                 shape_matrix = off_node.shape.set_base_matrix()
@@ -880,6 +922,7 @@ class Grammar:
         debug = sc.sticky['debug']
         diff = None
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
+        
         for subdiv in lon:
             subdiv.shape.convert_rc('3d')
             refshape_node = self.helper_get_ref_node(court_ref,subdiv)
@@ -1215,6 +1258,7 @@ class Grammar:
         
         PD = node.grammar.type
         temp_node = node
+        
         if PD['label_UI'] == True:
             #simple therefore keep in UI for now...
             temp_node.grammar.type['label'] = PD['label']

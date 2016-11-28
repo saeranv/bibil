@@ -29,6 +29,7 @@ class Shape:
         self.bottom_crv = None
         self.primary_axis_vector = None
         self.base_matrix = None
+        self.normal = rc.Geometry.Vector3d(0,0,1)
         if geom == None:
             self.geom = rs.coercebrep(rs.AddBox([[0,0,0],[0,10,0],[-10,10,0],[-10,0,0],\
                                         [0,0,10],[0,10,10],[-10,10,10],[-10,0,10]]))
@@ -230,7 +231,7 @@ class Shape:
         
         rs.EnableRedraw(False)
         split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
-        
+        debug.append(split_surf)
         try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:
