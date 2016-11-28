@@ -63,6 +63,7 @@ class Grammar:
                     cplane_ref = parent_node.shape.cplane
                 try:
                     child_shape = Shape(geom,cplane=cplane_ref)
+                    
                 except Exception as e: 
                     print 'Bibil has detected a degenerate shape', str(e)
                     child_shape = Shape(geom,parent_node.shape.cplane)
@@ -1090,6 +1091,95 @@ class Grammar:
         temp_node_ = self.flatten_node_tree_single_child(loc,temp_node_)
         
         return temp_node_
+    def strip_faces(self,temp_node_,PD_):
+        #Input a temp_node_ with brep geom and return
+        #temp_node_ w/ loc = face list
+        
+        debug = sc.sticky['debug']
+        
+        #Get the brep
+        brep = temp_node_.shape.geom
+        face_lst = brep.Faces
+        #facegeom_lst = ghcomp.DeconstructBrep(brep)
+        #print facegeom_lst
+        #debug.append(brep)
+        #debug.extend(facegeom_lst)
+        #print len(face_lst)
+        vol_cpt = rc.Geometry.AreaMassProperties.Compute(brep).Centroid
+        vol_cpt = rc.Geometry.Vector3d(vol_cpt)
+        for i,f in enumerate(face_lst):
+            #Create empty shape
+            S = Shape()
+            facegeom = f.DuplicateFace(f)
+            #debug.append(facegeom)
+            S.geom = facegeom
+            edgecrvs = facegeom.DuplicateEdgeCurves()
+            joincrv = rc.Geometry.Curve.JoinCurves(edgecrvs,TOL)[0]
+            S.bottom_crv = joincrv
+            cpt = rc.Geometry.AreaMassProperties.Compute(S.bottom_crv).Centroid
+            S.cpt = cpt
+            #debug.append(S.cpt)
+            b, u, v = f.ClosestPoint(S.cpt)
+            if b:
+                normvec = f.NormalAt(u, v)
+                if f.OrientationIsReversed:
+                    normvec.Reverse()
+                normvec.Unitize() 
+                extruded_pt = rc.Geometry.Vector3d((normvec*1.) + S.cpt)  
+                IsNormalIn = temp_node_.shape.geom.IsPointInside(((normvec*1.) + S.cpt),1,True)
+                distvec = vol_cpt - extruded_pt 
+                dist = distvec.Length
+                normvec.Reverse()
+                extruded_pt = rc.Geometry.Vector3d((normvec*1.) + S.cpt)  
+                distvec2 = vol_cpt - extruded_pt 
+                dist2 = distvec2.Length
+                print dist, dist2
+                if dist > dist2:
+                    normvec.Reverse()
+                #if IsNormalIn == True:
+                #    normvec.Reverse()
+                #print IsNormalIn
+                normvec.Unitize() 
+            else:
+                normvec = rc.Geometry.Vector3d(0,0,1)
+            S.normal = normvec
+            orient_vec = S.get_shape_axis(crv=S.bottom_crv)
+            orient_vec.Unitize()
+            S.primary_axis_vector = orient_vec
+            
+            x_vector = rc.Geometry.Vector3d.CrossProduct(S.normal,S.primary_axis_vector)
+            cplane = rc.Geometry.Plane(S.cpt,x_vector,S.primary_axis_vector)
+            #bbox = rs.BoundingBox(S.geom,S.cplane)
+            bbox = S.geom.GetBoundingBox(S.cplane)
+            S.bbox = bbox.GetCorners()
+            S.ht = bbox.Max.Z
+            S.z_dist = 0.
+            ## Standard form of a plane
+            #k = sum(map(lambda v:v[0]*v[1],zip(S.normal,S.cpt)))
+            #cplane = rc.Geometry.Plane(S.normal[0],S.normal[1],S.normal[2],k)
+            #cplane.Origin = S.cpt
+            S.cplane = cplane
+            b = S.bbox
+            S.s_wt,S.e_ht,S.n_wt,S.w_ht = b[:2],b[1:3],b[2:4],[b[3],b[0]]
+            S.ew_vector = S.n_wt[1]-S.n_wt[0]
+            S.ns_vector = S.e_ht[1]-S.e_ht[0]
+            S.x_dist = float(rs.Distance(S.s_wt[0],S.s_wt[1]))
+            S.y_dist = float(rs.Distance(S.e_ht[0],S.e_ht[1]))
+            S.z_dist = 0.0
+            S.area = None
+            #ext = 80.0
+            #S.op_extrude(ext)
+            
+            debug.append(S.cplane)
+            S.z_dist = ext
+            #debug.append(S.geom)
+            G = Grammar()
+            G.type["label"] = 'face'
+            child_node = Tree(S,G,parent=temp_node_,depth=temp_node_.depth+1)
+            temp_node_.loc.append(child_node)
+        print '---'
+           
+        return temp_node_
     def squeeze_angle(self,temp_node_,angle,ht_inc,side_inc):
         #Purpose: Input node, angle degree
         #Output a shape2d with angle chagned according to degree
@@ -1250,6 +1340,9 @@ class Grammar:
         elif PD['extract_slice'] == True:
             temp_node = self.extract_slice(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'extract_slice'
+        elif PD['strip_faces'] == True:
+            temp_node = self.strip_faces(temp_node,PD)
+            temp_node.grammar.type['grammar'] = 'strip_faces'
         """
         These have to be rewritten
         if solartype == 2: # multi_cell

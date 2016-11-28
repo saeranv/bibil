@@ -38,6 +38,18 @@ class Shape:
             except Exception as e:
                 print str(e), "Error at Shape.reset()"
     def reset(self,xy_change=True):
+        def check_bbpts(b):
+                ## check if 3d shape and if first 4 pts at bottom
+                if b[0][2] > b[4][2]:
+                    b_ = b[4:] + b[:4]
+                    b = b_
+                return b
+        def get_boundingbox(geom_,cplane_):
+            try:
+                bbpts_ = rs.BoundingBox(geom_,cplane_)
+                return check_bbpts(bbpts_)
+            except Exception as e:
+                print "Error @ get_boundingbox"
         def get_dim_bbox(b):
             ## counterclockwise, start @ bottom SW  
             #      n_wt
@@ -52,8 +64,9 @@ class Shape:
                 
         # primary edges
         if xy_change == True:
+            self.normal = rc.Geometry.Vector3d(0.,0.,1.)
             try:
-                self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
+                self.bottom_crv = self.get_bottom(self.geom,get_boundingbox(self.geom,None)[0])
             except Exception as e:
                 #print str(e)##sys.exc_traceback.tb_lineno 
                 self.bottom_crv = None
@@ -66,7 +79,7 @@ class Shape:
                 print str(e)##sys.exc_traceback.tb_lineno 
                 self.cplane, self.primary_axis_vector = None, None
             try:
-                self.bbpts = self.get_boundingbox(self.geom,self.cplane)
+                self.bbpts = get_boundingbox(self.geom,self.cplane)
                 self.s_wt,self.e_ht,self.n_wt,self.w_ht = get_dim_bbox(self.bbpts)
                 self.ew_vector = self.n_wt[1]-self.n_wt[0]
                 self.ns_vector = self.e_ht[1]-self.e_ht[0]
@@ -294,19 +307,6 @@ class Shape:
         
         rs.EnableRedraw(False)
         return lst_child
-    def get_boundingbox(self,geom_,cplane_):
-        def check_bbpts(b):
-            ## check if 3d shape and if first 4 pts at bottom
-            if b[0][2] > b[4][2]:
-                b_ = b[4:] + b[:4]
-                b = b_
-            return b
-        try:
-            bbpts_ = rs.BoundingBox(geom_,cplane_)
-            return check_bbpts(bbpts_)
-        except Exception as e:
-            print "Error @ get_boundingbox"
-            #print str(e)#sys.exc_traceback.tb_lineno 
     def check_shape_dim(self,axis_,dim_,shape=None,min_or_max=False,tol=0.1):
         ### Checks that the shape dimension is equal to
         if shape==None:
@@ -457,7 +457,7 @@ class Shape:
             # Make triangle
             endpts_lst.append([self.cpt,linepts[0]])
             endpts_lst.append(linepts)
-            endpts_lst.append([linepts[1],self.cpt])    
+            endpts_lst.append([linepts[1],self.cpt])
         else:
             #need to test this!
             print 'First time testing the vertex order for polygon'
@@ -620,7 +620,7 @@ class Shape:
             if self.is_guid(g):
                 brep = rs.coercebrep(g)
             else: brep = g
-            debug = sc.sticky['debug']
+            #debug = sc.sticky['debug']
             ## Get primary axis
             nc = self.bottom_crv.ToNurbsCurve()
             planar_pts = [nc.Points[i].Location for i in xrange(nc.Points.Count)]
@@ -671,19 +671,30 @@ class Shape:
             if curve == None:
                 curve = rs.coercecurve(self.bottom_crv) if self.is_guid(self.bottom_crv) else self.bottom_crv
                 returnflag = True
-            ext = rc.Geometry.Extrusion.Create(curve,z_dist,True)
+            #ext = rc.Geometry.Extrusion.Create(curve,z_dist,True)
             ## check if extruded correct dir
-            refcpt = rc.Geometry.AreaMassProperties.Compute(ext).Centroid
-            v = rc.Geometry.Vector3d(0,0,1)
-            if z_dist > 0.:
-                if refcpt[2] < self.cpt[2]:
-                    #print 'move up'
-                    ext.Translate(0.,0.,z_dist)
-            else: 
-                if refcpt[2] > self.cpt[2]:
+            refcpt = self.cpt#rc.Geometry.AreaMassProperties.Compute(ext).Centroid
+            v = self.normal
+            
+            curve1 = rs.coercecurve(curve)
+            path_id = rs.AddLine(refcpt,refcpt+self.normal*z_dist)
+            #curve2 = rs.coercecurve(path_id)
+            #ext = rc.Geometry.SumSurface.Create(curve1, curve2)
+            
+            brep = self.geom
+            curve = rs.coercecurve(path_id, -1, True)
+            brep = brep.Faces[0].CreateExtrusion(curve, True)
+            
+            #if z_dist > 0.:
+            #    if refcpt[2] < self.cpt[2]:
+            #        #print 'move up'
+            #        ext.Translate(0.,0.,z_dist)
+            #else: 
+            #    if refcpt[2] > self.cpt[2]:
                     #print 'move down'
-                    ext.Translate(0.,0.,z_dist*-1)
-            brep = ext.ToBrep()
+                    #ext.Translate(0.,0.,z_dist*-1)
+            #brep = ext.ToBrep()
+            #brep = brep.CapPlanarHoles(TOL)
             #if returnflag == False:
             #    return brep
             if True:#else:
