@@ -1133,7 +1133,6 @@ class Grammar:
                 extruded_pt = rc.Geometry.Vector3d((normvec*1.) + S.cpt)  
                 distvec2 = vol_cpt - extruded_pt 
                 dist2 = distvec2.Length
-                print dist, dist2
                 if dist > dist2:
                     normvec.Reverse()
                 #if IsNormalIn == True:
@@ -1171,13 +1170,13 @@ class Grammar:
             #S.op_extrude(ext)
             
             debug.append(S.cplane)
-            S.z_dist = ext
+            #S.z_dist = ext
             #debug.append(S.geom)
             G = Grammar()
             G.type["label"] = 'face'
             child_node = Tree(S,G,parent=temp_node_,depth=temp_node_.depth+1)
             temp_node_.loc.append(child_node)
-        print '---'
+        #print '---'
            
         return temp_node_
     def squeeze_angle(self,temp_node_,angle,ht_inc,side_inc):

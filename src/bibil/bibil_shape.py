@@ -673,15 +673,16 @@ class Shape:
                 returnflag = True
             #ext = rc.Geometry.Extrusion.Create(curve,z_dist,True)
             ## check if extruded correct dir
-            refcpt = self.cpt#rc.Geometry.AreaMassProperties.Compute(ext).Centroid
+            
             v = self.normal
             
             curve1 = rs.coercecurve(curve)
-            path_id = rs.AddLine(refcpt,refcpt+self.normal*z_dist)
+            cpt = rc.Geometry.AreaMassProperties.Compute(curve).Centroid
+            path_id = rs.AddLine(cpt,cpt+self.normal*z_dist)
             #curve2 = rs.coercecurve(path_id)
             #ext = rc.Geometry.SumSurface.Create(curve1, curve2)
-            
-            brep = self.geom
+            brep = rs.AddPlanarSrf(sc.doc.Objects.AddCurve(curve))[0]#self.geom
+            brep = rs.coercebrep(brep)
             curve = rs.coercecurve(path_id, -1, True)
             brep = brep.Faces[0].CreateExtrusion(curve, True)
             
@@ -697,9 +698,11 @@ class Shape:
             #brep = brep.CapPlanarHoles(TOL)
             #if returnflag == False:
             #    return brep
-            if True:#else:
-                self.geom = brep
-                self.reset(xy_change=False)
+            #if True:#else:
+            
+            self.geom = brep
+            self.reset(xy_change=False)
+            self.z_dist = z_dist
         except Exception as e:
             print "Error @ Shape.op_extrude"
             print str(e)#sys.exc_traceback.tb_lineno 
