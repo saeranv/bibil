@@ -86,6 +86,7 @@ class Grammar:
     def helper_clone_node(self,node_,parent_node=None,label="x"):
         #Purpose: Input node, and output new node with same Shape, new Grammar
         return self.helper_geom2node(None,parent_node,label)
+        
     def is_near_zero(self,num,eps=1E-10):
         return abs(float(num)) < eps
     def solar_envelope_uni(self,node_0,time,seht,stype):
@@ -233,10 +234,12 @@ class Grammar:
                         dist += random.randrange(randsb_lo,randsb_hi)
                 
                 #Dissect floor
-                sh_top_node = tnode#None
-                #if ht < tnode.shape.ht:
-                #    sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
-                
+                if True:
+                    sh_top_node = None
+                    if ht < tnode.shape.ht:
+                        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
+                else:
+                    sh_top_node = tnode
                 ##Loop through all sb_geoms
                 if sh_top_node:
                     for sbg in sb_ref:
@@ -263,6 +266,7 @@ class Grammar:
         #Need to rewrite this so all variables in divide is null
         #and option to orient results vertically exists
         #Divides based on 'height'
+        #print 'helperdividethroughnormal chk'
         bottom_shape,top_shape = None, None
         ratio_ = (dist_ - temp_node_.shape.cpt[2])/temp_node_.shape.z_dist
         PD = {}
@@ -284,7 +288,9 @@ class Grammar:
             else:
                 bottom_shape = temp_node_.loc[1]
                 top_shape = temp_node_.loc[0]
-            temp_node_.grammar.type['top'] = False
+            #mark top ##this should be an automatic check in helpergeom2node or clonenodes
+            lst_top_nodes = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
+            for tn in lst_top_nodes: tn:tn.grammar.type['top'] = False
             top_shape.grammar.type['top'] = True
         return bottom_shape,top_shape
     def divide(self,node,PD_):       
@@ -604,20 +610,26 @@ class Grammar:
             pt = n_.shape.cpt
             refpt = rs.AddPoint(pt[0],pt[1],ht_)
             topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
-            childn = self.helper_geom2node(topcrv,n_,"extract_slice")
+            childn = self.helper_geom2node(topcrv,n_,'extracted_slice')
+            
+            ##this should be an automatic check in helpergeom2node or clonenodes
+            childn.grammar.type['top'] = True
+            lst_top_nodes = n_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
+            ##
+            for tn in lst_top_nodes: tn:tn.grammar.type['top'] = False
             n_.loc.append(childn)
             return childn
 
         ## Warning: this function will raise height of geom 1m.
         slice_ht = PD_['extract_slice_height']
-        IsTop = True
+        IsTop = False
         #Check inputs
         if type(slice_ht) != type([]): slice_ht = [slice_ht]
         if slice_ht == [] or slice_ht == [None]: 
             slice_ht = ['max']
             ##unsure about this but works for now...
             IsTop = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'])
-                   
+            #temp_node_.grammar.type['top']#
         if slice_ht and IsTop:
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
@@ -628,7 +640,8 @@ class Grammar:
             #Extract topo
             for slht in slice_ht:
                 extract_topo(temp_node_,slht)
-        
+        #print '---'
+        lst = temp_node_.loc
         return temp_node_
     def set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
@@ -1318,6 +1331,9 @@ class Grammar:
         #print temp_node.grammar.type['grammar']
         ## 7. Finish
         lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
+        #for c in lst_childs:
+        #    print c.grammar.type['top']
+        print '--'
         return lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
@@ -1388,8 +1404,8 @@ class Grammar:
         for n in node_in_:
             if type(n) == type(T) and len(n.loc) > 0.5:
                 IsLeaf = False
-                lst_node_out = node_in_
-                break
+                lst_node_out.extend(n.traverse_tree(lambda n:n,internal=False))
+                
                 
         if chk_input_len and IsLeaf:
             if abs(len(label__)-1.) < 0.5 or abs(len(label__)-0.) < 0.5:
