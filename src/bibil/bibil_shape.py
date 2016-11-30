@@ -231,7 +231,7 @@ class Shape:
         
         rs.EnableRedraw(False)
         split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
-        debug.append(split_surf)
+        #debug.append(split_surf)
         try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:

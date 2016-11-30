@@ -27,7 +27,7 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.,'top':False}
+        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.,'top':False,'freeze':False}
         #need to move axis, NS, ratio to divide
         empty_rule_dict = copy.deepcopy(Miru)
         self.type.update(empty_rule_dict)
@@ -234,10 +234,12 @@ class Grammar:
                         dist += random.randrange(randsb_lo,randsb_hi)
                 
                 #Dissect floor
-                if True:
+                if False:
                     sh_top_node = None
                     if ht < tnode.shape.ht:
                         sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
+                        sh_top_node.grammar.type['label'] = 'stepbacktop'
+                        sh_bot_node.grammar.type['label'] = 'stepbackbot'
                 else:
                     sh_top_node = tnode
                 ##Loop through all sb_geoms
@@ -290,7 +292,7 @@ class Grammar:
                 top_shape = temp_node_.loc[0]
             #mark top ##this should be an automatic check in helpergeom2node or clonenodes
             lst_top_nodes = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
-            for tn in lst_top_nodes: tn:tn.grammar.type['top'] = False
+            for tn in lst_top_nodes: tn.grammar.type['top'] = False
             top_shape.grammar.type['top'] = True
         return bottom_shape,top_shape
     def divide(self,node,PD_):       
@@ -567,8 +569,11 @@ class Grammar:
         temp_node_topo = temp_node_#copy.deepcopy(sep_ref_node)
         
         ## Get normal to exterior srf
-        normal2srf = self.helper_normal2extsrf(temp_node_topo)
-        cut_axis = temp_node_topo.shape.vector2axis(normal2srf)
+        try:
+            normal2srf = self.helper_normal2extsrf(temp_node_topo)
+            cut_axis = temp_node_topo.shape.vector2axis(normal2srf)
+        except:
+            cut_axis = "NS"
         noncut_axis = "EW" if "NS" in cut_axis else "NS" 
         
         ## Get cut dimensions     
@@ -616,7 +621,7 @@ class Grammar:
             childn.grammar.type['top'] = True
             lst_top_nodes = n_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
             ##
-            for tn in lst_top_nodes: tn:tn.grammar.type['top'] = False
+            for tn in lst_top_nodes: tn.grammar.type['top'] = None
             n_.loc.append(childn)
             return childn
 
@@ -629,19 +634,23 @@ class Grammar:
             slice_ht = ['max']
             ##unsure about this but works for now...
             IsTop = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'])
-            #temp_node_.grammar.type['top']#
-        if slice_ht and IsTop:
+        
+        if temp_node_.parent:
+            for sib in temp_node_.parent.loc:
+                sib.grammar.type['freeze'] = True
+        
+        #print 'istop', IsTop
+        #print temp_node_
+        #print temp_node_.parent, temp_node_.parent.grammar.type['top']
+        if slice_ht and IsTop:  
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
                     slice_ht = [temp_node_.shape.ht]
                 else:
-                    slice_ht = map(lambda s: float(s),slice_ht)
-            
+                    slice_ht = map(lambda s: float(s),slice_ht)            
             #Extract topo
             for slht in slice_ht:
                 extract_topo(temp_node_,slht)
-        #print '---'
-        lst = temp_node_.loc
         return temp_node_
     def set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
@@ -1328,12 +1337,9 @@ class Grammar:
             except Exception as e:
                     print "Error @ solartype 1 or 3", str(e)
         """
-        #print temp_node.grammar.type['grammar']
-        ## 7. Finish
+        ## Finish
         lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
-        #for c in lst_childs:
-        #    print c.grammar.type['top']
-        print '--'
+        lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
         return lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
@@ -1400,14 +1406,13 @@ class Grammar:
             chk_input_len = True
         
         #Check if rule has already propogated
-        IsLeaf = True
         for n in node_in_:
             if type(n) == type(T) and len(n.loc) > 0.5:
-                IsLeaf = False
-                lst_node_out.extend(n.traverse_tree(lambda n:n,internal=False))
-                
-                
-        if chk_input_len and IsLeaf:
+                n.traverse_tree(lambda n:n.delete_node(),internal=True)
+                if n.grammar.type['top'] == None:
+                    n.grammar.type['top'] = True
+            
+        if chk_input_len:
             if abs(len(label__)-1.) < 0.5 or abs(len(label__)-0.) < 0.5:
                 #label is treated as a rule
                 if len(label__) > 0.5:
@@ -1433,7 +1438,8 @@ class Grammar:
                     lst_node_out_ = helper_main_recurse([node_],nested_rule_dict)
                     lst_node_out.extend(lst_node_out_)
         else:
-            print 'Either check the length of your inputs or you have already ran this component'
+            print 'Check the length of your inputs'
+        
         return lst_node_out 
                     
 if True:
