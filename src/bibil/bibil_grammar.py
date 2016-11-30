@@ -12,6 +12,7 @@ clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
+#"C:\Users\vasanthakumars\AppData\Local\Temp"
 
 """import classes"""
 Shape = sc.sticky["Shape"]
@@ -26,11 +27,12 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.,'top':False,'freeze':False}
+        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.,'freeze':False}
         #need to move axis, NS, ratio to divide
-        #empty_rule_dict = copy.deepcopy(Miru)
-        #self.type.update(empty_rule_dict)
-        
+    def label(self,temp_node_,PD_):
+        temp_node_.grammar.type['label'] = PD_['label']
+        temp_node_.grammar.type['grammar'] = 'label'
+        return temp_node_
     def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
@@ -85,7 +87,6 @@ class Grammar:
     def helper_clone_node(self,node_,parent_node=None,label="x"):
         #Purpose: Input node, and output new node with same Shape, new Grammar
         return self.helper_geom2node(None,parent_node,label)
-        
     def is_near_zero(self,num,eps=1E-10):
         return abs(float(num)) < eps
     def solar_envelope_uni(self,node_0,time,seht,stype):
@@ -197,6 +198,8 @@ class Grammar:
             print e
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
+        ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
+        tnode.grammar.type['grammar'] = 'stepback'
         sb_ref = PD_['stepback_ref']
         sb_data = PD_['stepback_data'] #height:stepback
         sb_random = PD_['stepback_randomize']
@@ -384,6 +387,9 @@ class Grammar:
                 if 'simple_divide' not in grid_type: 
                     for nc in node_.loc:
                         helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
+        
+        
+        node.grammar.type['grammar'] = 'divide' 
         debug = sc.sticky['debug']
         if type(PD_)==type([]):
             div = PD_[0]
@@ -556,7 +562,7 @@ class Grammar:
             sc.sticky['GLOBAL_COLLISION_LIST'].append(rs.coercecurve(sep_crv))
             
         debug = sc.sticky['debug']
-        
+        temp_node_.grammar.type['grammar'] = 'separate'
         #Extract data
         x_keep_omit = PD_['x_keep_omit']
         y_keep_omit = PD_['y_keep_omit']
@@ -623,6 +629,8 @@ class Grammar:
             #for tn in lst_top_nodes: tn.grammar.type['top'] = None
             n_.loc.append(childn)
             return childn
+        
+        temp_node_.grammar.type['grammar'] = 'extract_slice'
         debug = sc.sticky['debug']
         ## Warning: this function will raise height of geom 1m.
         slice_ht = PD_['extract_slice_height']
@@ -633,14 +641,6 @@ class Grammar:
             slice_ht = ['max']
             ##unsure about this but works for now...
             #IsTop = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'])
-        
-        #if temp_node_.parent:
-        #    for sib in temp_node_.parent.loc:
-        #        sib.grammar.type['freeze'] = True
-        
-        #print 'istop', IsTop
-        #print temp_node_
-        #print temp_node_.parent, temp_node_.parent.grammar.type['top']
         if slice_ht:  
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
@@ -678,6 +678,7 @@ class Grammar:
                 setht = min(val_lst)#sum(val_lst)/float(len(val_lst))
             return setht
         
+        temp_node_.grammar.type['grammar'] = 'height'
         debug = sc.sticky['debug']
         #print 'We are setting height!'
         ht_ = PD_['height']
@@ -928,6 +929,8 @@ class Grammar:
             return diff
         
         #Unpack the parameters         
+        
+        temp_node_.grammar.type['grammar'] = 'court'
         court_ref = PD_['court_ref']
         court_width = PD_['court_width']
         court_slice_bool = PD_['court_slice']
@@ -960,6 +963,8 @@ class Grammar:
                     print 'Error @ court', str(e)        
         return diff
     def set_bula_point(self,temp_node_,PD_):
+        
+        temp_node_.grammar.type['grammar'] = 'bula'
         #Move this back to Bula as main_bula
         B = Bula()
         S = Shape()
@@ -1002,6 +1007,8 @@ class Grammar:
                 n.depth = n.parent.depth + 1
             else:
                 n.depth = 0
+        
+        temp_node_.grammar.type['grammar'] = 'meta_tree'
         meta_node = PD_['meta_node']
         #THIS SHOULD BE DONE IN TREE CLASS
         #print 'label metanode:', meta_node.parent
@@ -1023,23 +1030,27 @@ class Grammar:
             root.traverse_tree(lambda n:inc_depth(n),internal=True)
     def bucket_shape(self,temp_node_lst_,PD_):
         ## Purpose: buckets input shapes
-        nodes2bucket = temp_node_lst_
+        debug = sc.sticky['debug']
+        for n in temp_node_lst_: n.grammar.type['grammar'] = 'bucket_shape'
+        nodes2bucket = temp_node_lst_# map(lambda n: n.parent,temp_node_lst_)
+        
         bucket = []
         for n in nodes2bucket:
             lstn = n.backtrack_tree(lambda n_:n_.grammar.type.has_key('ratio'),accumulate=True)
-            #bucket.append(n.shape.bottom_crv)
+            bucket.append(n.shape.bottom_crv)
             for nl in lstn:
                 if 'stepback' in nl.grammar.type['grammar']:
-                    print nl
+                    #print nl
                     stpd = nl.grammar.type['stepback_data']
                     ht = float(stpd[0][0])+3
-                    print stpd
+                    #print stpd
                     pt = n.shape.cpt
                     refpt = rs.AddPoint(pt[0],pt[1],ht)
                     topcrv = n.shape.get_bottom(n.shape.geom,refpt)
-                    tn = self.helper_geom2node(topcrv)
-                    bucket.append(tn)
-        #cipher_node_.loc = bucket
+                    #print topcrv
+                    #tn = self.helper_geom2node(topcrv)
+                    bucket.append(topcrv)
+        debug.extend(bucket)      
         return temp_node_lst_
     def building_analysis(self,node_in,height,GFA,groundFloor_ht,restFloor_ht):
         def get_label(n):
@@ -1139,6 +1150,8 @@ class Grammar:
             if not ReadMe:
                 ReadMe = "Successfully calculated"
     def shape2height(self,temp_node_,PD_):
+        #TBD
+        temp_node_.grammar.type['grammar'] = 'shape2height'
         angle = 0.5
         ht_inc = 3.0
         side_inc = 0.1
@@ -1244,12 +1257,11 @@ class Grammar:
             #if geometry, turned into node w/ blank label
             #if node, clone a child node w/ blank label
             if type(T) == type(node_geom):
-                #print 'make cloned node'
+                # If node create 'clone', new tree, new Grammar, link to same Shape 
                 childn = self.helper_clone_node(node_geom,parent_node=node_geom)
                 node_geom.loc.append(childn)
                 n_ = childn
             else:
-                #print 'make a geom'
                 n_ = self.helper_geom2node(node_geom)
             return n_       
         ## Purpose: Input list of nodes, applies type
@@ -1257,97 +1269,83 @@ class Grammar:
         ## outputs node
         T = Tree()
         L = []
+        
+        #Apply rule to each node
+        child_node_lst_ = []
         for i,node_ in enumerate(lst_node_):
             ## Everytime we add a rule, we clone a node. 
             ## Every rule mutates the node, or creates child nodes.
+            ## If node create 'clone', new tree, new Grammar, link to same Shape   
             child_node_ = helper_clone_node(node_)
-            ## Apply type to node
+            ## Apply type to node that we will apply rule to
             child_node_ = helper_type2node(child_node_,rule_in_)
-            ## Apply pattern
-            if True:#try:
-                node_out_ = self.main_grammar(child_node_)
-                RhinoApp.Wait() 
-            #print 'label', node_out_
-            #print '---'
-            #yield node_out_
-            L.extend(node_out_)
-            #except Exception as e:
-            #    print "Error @ Pattern.main_pattern"
-            #print node_out_[0]
-        #print '--'
-
-        return L
-    def main_grammar(self,node):
-        ## Check geometry
-        if node.shape:
-            gb = node.shape.geom
-            if node.shape.is_guid(gb): node.shape.geom = rs.coercebrep(gb)
+            child_node_lst_.append(child_node_)
         
-        PD = node.grammar.type
-        temp_node = node
+        ##Check how we apply the rules
+        IsApply2Full = rule_in_.has_key('apply2list') and  rule_in_['apply2list'] == True
+        
+        #Feed in entire list of nodes
+        if IsApply2Full:
+            #When we apply full list, we assume we are applying same rule to all nodes
+            ParamDict = child_node_lst_[0].grammar.type
+            node_out_ = self.main_grammar(child_node_lst_,ParamDict)
+            RhinoApp.Wait()
+            L.extend(node_out_)
+        else:
+            for i,child_node_ in enumerate(child_node_lst_):
+                ## Apply pattern
+                if True:#try:
+                    ParamDict = child_node_.grammar.type 
+                    node_out_ = self.main_grammar(child_node_,ParamDict)
+                    RhinoApp.Wait() 
+                L.extend(node_out_)
+                #except Exception as e:
+                #    print "Error @ Pattern.main_pattern"
+        return L
+    def main_grammar(self,temp_node,PD):
+        isList = type(temp_node) == type([])
+        
+        ## ---- START TEST --- ##
+        ## Date 2016 11 30 << if this doesn't pop up delete this check.
+        if not isList and temp_node.shape:
+            gb = temp_node.shape.geom
+            if temp_node.shape.is_guid(gb): 
+                print 'guid identified in grammar.main_grammar dont delete this'
+                #node.shape.geom = rs.coercebrep(gb)
+        ## ---- END TEST --- ##
         
         if PD.has_key('label_UI') and PD['label_UI'] == True:
-            #simple therefore keep in UI for now...
-            temp_node.grammar.type['label'] = PD['label']
-            temp_node.grammar.type['grammar'] = 'label'
+            temp_node = self.label(temp_node,PD)
         elif PD.has_key('divide') and PD['divide'] == True:
             temp_node = self.divide(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'divide'
         elif PD.has_key('height') and PD['height']:
             temp_node = self.set_height(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'height'
         elif PD.has_key('stepback') and PD['stepback'] == True:
-            ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
             temp_node = self.stepback(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'stepback'
         elif PD.has_key('court') and PD['court'] == True:
             self.court(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'court'
         elif PD.has_key('bula') and PD['bula'] == True:
             self.set_bula_point(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'bula'
         elif PD.has_key('meta_tree') and PD['meta_tree'] == True:
             self.meta_tree(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'meta_tree'
-        elif PD.has_key('landuse') and PD['landuse'] == True:
-            temp_node = self.landuse(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'landuse'
         elif PD.has_key('separate') and PD['separate'] == True:
             temp_node = self.separate_by_dist(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'separate'
         elif PD.has_key('shape2height') and PD['shape2height'] == True:
             temp_node = self.shape2height(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'shape2height'
         elif PD.has_key('extract_slice') and PD['extract_slice'] == True:
             temp_node = self.extract_slice(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'extract_slice'
-        elif PD.has_key('bucket_shape') and PD['bucket_shape'] == True:
+        elif PD.has_key('bucket4shape') and PD['bucket4shape'] == True:
             temp_node = self.bucket_shape(temp_node,PD)
-            temp_node.grammar.type['grammar'] = 'bucket_shape'
-        """
-        These have to be rewritten
-        if solartype == 2: # multi_cell
-            try:
-                temp_node = self.solar_envelope_multi(temp_node,solartime,node.grammar,solarht)
-            except Exception as e:
-                print e
-        if PD['concentric_divide']:
-            dist_lst = PD['dist_lst']
-            del_dist_lst = PD['delete_dist']
-            temp_node = self.concentric_divide(temp_node,dist_lst,del_dist_lst,ROOTREF) 
-        ## 1. param 1 or param 3
-        solartype = PD['solartype']
-        solartime = PD['solartime']
-        solarht = PD['solarht']
-        if solartype == 1 or solartype == 3: # uni-cell
-            try:
-                geo_brep = self.solar_envelope_uni(node,solartime,solarht,solartype)
-            except Exception as e:
-                    print "Error @ solartype 1 or 3", str(e)
-        """
+        
+        #Sort out the outputs
+        if isList:
+            lst_childs = temp_node
+        else:
+            lst_childs = temp_node.traverse_tree(lambda n:n,internal=False) #change this to based on inoput type
+        
+        ## Check freezing
+        lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
         ## Finish
-        lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
-        #lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
         return lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
@@ -1363,14 +1361,14 @@ class Grammar:
             
             #Convert flat list to nested list of typology rules
             nest_rdict = []
-            rdict = copy.deepcopy(Miru)
+            rdict = {}#copy.deepcopy(Miru)
             for parselst in flat_lst:
                 if parselst[0] != 'end_rule':
                     miru_key,miru_val = parselst[0],parselst[1]
                     rdict[miru_key] = miru_val  
                 else:
                     nest_rdict.append(rdict)
-                    rdict = copy.deepcopy(Miru)
+                    rdict = {}
             #Test
             #for i in nest_rdict:
             #    print 'bula', i['bula']

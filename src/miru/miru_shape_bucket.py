@@ -15,7 +15,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['bucket4shape', True],\
-    ['analyze_list',True],\
+    ['apply2list',True],\
     ['end_rule']]   
     for i, r in enumerate(rule_):
         rule.Add(r)
