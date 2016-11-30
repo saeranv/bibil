@@ -45,16 +45,16 @@ class Tree:
     def backtrack_tree(self,foo,accumulate=False):
         def helper_backtrack_tree(node,foo,accumulator,acc_):
             #tail-end recursion backtracking
-            if foo(node)==True:
+            if node == None:
+                if acc_ == False:
+                    return None
+                else:
+                    return accumulator    
+            elif foo(node):
                 if acc_ == False:
                     return node
                 else:
                     accumulator.append(node) 
-            elif node.parent == None:
-                if acc_ == False:
-                    return None
-                else:
-                    return accumulator
             return helper_backtrack_tree(node.parent,foo,accumulator,acc_)
         """ 
         Backtracks tree, applies function argument to every

@@ -3,9 +3,9 @@ Miru Packing
 ----------------""" 
 
 """
-Use this component to set an analysis period, which can be used as input for a variety of other Ladybug and Honeybee components.  Default analysis period without any inputs is set to the entire year.
+BIBIL
 -
-Provided by Ladybug 0.0.62    
+BIBIL PACKING  
     Args:
         x_keep_omit:  X axis is the short dimension on shape. Define keep and omit dimensions separated by comma i.e. 1,2
         y_keep_omit: Y axis is the long dimension on shape. Define keep and omit dimensions separated by comma i.e. 1,2

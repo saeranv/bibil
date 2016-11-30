@@ -7,6 +7,7 @@ import math
 import ghpythonlib.components as ghcomp
 import clr
 from Rhino import RhinoApp
+from ctypes.test.test_pep3118 import THIS_ENDIAN
 
 clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
@@ -234,14 +235,14 @@ class Grammar:
                         dist += random.randrange(randsb_lo,randsb_hi)
                 
                 #Dissect floor
-                if False:
-                    sh_top_node = None
-                    if ht < tnode.shape.ht:
-                        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
-                        sh_top_node.grammar.type['label'] = 'stepbacktop'
-                        sh_bot_node.grammar.type['label'] = 'stepbackbot'
-                else:
-                    sh_top_node = tnode
+                #if False:
+                #    sh_top_node = None
+                #    if ht < tnode.shape.ht:
+                #        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
+                #        sh_top_node.grammar.type['label'] = 'stepbacktop'
+                #        sh_bot_node.grammar.type['label'] = 'stepbackbot'
+                #else:
+                sh_top_node = tnode
                 ##Loop through all sb_geoms
                 if sh_top_node:
                     for sbg in sb_ref:
@@ -291,9 +292,9 @@ class Grammar:
                 bottom_shape = temp_node_.loc[1]
                 top_shape = temp_node_.loc[0]
             #mark top ##this should be an automatic check in helpergeom2node or clonenodes
-            lst_top_nodes = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
-            for tn in lst_top_nodes: tn.grammar.type['top'] = False
-            top_shape.grammar.type['top'] = True
+            #lst_top_nodes = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
+            #for tn in lst_top_nodes: tn.grammar.type['top'] = False
+            #top_shape.grammar.type['top'] = True
         return bottom_shape,top_shape
     def divide(self,node,PD_):       
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
@@ -616,33 +617,33 @@ class Grammar:
             refpt = rs.AddPoint(pt[0],pt[1],ht_)
             topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
             childn = self.helper_geom2node(topcrv,n_,'extracted_slice')
-            
+            #debug.append(topcrv)
             ##this should be an automatic check in helpergeom2node or clonenodes
-            childn.grammar.type['top'] = True
-            lst_top_nodes = n_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
+            #childn.grammar.type['top'] = True
+            #lst_top_nodes = n_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
             ##
-            for tn in lst_top_nodes: tn.grammar.type['top'] = None
+            #for tn in lst_top_nodes: tn.grammar.type['top'] = None
             n_.loc.append(childn)
             return childn
-
+        debug = sc.sticky['debug']
         ## Warning: this function will raise height of geom 1m.
         slice_ht = PD_['extract_slice_height']
-        IsTop = False
+        #IsTop = False
         #Check inputs
         if type(slice_ht) != type([]): slice_ht = [slice_ht]
         if slice_ht == [] or slice_ht == [None]: 
             slice_ht = ['max']
             ##unsure about this but works for now...
-            IsTop = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'])
+            #IsTop = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'])
         
-        if temp_node_.parent:
-            for sib in temp_node_.parent.loc:
-                sib.grammar.type['freeze'] = True
+        #if temp_node_.parent:
+        #    for sib in temp_node_.parent.loc:
+        #        sib.grammar.type['freeze'] = True
         
         #print 'istop', IsTop
         #print temp_node_
         #print temp_node_.parent, temp_node_.parent.grammar.type['top']
-        if slice_ht and IsTop:  
+        if slice_ht:  
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
                     slice_ht = [temp_node_.shape.ht]
@@ -1022,20 +1023,26 @@ class Grammar:
             #Reset depths
             root = meta_node.get_root()
             root.traverse_tree(lambda n:inc_depth(n),internal=True)
-    def landuse(self,temp_node_,PD_):
-        nodes2bucket = PD_['nodes2bucket']
-        node_lst = []
-        """
-        #Make nodes/labels of inputs
-        for node,label in zip(landuse_node,landuse_label):
-            emptyrules = DataTree[object]()
-            print node
-            print label
-            landuse_node = self.main_UI([node],emptyrules,label)
-            node_lst.append(landuse_node)
-        temp_node_.loc.extend(node_lst)
-        """
-        return temp_node_
+    def bucket_shape(self,temp_node_lst_,PD_):
+        ## Purpose: buckets input shapes
+        nodes2bucket = temp_node_lst_
+        bucket = []
+        for n in nodes2bucket:
+            lstn = n.backtrack_tree(lambda n_:n_.grammar.type.has_key('ratio'),accumulate=True)
+            #bucket.append(n.shape.bottom_crv)
+            for nl in lstn:
+                if 'stepback' in nl.grammar.type['grammar']:
+                    print nl
+                    stpd = nl.grammar.type['stepback_data']
+                    ht = float(stpd[0][0])+3
+                    print stpd
+                    pt = n.shape.cpt
+                    refpt = rs.AddPoint(pt[0],pt[1],ht)
+                    topcrv = n.shape.get_bottom(n.shape.geom,refpt)
+                    tn = self.helper_geom2node(topcrv)
+                    bucket.append(tn)
+        #cipher_node_.loc = bucket
+        return temp_node_lst_
     def building_analysis(self,node_in,height,GFA,groundFloor_ht,restFloor_ht):
         def get_label(n):
             label_ = []
@@ -1316,6 +1323,9 @@ class Grammar:
         elif PD['extract_slice'] == True:
             temp_node = self.extract_slice(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'extract_slice'
+        elif PD['bucket4shape'] == True:
+            temp_node = self.bucket_shape(temp_node,PD)
+            temp_node.grammar.type['grammar'] = 'bucket_shape'
         """
         These have to be rewritten
         if solartype == 2: # multi_cell
@@ -1339,7 +1349,7 @@ class Grammar:
         """
         ## Finish
         lst_childs = temp_node.traverse_tree(lambda n:n,internal=False)
-        lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
+        #lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
         return lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
@@ -1405,12 +1415,21 @@ class Grammar:
         elif len(label__) <= 0.5:
             chk_input_len = True
         
+        >> Either try and get list of nodes into this input
+        >> or switch this rule to the output of node component
+        #check if analysis of list of nodes
+        analysis_flag = False
+        for i in range(rule_in_.BranchCount):
+            branchList = list(rule_in_.Branch(i))
+            #for b in branchList:
+           
+            
         #Check if rule has already propogated
         for n in node_in_:
             if type(n) == type(T) and len(n.loc) > 0.5:
                 n.traverse_tree(lambda n:n.delete_node(),internal=True)
-                if n.grammar.type['top'] == None:
-                    n.grammar.type['top'] = True
+                #if n.grammar.type['top'] == None:
+                #    n.grammar.type['top'] = True
             
         if chk_input_len:
             if abs(len(label__)-1.) < 0.5 or abs(len(label__)-0.) < 0.5:
