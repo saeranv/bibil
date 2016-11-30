@@ -7,7 +7,6 @@ import math
 import ghpythonlib.components as ghcomp
 import clr
 from Rhino import RhinoApp
-from ctypes.test.test_pep3118 import THIS_ENDIAN
 
 clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
@@ -18,7 +17,6 @@ from Grasshopper import DataTree
 Shape = sc.sticky["Shape"]
 Tree = sc.sticky["Tree"]
 Bula = sc.sticky["Bula"]
-Miru = sc.sticky["Miru"]
 
 sc.sticky['debug'] = []
 debug = sc.sticky["debug"]
@@ -30,8 +28,8 @@ class Grammar:
     def __init__(self):
         self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.,'top':False,'freeze':False}
         #need to move axis, NS, ratio to divide
-        empty_rule_dict = copy.deepcopy(Miru)
-        self.type.update(empty_rule_dict)
+        #empty_rule_dict = copy.deepcopy(Miru)
+        #self.type.update(empty_rule_dict)
         
     def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
         def helper_curve2srf(geom_):
@@ -1288,42 +1286,42 @@ class Grammar:
         PD = node.grammar.type
         temp_node = node
         
-        if PD['label_UI'] == True:
+        if PD.has_key('label_UI') and PD['label_UI'] == True:
             #simple therefore keep in UI for now...
             temp_node.grammar.type['label'] = PD['label']
             temp_node.grammar.type['grammar'] = 'label'
-        elif PD['divide'] == True:
+        elif PD.has_key('divide') and PD['divide'] == True:
             temp_node = self.divide(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'divide'
-        elif PD['height'] != False:
+        elif PD.has_key('height') and PD['height']:
             temp_node = self.set_height(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'height'
-        elif PD['stepback']:
+        elif PD.has_key('stepback') and PD['stepback'] == True:
             ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
             temp_node = self.stepback(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'stepback'
-        elif PD['court'] == True:
+        elif PD.has_key('court') and PD['court'] == True:
             self.court(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'court'
-        elif PD['bula'] == True:
+        elif PD.has_key('bula') and PD['bula'] == True:
             self.set_bula_point(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'bula'
-        elif PD['meta_tree'] == True:
+        elif PD.has_key('meta_tree') and PD['meta_tree'] == True:
             self.meta_tree(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'meta_tree'
-        elif PD['landuse'] == True:
+        elif PD.has_key('landuse') and PD['landuse'] == True:
             temp_node = self.landuse(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'landuse'
-        elif PD['separate'] == True:
+        elif PD.has_key('separate') and PD['separate'] == True:
             temp_node = self.separate_by_dist(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'separate'
-        elif PD['shape2height'] == True:
+        elif PD.has_key('shape2height') and PD['shape2height'] == True:
             temp_node = self.shape2height(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'shape2height'
-        elif PD['extract_slice'] == True:
+        elif PD.has_key('extract_slice') and PD['extract_slice'] == True:
             temp_node = self.extract_slice(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'extract_slice'
-        elif PD['bucket4shape'] == True:
+        elif PD.has_key('bucket_shape') and PD['bucket_shape'] == True:
             temp_node = self.bucket_shape(temp_node,PD)
             temp_node.grammar.type['grammar'] = 'bucket_shape'
         """
@@ -1415,15 +1413,6 @@ class Grammar:
         elif len(label__) <= 0.5:
             chk_input_len = True
         
-        >> Either try and get list of nodes into this input
-        >> or switch this rule to the output of node component
-        #check if analysis of list of nodes
-        analysis_flag = False
-        for i in range(rule_in_.BranchCount):
-            branchList = list(rule_in_.Branch(i))
-            #for b in branchList:
-           
-            
         #Check if rule has already propogated
         for n in node_in_:
             if type(n) == type(T) and len(n.loc) > 0.5:
