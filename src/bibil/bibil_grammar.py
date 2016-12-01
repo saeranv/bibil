@@ -1029,12 +1029,43 @@ class Grammar:
             root = meta_node.get_root()
             root.traverse_tree(lambda n:inc_depth(n),internal=True)
     def bucket_shape(self,temp_node_lst_,PD_):
+        def helper_sort_val_by_tol(node_lst,grammar2find,foo):
+            # Input: node, str, tol, function
+            # Extract ‘grammar’ and value foo 
+            # add foo(value/numofleaves / TOL)
+            # add to dictionary if key/not key
+            # Output: key:tuple of dictionary
+            grammar_dict = {}
+            for node in node_lst:
+                grammar_val = foo(n,grammar2find)
+                if grammar_dict.has_key(grammar_val):
+                    grammar_dict[grammar_val].append(node)
+                else:
+                    grammar_dict[grammar_val] = [node]
+            lstofkeyvaltuple = grammar_dict.items()
+            return lstofkeyvaltuple
+        
+        def pass_grammar_rules(node_lst,grammar2findlst,funclst,B):
+            # pass grammars to helper
+            for func,grammar2find in zip(funclst,grammar2findlst):
+                lstkeyval = helper_sort_val_by_tol(node_lst,grammar2find,func)
+                B.append(lstkeyval)
+            return B
+        
         ## Purpose: buckets input shapes
         debug = sc.sticky['debug']
         for n in temp_node_lst_: n.grammar.type['grammar'] = 'bucket_shape'
-        nodes2bucket = temp_node_lst_# map(lambda n: n.parent,temp_node_lst_)
+        nodes2bucket = temp_node_lst_
         
-        bucket = []
+        ## Bucket: [(grammar_key,{keyval:lstofnode}),(grammar_key,{keyval:lstofnode})]
+        #init_dict = {'init':{}}
+        Bucket = []
+        grammar2findlst = ['height','primary_axis_vector']
+        httol = 10. 
+        #abs(b1-b2) <= tol
+        htfoo = lambda n: str(round(n.shape.ht/9.0,2))
+        
+        """
         for n in nodes2bucket:
             lstn = n.backtrack_tree(lambda n_:n_.grammar.type.has_key('ratio'),accumulate=True)
             bucket.append(n.shape.bottom_crv)
@@ -1051,6 +1082,7 @@ class Grammar:
                     #tn = self.helper_geom2node(topcrv)
                     bucket.append(topcrv)
         debug.extend(bucket)      
+        """
         return temp_node_lst_
     def building_analysis(self,node_in,height,GFA,groundFloor_ht,restFloor_ht):
         def get_label(n):
