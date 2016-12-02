@@ -473,6 +473,7 @@ class Grammar:
             IsEWDim,IsNSDim,IsMinArea = False, False, False
             x_dim = dim2chk_tuple[0]
             y_dim = dim2chk_tuple[1]
+            #print tol_
             try:
                 IsEWDim = t_.shape.check_shape_dim("EW",x_dim,tol=tol_)
                 IsNSDim = t_.shape.check_shape_dim("NS",y_dim,tol=tol_)
@@ -480,7 +481,8 @@ class Grammar:
             except:
                 pass
             #print IsNSDim, IsEWDim, IsMinArea
-            return IsEWDim and IsNSDim and IsMinArea
+            ## IsMinArea is too tight...
+            return IsEWDim and IsNSDim# and IsMinArea
         def separate_dim(temp_node_topo_,x_keep_omit_,y_keep_omit_,cut_axis,cut_axis_alt):
             def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis):
                 #Now cut the valid shapes
@@ -518,6 +520,7 @@ class Grammar:
             
             #Set inputs for simple divide
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
+            #debug.extend(map(lambda n:n.shape.geom,topo_child_lst))
             #EW checks x_dist, NS checks y_dist << THIS SHOULD BE CHANGED TO HAVE SAME NAME        
             if "EW" in cut_axis:##then the we are cutting y axis, give y dims
                 dimprimekeep = y_keep_
@@ -527,11 +530,11 @@ class Grammar:
                 dimsecondkeep = y_keep_
             lstfirkeepnodes = helper_simple_divide(topo_child_lst,dimprimekeep,cut_axis)
             lstseckeepnodes = helper_simple_divide(lstfirkeepnodes,dimsecondkeep,cut_axis_alt)
-            
+            #debug.extend(map(lambda n:n.shape.geom,lstseckeepnodes))
             for final_node in lstseckeepnodes:
                 min_area = x_keep_ * y_keep_
                 div2keep = (x_keep_,y_keep_)
-                IsValidDimKeepOmit = check_shape_validity(final_node,div2keep,min_area,tol_=2.)
+                IsValidDimKeepOmit = check_shape_validity(final_node,div2keep,min_area,tol_=5.)
                 if IsValidDimKeepOmit:
                     shape2keep_lst.append(final_node)
                 else:
@@ -544,8 +547,8 @@ class Grammar:
             for offset in GLOBLST:
                 crvA = offset
                 crvB = shape2off.shape.bottom_crv
-                ##debug.append(offset)
-                print crvA
+                #debug.append(offset)
+                #print crvA
                 setrel = shape2off.shape.check_region(crvA,crvB,tol=0.1)
                 #If not disjoint
                 if not abs(setrel-0.)<0.1:
@@ -592,8 +595,8 @@ class Grammar:
             temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
             
             # Make/call global collision list
-            #if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
-            sc.sticky['GLOBAL_COLLISION_LIST'] = []
+            if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
+                sc.sticky['GLOBAL_COLLISION_LIST'] = []
             
             offset_dist = x_keep_omit[1]
             seperate_tol = 0.5
@@ -1192,14 +1195,17 @@ class Grammar:
         input_node = temp_node_
         #print 'floordiv', floor_div
         for i,fdiv in enumerate(range(floor_div)):
-            print 'fdiv', fdiv
+            #print 'fdiv', fdiv
             if fdiv > 10.0:
                 inc_angle = angle * -1.0
             else:
                 inc_angle = angle
-            print 'angle', inc_angle
-            input_node_with_child = self.squeeze_angle(input_node,inc_angle,ht_inc,side_inc)
-            input_node = input_node_with_child.loc[0]
+            #print 'angle', inc_angle
+            try:
+                input_node_with_child = self.squeeze_angle(input_node,inc_angle,ht_inc,side_inc)
+                input_node = input_node_with_child.loc[0]
+            except:
+                pass
         loc = temp_node_.traverse_tree(lambda n:n,internal=True)
         loc.pop(0)
         temp_node_ = self.flatten_node_tree_single_child(loc,temp_node_)
@@ -1383,6 +1389,8 @@ class Grammar:
         def helper_nest_rules(label_lst_,rule_tree_):
             #Purpose: Extract rules from tree insert nest list of rule dictionaries
             B = Bula()
+            
+            print rule_in_
             
             #Convert tree to flat list
             #Also we will add label rules to top
