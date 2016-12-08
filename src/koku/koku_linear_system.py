@@ -29,6 +29,7 @@ class LinearSystem(object):
     def swap_rows(self, row0, row1):
         #You can achieve this swap using a temporary container
         #or you can use this, which accounts for the temp storage
+        #Mutate
         self.planes[row0],self.planes[row1] = self.planes[row1],self.planes[row0]
     def multiply_coefficient_and_row(self, coefficient, row):
         #Multiples normal vector and constant by scalar coefficient
@@ -37,12 +38,15 @@ class LinearSystem(object):
         #This is done for two reasons:
         #1. Redefining the vector/coefficient will mutate the original 
         # plane that was referenced in initiating the object, which gets confusing
+        # Will mutate.
+        
         new_normal_vector = self.planes[row].normal_vector.times_scalar(coefficient)
         new_constant_term = self.planes[row].constant_term * coefficient
         self.planes[row] = Plane(normal_vector=new_normal_vector, constant_term=new_constant_term)
     def add_multiple_times_row_to_row(self, coefficient, row_index_to_add, row_index):
         # Multiples the row_index_to_add with coefficient and then
         # adds it to the row_index
+        # This function will mutate the row
         
         #print 'old rows'
         #print self[row_index], 'row index'
@@ -93,27 +97,53 @@ class LinearSystem(object):
             # 2. Don't multiply rows by numbers
             # 3. Only add a multiple of a row to rows underneat row underneath.
         
-        #GET RID OF THIS
-        #def helper_sort_planes(plane_0,plane_1):
-        #    vec_coord_0 = plane_0.normal_vector.coord[0]
-        #    vec_coord_1 = plane_1.normal_vector.coord[0]
-        #    if vec_coord_0 < vec_coord_1:
-        #        return plane_1,plane_0
-        #    else:
-        #        return plane_0, plane_1
-        
         system = deepcopy(self)
+        #print 'orig', system
         lstofplanes = system.planes
-        #DOESN"T WORK
-        #1. Order the rows
-        #for i in range(len(lstofplanes)):
-        #    if i < len(lstofplanes)-1:
-        #        lstofplanes[i],lstofplanes[i+1] = helper_sort_planes(lstofplanes[i],lstofplanes[i+1])
-        #system.planes = lstofplanes
-        #return system
-    
-    
-    
+        # define system variables
+        numofeqn = len(lstofplanes)
+        numofcoord = system.dimension
+        col_i = 0 #the column/coordinate
+        # Iterate down through each row
+        for row_i in xrange(numofeqn):
+            # Iterate through each column of each row
+            roweqn = lstofplanes[row_i]
+            while col_i < numofcoord:
+                coef = MyDecimal(roweqn.normal_vector.coord[col_i])
+                #Check if coeff == 0
+                if coef.is_near_zero():
+                    #swap rows with one below
+                    IsSwap = system.swap_first_nonzero_row(row_i,col_i)
+                    if not IsSwap:
+                        #then all zero, so move to next column
+                        col_i += 1
+                        continue # this continues to next iterative loop
+                system.clear_all_terms_below(row_i,col_i)
+                col_i += 1
+                break #break b/c done all terms below, move to next
+            col_i = 0
+            #print '---'
+        #print 'rref', system
+        return system
+    def clear_all_terms_below(self,rowi,coli):
+        #check not last row
+        if rowi+1 < len(self.planes):
+            beta = self[rowi].normal_vector.coord[coli]
+            for i,roweqn in enumerate(self.planes[rowi+1:]):
+                index = rowi + 1 + i
+                gamma = roweqn.normal_vector.coord[coli]
+                alpha = -gamma/beta
+                self.add_multiple_times_row_to_row(alpha,rowi,index)
+    def swap_first_nonzero_row(self,rowi,coli):
+        #check if last row
+        if rowi+1 < len(self.planes):
+            for i,eqn in enumerate(self.planes[rowi+1:]):
+                index = rowi + 1 + i
+                coef2chk = eqn.normal_vector.coord[coli]
+                if not MyDecimal(coef2chk).is_near_zero():
+                    self.swap_rows(rowi,index)
+                    return True
+        return False
     def __len__(self):
         return len(self.planes)
     def __getitem__(self, i):
@@ -141,16 +171,47 @@ class MyDecimal(Decimal):
 
 
 ## Test 3: Triangular Form
-p1 = Plane(normal_vector=Vector(['0','1','1']), constant_term='1')
+
+
+p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['0','1','1']), constant_term='2')
+s = LinearSystem([p1,p2])
+t = s.compute_triangular_form()
+if not (t[0] == p1 and
+        t[1] == p2):
+    print 'test case 1 failed'
+    
+
+p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
 p2 = Plane(normal_vector=Vector(['1','1','1']), constant_term='2')
 s = LinearSystem([p1,p2])
 t = s.compute_triangular_form()
-print t
-print '--'
+if not (t[0] == p1 and
+        t[1] == Plane(constant_term='1')):
+    print 'test case 2 failed'
 
-#if not (t[0] == p1 and t[1] == p2):
-#    print 'test case 1 failed'
+p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
+p3 = Plane(normal_vector=Vector(['1','1','-1']), constant_term='3')
+p4 = Plane(normal_vector=Vector(['1','0','-2']), constant_term='2')
+s = LinearSystem([p1,p2,p3,p4])
+t = s.compute_triangular_form()
+if not (t[0] == p1 and
+        t[1] == p2 and
+        t[2] == Plane(normal_vector=Vector(['0','0','-2']), constant_term='2') and
+        t[3] == Plane()):
+    print 'test case 3 failed'
 
+
+p1 = Plane(normal_vector=Vector(['0','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['1','-1','1']), constant_term='2')
+p3 = Plane(normal_vector=Vector(['1','2','-5']), constant_term='3')
+s = LinearSystem([p1,p2,p3])
+t = s.compute_triangular_form()
+if not (t[0] == Plane(normal_vector=Vector(['1','-1','1']), constant_term='2') and
+        t[1] == Plane(normal_vector=Vector(['0','1','1']), constant_term='1') and
+        t[2] == Plane(normal_vector=Vector(['0','0','-9']), constant_term='-2')):
+    print 'test case 4 failed'
 
 ## Test 0
 """
