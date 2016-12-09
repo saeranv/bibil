@@ -545,7 +545,6 @@ class Grammar:
             # check if interect with tower-seperation list
             intersect_offset = False
             for offset in GLOBLST:
-                #debug.append(offset)
                 crvA = offset
                 crvB = shape2off.shape.bottom_crv
                 #debug.append(offset)
@@ -596,8 +595,8 @@ class Grammar:
             temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
             
             # Make/call global collision list
-            #if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
-            sc.sticky['GLOBAL_COLLISION_LIST'] = []
+            if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
+                sc.sticky['GLOBAL_COLLISION_LIST'] = []
             
             offset_dist = x_keep_omit[1]
             seperate_tol = 0.5
@@ -607,12 +606,9 @@ class Grammar:
                     GLOBAL_LST = sc.sticky['GLOBAL_COLLISION_LIST']
                     GLOBAL_LST = filter(lambda offcrv: offcrv!=None,GLOBAL_LST)
                     isSeperate = check_base_with_offset(t,GLOBAL_LST)
-                    #print isSeperate
                     if isSeperate == True:
                         #offset_tuple
                         set_separation_record(t,offset_dist,seperate_tol)
-                    else:
-                        t.grammar.type['grammar'] = 'shape2omit'
         else: 
             temp_node_topo.loc = [] 
         ##TEMP4MEETING
