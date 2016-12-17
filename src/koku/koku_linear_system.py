@@ -84,25 +84,24 @@ class LinearSystem(object):
                 else:
                     raise e
         return indices
-    def rref(self):
+    def compute_rref(self):
         #RREF:
-        #1. rows with all zeros are below nonzero rows
-        #2. leading coefficients (pivots) are left of leading
-        #   coefficients below them. And are 1.
-        #3. Coefficients below pivots (leading) coefficients = zero
-        #4. If RREF acheived, then one variable is a parameter
+        #1. Triangular form
+        #2. Each pivot variable has coefficient of 1
+        #3. Each pivot variable is in its own column
+        #4. If RREF acheived, then non-single pivots are a parameter
         #   find the parameter, and define it as such
         
-        system = deepcopy(self)
+        system = self.compute_triangular_form()
         
         # Find leading coefficients index
         # Loop through rows
         # divide row by leading coefficient
-        numofplanes = len(self.planes)
+        numofplanes = len(self)
         nonzero_indices = system.indices_of_first_nonzero_terms_in_each_row()
-        for i in xrange(len(system.planes)):
+        for i in xrange(numofplanes):
             coeff_index = nonzero_indices[i]
-            coeff2one = system.planes[i].normal_vector.coord[coeff_index]
+            coeff2one = system[i].normal_vector.coord[coeff_index]
             onefactor = Decimal(str(1/float(coeff2one)))
             system.multiply_coefficient_and_row(onefactor,i)
             
@@ -110,7 +109,7 @@ class LinearSystem(object):
             j = coeff_index + 1
             while j < self.dimension:
                 print j, self.dimension
-                print system.planes[i].normal_vector
+                print system[i].normal_vector
                 coeff2zero = MyDecimal(system.planes[i].normal_vector.coord[j]) 
                 #check if already zero
                 if not coeff2zero.is_near_zero(): 
@@ -209,11 +208,11 @@ class LinearSystem(object):
     def __getitem__(self, i):
         return self.planes[i]
     def __setitem__(self, i, x):
-        ### Not too sure what this function does
+        ### x = plane that we are setting or swapping
+        ### with plane[i]
         try:
             assert x.dimension == self.dimension
             self.planes[i] = x
-
         except AssertionError:
             raise Exception(self.ALL_PLANES_MUST_BE_IN_SAME_DIM_MSG)
     def __str__(self):
@@ -238,9 +237,8 @@ p1 = Plane(normal_vector=Vector(['0','1','1']), constant_term='1')
 p2 = Plane(normal_vector=Vector(['3','3','1']), constant_term='2')
 p3 = Plane(normal_vector=Vector(['2','5','6']), constant_term='2')
 s = LinearSystem([p1,p2,p3])
-t = s.compute_triangular_form()
 #print t
-r = t.rref()
+a = s.compute_rref()
 
 #print r 
 

@@ -168,7 +168,12 @@ class Vector(object):
         ### and output the area of triangle defined by both
         ### Formula: ||v x w|| = |v||w||sin(theta) = area of parallelogram
         return self.area_of_parallelogram(w)/Decimal('2.0')
-
+    def __getitem__(self, i):
+        return self.coord[i]
+    def __setitem__(self, i, x):
+        #x is vector coordinate we are swapping
+        self.coord[i] = x
+    
 class MyDecimal(Decimal):
     def is_near_zero(self, eps=1E-10):
         return abs(float(self)) < eps
