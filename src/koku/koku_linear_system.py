@@ -89,61 +89,53 @@ class LinearSystem(object):
         #1. Triangular form
         #2. Each pivot variable has coefficient of 1
         #3. Each pivot variable is in its own column
-        #4. If RREF acheived, then non-single pivots are a parameter
-        #   find the parameter, and define it as such
+        #4. Any non-single pivots are a parameter
         
         system = self.compute_triangular_form()
-        
-        # Find leading coefficients index
-        # Loop through rows
-        # divide row by leading coefficient
         numofplanes = len(self)
         nonzero_indices = system.indices_of_first_nonzero_terms_in_each_row()
         for i in xrange(numofplanes):
             coeff_index = nonzero_indices[i]
-            coeff2one = system[i].normal_vector.coord[coeff_index]
-            onefactor = Decimal(str(1/float(coeff2one)))
-            system.multiply_coefficient_and_row(onefactor,i)
-            
-            # Now we go down row cells 
-            j = coeff_index + 1
+            #Now we go across each row and try to set non-pivot coeff to 0 
+            j = coeff_index + 1 #because anything before pivot is zero after triangular form acheived
+            i_inc = 1 #row below you are multipying by
             while j < self.dimension:
-                print j, self.dimension
-                print system[i].normal_vector
-                coeff2zero = MyDecimal(system.planes[i].normal_vector.coord[j]) 
-                #check if already zero
-                if not coeff2zero.is_near_zero(): 
-                    #check if row below exists and is nonzero
-                    print 'data', coeff2zero, system.planes[i], 'j:', j
-                    if i+1 < numofplanes:
-                        coeff2divby = MyDecimal(system.planes[i+1].normal_vector.coord[j])
-                        print 'coeff2divby', coeff2divby
-                        if not coeff2divby.is_near_zero():
-                            zerofactor = -1/coeff2divby * coeff2zero
-                            print zerofactor , 'zerofactor'
-                            #system.multiply_coefficient_and_row(zerofactor,i+1)
-                            system.add_multiple_times_row_to_row(zerofactor,i+1,i)
-                            break
-                            #continue
-                            """
-                            #PROBLEM:
-                            if we continue, then the next iteration in row will increase
-                            subsequent row
-                            so we must increment 1 and j....
-                            1,0,-2 = 3
-                            0,1,0 = 4
-                            0,0,1 = 5
-                            """
-                        else:
-                            pass
-                            #increment by 1...recurse?
+                curr_coeff = MyDecimal(system[i].normal_vector[j]) 
+                #print 'cell i,j: ',i,j
+                #print system[i].normal_vector
+                
+                if not curr_coeff.is_near_zero(): #If already zero, go to next j col
+                    #start a new loop
+                    while i+i_inc < numofplanes: #check if row below exists and is nonzero
+                        #Transform coeff from row below to current i,j cell:
+                        #rowbelow = (rowbelow * curr_coeff/below_coeff) 
+                        #Then add the negative of this to current row
+                        below_coeff = MyDecimal(system[i+i_inc].normal_vector[j])
+                        if not below_coeff.is_near_zero():
+                            factor2zero = -1/below_coeff * curr_coeff
+                            system.add_multiple_times_row_to_row(factor2zero,i+i_inc,i)
+                            #increment i so you avoid messing up row cell you just zeroed
+                            i_inc += 1
+                            break                            
+                        else:#move down to next row
+                            i_inc += 1
                     else:
                         #this is a paramater
+                        # if all rows below are zero, then it is a parameter: continue
                         pass
                 j += 1
-            # if all rows below are zero, then it is a parameter: continue
-        print '---'
-        print system
+        
+        
+        #Make leading/pivot coefficient to be one
+        for i in xrange(numofplanes):
+            coeff_index = nonzero_indices[i]
+            if coeff_index >= -0.5: #will be -1 if no nonzero indices
+                coeff2one = system[i].normal_vector[coeff_index] #using my getters!
+                onefactor = Decimal(str(1./float(coeff2one)))
+                system.multiply_coefficient_and_row(onefactor,i)
+            
+        #print '---'
+        #print system
         return system
     def compute_triangular_form(self):
         # Compute triangular form, i.e
@@ -229,19 +221,56 @@ class MyDecimal(Decimal):
         return abs(float(self)) < eps
 
 
-## Test 3: Triangular Form
+L = range(1,10)
+print L[::-1]
+print L.reverse()
+print L
 
+#Test 4: RREF
 
-
-p1 = Plane(normal_vector=Vector(['0','1','1']), constant_term='1')
-p2 = Plane(normal_vector=Vector(['3','3','1']), constant_term='2')
-p3 = Plane(normal_vector=Vector(['2','5','6']), constant_term='2')
+p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
+p3 = Plane(normal_vector=Vector(['0','0','0']), constant_term='0')
 s = LinearSystem([p1,p2,p3])
-#print t
 a = s.compute_rref()
 
-#print r 
+p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['0','1','1']), constant_term='2')
+s = LinearSystem([p1,p2])
+r = s.compute_rref()
+if not (r[0] == Plane(normal_vector=Vector(['1','0','0']), constant_term='-1') and
+        r[1] == p2):
+    print 'test case 1 failed'
 
+p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['1','1','1']), constant_term='2')
+s = LinearSystem([p1,p2])
+r = s.compute_rref()
+if not (r[0] == p1 and
+        r[1] == Plane(constant_term='1')):
+    print 'test case 2 failed'
+
+p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
+p3 = Plane(normal_vector=Vector(['1','1','-1']), constant_term='3')
+p4 = Plane(normal_vector=Vector(['1','0','-2']), constant_term='2')
+s = LinearSystem([p1,p2,p3,p4])
+r = s.compute_rref()
+if not (r[0] == Plane(normal_vector=Vector(['1','0','0']), constant_term='0') and
+        r[1] == p2 and
+        r[2] == Plane(normal_vector=Vector(['0','0','-2']), constant_term='2') and
+        r[3] == Plane()):
+    print 'test case 3 failed'
+
+p1 = Plane(normal_vector=Vector(['0','1','1']), constant_term='1')
+p2 = Plane(normal_vector=Vector(['1','-1','1']), constant_term='2')
+p3 = Plane(normal_vector=Vector(['1','2','-5']), constant_term='3')
+s = LinearSystem([p1,p2,p3])
+r = s.compute_rref()
+if not (r[0] == Plane(normal_vector=Vector(['1','0','0']), constant_term=Decimal('23')/Decimal('9')) and
+        r[1] == Plane(normal_vector=Vector(['0','1','0']), constant_term=Decimal('7')/Decimal('9')) and
+        r[2] == Plane(normal_vector=Vector(['0','0','1']), constant_term=Decimal('2')/Decimal('9'))):
+    print 'test case 4 failed'
 
 
 ## Test 0
@@ -330,7 +359,8 @@ if not (s[0] == Plane(normal_vector=Vector(['-10','-10','-10']), constant_term='
     print 'test case 9 failed'
 """
 """
-## Compute triangular form tests
+## Test 3: Triangular Form
+
 p1 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
 p2 = Plane(normal_vector=Vector(['0','1','1']), constant_term='2')
 s = LinearSystem([p1,p2])
