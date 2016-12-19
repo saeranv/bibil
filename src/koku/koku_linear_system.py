@@ -3,7 +3,7 @@ from copy import deepcopy
 
 from koku_vector import Vector
 from koku_plane import Plane
-
+from koku_parametrization import Parametrization
 getcontext().prec = 30
 
 
@@ -84,6 +84,15 @@ class LinearSystem(object):
                 else:
                     raise e
         return indices
+    def compute_solution(self):
+        try:
+            return self.compute_ge()
+        except Exception as e:
+            if (str(e)==self.NO_SOLUTIONS_MSG or\
+                str(e)==self.INF_SOLUTIONS_MSG):
+                return str(e)
+            else:
+                raise e
     def compute_ge(self):
         #Takes matrix and outputs gaussian_elimination
         #(a) Unique solution to matrix as vector
@@ -103,22 +112,39 @@ class LinearSystem(object):
             constant_term = system[i].constant_term
             if j < 0 and not MyDecimal(constant_term).is_near_zero():
                 # 0 = k, no solution
-                print 'no solution'
                 solution = []
-                break
+                raise Exception(self.NO_SOLUTIONS_MSG)
             else:
                 # Check if there are other zeros
                 if j+1 < system.dimension-1: 
                     sum_coord = reduce(lambda c,d:c+d,system[i].normal_vector[j+1:])
                     sum_coord = Decimal(str(sum_coord))
                     if not MyDecimal(sum_coord).is_near_zero():
-                        #parameter
-                        print 'solution is paramaterized'
+                        # Parameterization
+                        basept,lst_dir_vec = system.get_basept_dir_vec_from_solution()
+                        #param = Parametrization(basept,lst_dir_vec)
+                        raise Exception(self.INF_SOLUTIONS_MSG)
                 solution.append(system[i].constant_term)
         if solution:
             solution.reverse()
             solution = Vector(solution)
         return solution
+    def get_basept_dir_vec_from_solution(self):
+        #Inputs system in rref
+        #Outputs basept and direction vectors
+        bpt = None
+        lstdirvec = None
+        print self #RREF
+        #loop through row
+        j = 0
+        print '--'
+        while j <= self.dimension-1:
+            for i in xrange(len(self.planes)):
+                print self[i].normal_vector[j],',',
+            print '\n'
+            j += 1
+        print '--'
+        return bpt,lstdirvec
     def compute_rref(self):
         #RREF:
         #1. Triangular form
@@ -256,34 +282,12 @@ class MyDecimal(Decimal):
     def is_near_zero(self, eps=1E-10):
         return abs(float(self)) < eps
 
-#Test 5: Gaussian Elimination
-p1 = Plane(normal_vector=Vector(['5.862','1.178','-10.366']), constant_term='-8.15')
-p2 = Plane(normal_vector=Vector(['-2.931','-0.589','5.183']), constant_term='-4.075')
-s = LinearSystem([p1,p2])
-#print s.compute_rref()
-#sol = s.compute_ge()
-#print sol
-
-p1 = Plane(normal_vector=Vector(['8.631','5.112','-1.816']), constant_term='-5.113')
-p2 = Plane(normal_vector=Vector(['4.315','11.132','-5.27']), constant_term='-6.775')
-p3 = Plane(normal_vector=Vector(['-2.158','3.01','-1.727']), constant_term='-0.831')
-s = LinearSystem([p1,p2,p3])
-print s.compute_rref()
-sol = s.compute_ge()
+## Test 6: Parametrization
+p0 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+p1 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
+s = LinearSystem([p0,p1])
+sol = s.compute_solution()
 print sol
-print '---'
-
-p1 = Plane(normal_vector=Vector(['5.262','2.739','-9.878']), constant_term='-3.441')
-p2 = Plane(normal_vector=Vector(['5.111','6.358','7.638']), constant_term='-2.152')
-p3 = Plane(normal_vector=Vector(['2.016','-9.924','-1.367']), constant_term='-9.278')
-p4 = Plane(normal_vector=Vector(['2.167','-13.543','-18.883']), constant_term='-10.567')
-s = LinearSystem([p1,p2,p3,p4])
-#print s.compute_rref()
-#sol = s.compute_ge()
-#print sol
-#print '---'
-
-
 
 ## Test 0
 """
@@ -459,4 +463,32 @@ if not (r[0] == Plane(normal_vector=Vector(['1','0','0']), constant_term=Decimal
         r[2] == Plane(normal_vector=Vector(['0','0','1']), constant_term=Decimal('2')/Decimal('9'))):
     print 'test case 4 failed'
 
+"""
+"""
+#Test 5: Gaussian Elimination
+p1 = Plane(normal_vector=Vector(['5.862','1.178','-10.366']), constant_term='-8.15')
+p2 = Plane(normal_vector=Vector(['-2.931','-0.589','5.183']), constant_term='-4.075')
+s = LinearSystem([p1,p2])
+#print s.compute_rref()
+#sol = s.compute_solution()
+#print sol
+
+p1 = Plane(normal_vector=Vector(['8.631','5.112','-1.816']), constant_term='-5.113')
+p2 = Plane(normal_vector=Vector(['4.315','11.132','-5.27']), constant_term='-6.775')
+p3 = Plane(normal_vector=Vector(['-2.158','3.01','-1.727']), constant_term='-0.831')
+s = LinearSystem([p1,p2,p3])
+#print s.compute_rref()
+#sol = s.compute_solution()
+#print sol
+#print '---'
+
+p1 = Plane(normal_vector=Vector(['5.262','2.739','-9.878']), constant_term='-3.441')
+p2 = Plane(normal_vector=Vector(['5.111','6.358','7.638']), constant_term='-2.152')
+p3 = Plane(normal_vector=Vector(['2.016','-9.924','-1.367']), constant_term='-9.278')
+p4 = Plane(normal_vector=Vector(['2.167','-13.543','-18.883']), constant_term='-10.567')
+s = LinearSystem([p1,p2,p3,p4])
+#print s.compute_rref()
+#sol = s.compute_solution()
+#print sol
+#print '---'
 """
