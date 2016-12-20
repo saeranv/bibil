@@ -106,7 +106,7 @@ class LinearSystem(object):
         # Check: if 0 = k then no solution 
         solution = []
         pivot_indices = system.indices_of_first_nonzero_terms_in_each_row()
-        pivot_indices
+        
         for i in range(len(system))[::-1]:
             j = pivot_indices[i]
             constant_term = system[i].constant_term
@@ -121,7 +121,7 @@ class LinearSystem(object):
                     sum_coord = Decimal(str(sum_coord))
                     if not MyDecimal(sum_coord).is_near_zero():
                         # Parameterization
-                        basept,lst_dir_vec = system.get_basept_dir_vec_from_solution()
+                        #basept,lst_dir_vec = system.get_basept_dir_vec_from_solution()
                         #param = Parametrization(basept,lst_dir_vec)
                         raise Exception(self.INF_SOLUTIONS_MSG)
                 solution.append(system[i].constant_term)
@@ -135,15 +135,19 @@ class LinearSystem(object):
         bpt = None
         lstdirvec = None
         print self #RREF
-        #loop through row
-        j = 0
-        print '--'
-        while j <= self.dimension-1:
-            for i in xrange(len(self.planes)):
-                print self[i].normal_vector[j],',',
-            print '\n'
-            j += 1
-        print '--'
+        #Loop through rows
+        #Identify parameters by finding if non pivot coefficients exist
+        #Get x,y,z form by subtracting constant term w/ non pivot indices
+        #Identify if row has a parameter (more than one nonzero coefficient in addition
+        
+        #For each row:
+        #    keep track constant_term w/ listofbasept #this will be size of plane dimension
+        #    if params exist (non pivot indices): Create row j dict key. Value is list of 0 vec, with plane dimension
+        #       insert param number into key row j: in appropriate col i. Multiply by negative 1 
+        #At end have listof basepts = basepoint vector
+        #Create key,value list, sort according to row i order
+        #Convert these into direction vectors
+        
         return bpt,lstdirvec
     def compute_rref(self):
         #RREF:
@@ -283,10 +287,15 @@ class MyDecimal(Decimal):
         return abs(float(self)) < eps
 
 ## Test 6: Parametrization
-p0 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
-p1 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
+
+#p0 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
+#p1 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
+p0 = Plane(Vector(['1','0','0']),'5')
+p1 = Plane(Vector(['0','1','1']),'6')
+
 s = LinearSystem([p0,p1])
 sol = s.compute_solution()
+print s.compute_rref()
 print sol
 
 ## Test 0

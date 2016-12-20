@@ -1012,25 +1012,31 @@ class Grammar:
                 n.depth = 0
         
         temp_node_.grammar.type['grammar'] = 'meta_tree'
-        meta_node = PD_['meta_node']
+        meta_node_lst = PD_['meta_node']
         #THIS SHOULD BE DONE IN TREE CLASS
         #print 'label metanode:', meta_node.parent
         #print 'label currnode: ', temp_node_
-        meta_root = meta_node.get_root()
-        temp_root = temp_node_.get_root()
-        #Check to make sure we haven't already inserted as root
-        chklabel = temp_root.grammar.type['label'] != meta_root.grammar.type['label']
-        if chklabel:
-            new_child_node = temp_node_.get_root()
-            #Insert and link both ways
-            meta_node.loc.append(new_child_node)
-            #Give a unique id to meta_node to make sure we don't double ref 
-            meta_node.grammar.type['label'] += str(random.randrange(1,1000))
-            #Now reference it
-            new_child_node.parent = meta_node
-            #Reset depths
-            root = meta_node.get_root()
-            root.traverse_tree(lambda n:inc_depth(n),internal=True)
+        for meta_node in meta_node_lst:
+            meta_root = meta_node.get_root()
+            IsIn = rs.PointInPlanarClosedCurve(temp_node_.shape.cpt,meta_root.shape.bottom_crv)
+            if not IsIn:
+                continue
+            else:
+                temp_root = temp_node_.get_root()
+                #Check to make sure we haven't already inserted as root
+                chklabel = temp_root.grammar.type['label'] != meta_root.grammar.type['label']
+                if chklabel:
+                    new_child_node = temp_node_.get_root()
+                    #Insert and link both ways
+                    meta_node.loc.append(new_child_node)
+                    #Give a unique id to meta_node to make sure we don't double ref 
+                    meta_node.grammar.type['label'] += str(random.randrange(1,1000))
+                    #Now reference it
+                    new_child_node.parent = meta_node
+                    #Reset depths
+                    root = meta_node.get_root()
+                    root.traverse_tree(lambda n:inc_depth(n),internal=True)
+                    
     def bucket_shape(self,temp_node_lst_,PD_):
         def helper_sort_val_by_tol(node_lst,grammar2find,foo):
             # Input: node, str, tol, function
@@ -1389,8 +1395,6 @@ class Grammar:
         def helper_nest_rules(label_lst_,rule_tree_):
             #Purpose: Extract rules from tree insert nest list of rule dictionaries
             B = Bula()
-            
-            print rule_in_
             
             #Convert tree to flat list
             #Also we will add label rules to top
