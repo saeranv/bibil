@@ -121,7 +121,7 @@ class LinearSystem(object):
                     sum_coord = Decimal(str(sum_coord))
                     if not MyDecimal(sum_coord).is_near_zero():
                         # Parameterization
-                        basept,lst_dir_vec = system.get_basept_dir_vec_from_solution()
+                        system.get_basept_dir_vec_from_solution()
                         #param = Parametrization(basept,lst_dir_vec)
                         raise Exception(self.INF_SOLUTIONS_MSG)
                 solution.append(system[i].constant_term)
@@ -131,8 +131,45 @@ class LinearSystem(object):
             solution = Vector(solution)
         return solution
     def get_basept_dir_vec_from_solution(self):
-        #Inputs system in rref
-        #Outputs basept and direction vectors
+        #Purpose: Inputs RREF system with infinite solutions and outputs basept and direction vectors
+        
+        #Example 1
+        #[1,1,1] = 5
+        #x = 5 - 1y - 1z
+        #y = 0 + 1y + 0
+        #z = 0 + 0 + 1z
+        #dir: t[-1,1,0],s[-1,0,1]
+        #Example 2
+        #[1,0,0]=5
+        #[0,1,1]=6
+        #[0,0,0]=0
+        #x = 5 + 0 + 0
+        #y = 0 + 6 - z
+        #z = 0 + 0 + z
+        #dir: t[0,-1,1]
+        #1. Identify the parameter indices
+        #Subtract the dimension of system
+        #the pivot points. 
+        #Example 1: (0,1,2) - (0) = [1,2] << param indices
+        #Example 2: (0,1,2) - (0,1) = [2] << param indicies
+        
+        #2. Extract coordinates for parameter vector
+        #The logic for this hinges on: 
+        #    (1) how the parameter col i is equal to normal row pivot j
+        #    (2) how the parameter_col[param_index] is always equal to 1, because that is parameter
+        #param_vector[pivot_index] == - self.plane[i].normal[pivot_index]
+        #param_vector[param_index] == 1
+        #So:
+        #vector_coords[param_index] = 1 << PARAM_INDEX IS ITSELF
+        #For plane in self.planes: vector_coords[pivot_index] = -plane.normal_vector[param_index]
+        #Example 1: self[pivoti].normal[1] -> t[-1,1,0], s[-1,0,1] row[1,2] is parameter
+        #Example 2: self[pivoti].normal[2] -> t[0,-1,1] row[2] is parameter
+        
+        num_variables = self.dimension
+        pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
+        free_variable_indices = set(range(num_variables)) - set(pivot_indices)
+        
+        """   
         bpt = map(lambda p: p.constant_term,self.planes)
         lstdirvec = []
         print self #RREF
@@ -143,7 +180,7 @@ class LinearSystem(object):
         free_var = set(range(self.dimension)) - set(pivot_indices)
         for var in free_var:
             print var
-        """
+        
         print '-'
         for i in xrange(len(self.planes)):
             param = [0.0]*self.dimension
@@ -164,9 +201,9 @@ class LinearSystem(object):
         #    keep track constant_term w/ listofbasept #this will be size of plane dimension
         #    if params exist (non pivot indices): Create row j dict key. Value is list of 0 vec, with plane dimension
         #       insert param number into key row j: in appropriate col i. Multiply by negative 1 
-        bpt = Vector(bpt)
+        #bpt = Vector(bpt)
         #map(lambda coordlst)
-        return bpt,lstdirvec
+        #return None, None
     def compute_rref(self):
         #RREF:
         #1. Triangular form
