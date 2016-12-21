@@ -51,7 +51,6 @@ class Bula:
         # combinations(iterable, r)
         # combinations('ABCD', 2) --> AB AC AD BC BD CD
         return itertools.combinations(iterable,r)
-
     def ghtree2nestlist(self,tree,nest=True):
         nested_lst = []
         for i in range(tree.BranchCount):

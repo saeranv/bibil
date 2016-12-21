@@ -121,11 +121,12 @@ class LinearSystem(object):
                     sum_coord = Decimal(str(sum_coord))
                     if not MyDecimal(sum_coord).is_near_zero():
                         # Parameterization
-                        #basept,lst_dir_vec = system.get_basept_dir_vec_from_solution()
+                        basept,lst_dir_vec = system.get_basept_dir_vec_from_solution()
                         #param = Parametrization(basept,lst_dir_vec)
                         raise Exception(self.INF_SOLUTIONS_MSG)
                 solution.append(system[i].constant_term)
         if solution:
+            
             solution.reverse()
             solution = Vector(solution)
         return solution
@@ -136,6 +137,8 @@ class LinearSystem(object):
         lstdirvec = None
         print self #RREF
         #Loop through rows
+        for i in xrange(len(self)):
+            print self[i]
         #Identify parameters by finding if non pivot coefficients exist
         #Get x,y,z form by subtracting constant term w/ non pivot indices
         #Identify if row has a parameter (more than one nonzero coefficient in addition
@@ -155,7 +158,6 @@ class LinearSystem(object):
         #2. Each pivot variable has coefficient of 1
         #3. Each pivot variable is in its own column
         #4. Any non-single pivots are a parameter
-        
         system = self.compute_triangular_form()
         numofplanes = len(self)
         nonzero_indices = system.indices_of_first_nonzero_terms_in_each_row()

@@ -1036,7 +1036,6 @@ class Grammar:
                     #Reset depths
                     root = meta_node.get_root()
                     root.traverse_tree(lambda n:inc_depth(n),internal=True)
-                    
     def bucket_shape(self,temp_node_lst_,PD_):
         def helper_sort_val_by_tol(node_lst,grammar2find,foo):
             # Input: node, str, tol, function
