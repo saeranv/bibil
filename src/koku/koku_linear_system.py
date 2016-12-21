@@ -116,7 +116,7 @@ class LinearSystem(object):
                 raise Exception(self.NO_SOLUTIONS_MSG)
             else:
                 # Check if there are other zeros
-                if j+1 < system.dimension-1: 
+                if j+1 <= system.dimension-1: 
                     sum_coord = reduce(lambda c,d:c+d,system[i].normal_vector[j+1:])
                     sum_coord = Decimal(str(sum_coord))
                     if not MyDecimal(sum_coord).is_near_zero():
@@ -133,24 +133,39 @@ class LinearSystem(object):
     def get_basept_dir_vec_from_solution(self):
         #Inputs system in rref
         #Outputs basept and direction vectors
-        bpt = None
-        lstdirvec = None
+        bpt = map(lambda p: p.constant_term,self.planes)
+        lstdirvec = []
         print self #RREF
+        pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
         #Loop through rows
-        for i in xrange(len(self)):
+        print set(range(self.dimension))
+        print set(pivot_indices)
+        free_var = set(range(self.dimension)) - set(pivot_indices)
+        for var in free_var:
+            print var
+        """
+        print '-'
+        for i in xrange(len(self.planes)):
+            param = [0.0]*self.dimension
             print self[i]
-        #Identify parameters by finding if non pivot coefficients exist
-        #Get x,y,z form by subtracting constant term w/ non pivot indices
-        #Identify if row has a parameter (more than one nonzero coefficient in addition
-        
+            j = pivot_indices[i]+1
+            IsParam = False
+            while j <= self.dimension-1:
+                nonpivot_coeff = self[i].normal_vector[j]
+                if not MyDecimal(nonpivot_coeff).is_near_zero():
+                    param[j] = self[i].normal_vector[j]
+                    IsParam = True
+                j+=1
+            if IsParam:
+                lstdirvec.append(param) 
+            print '-'
+        """
         #For each row:
         #    keep track constant_term w/ listofbasept #this will be size of plane dimension
         #    if params exist (non pivot indices): Create row j dict key. Value is list of 0 vec, with plane dimension
         #       insert param number into key row j: in appropriate col i. Multiply by negative 1 
-        #At end have listof basepts = basepoint vector
-        #Create key,value list, sort according to row i order
-        #Convert these into direction vectors
-        
+        bpt = Vector(bpt)
+        #map(lambda coordlst)
         return bpt,lstdirvec
     def compute_rref(self):
         #RREF:
@@ -297,8 +312,8 @@ p1 = Plane(Vector(['0','1','1']),'6')
 
 s = LinearSystem([p0,p1])
 sol = s.compute_solution()
-print s.compute_rref()
-print sol
+#print s.compute_rref()
+print '-\n', sol
 
 ## Test 0
 """
