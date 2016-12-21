@@ -474,12 +474,12 @@ class Grammar:
             x_dim = dim2chk_tuple[0]
             y_dim = dim2chk_tuple[1]
             #print tol_
-            try:
+            if True:#try:
                 IsEWDim = t_.shape.check_shape_dim("EW",x_dim,tol=tol_)
                 IsNSDim = t_.shape.check_shape_dim("NS",y_dim,tol=tol_)
-                IsMinArea = abs(t_.shape.get_area() - minarea) <= tol_
-            except:
-                pass
+                #IsMinArea = math.abs(t_.shape.get_area() - minarea) <= tol_
+            #except:
+            #    pass
             #print IsNSDim, IsEWDim, IsMinArea
             ## IsMinArea is too tight...
             return IsEWDim and IsNSDim# and IsMinArea
@@ -535,7 +535,10 @@ class Grammar:
                 min_area = x_keep_ * y_keep_
                 div2keep = (x_keep_,y_keep_)
                 IsValidDimKeepOmit = check_shape_validity(final_node,div2keep,min_area,tol_=5.)
-                if IsValidDimKeepOmit:
+                chkMin = False
+                if final_node.shape.x_dist >= (x_keep_-2.) and final_node.shape.y_dist >= (y_keep_-2.):
+                    chkMin = True
+                if IsValidDimKeepOmit and chkMin==True:
                     shape2keep_lst.append(final_node)
                 else:
                     shape2omit_lst.append(final_node)
@@ -560,7 +563,7 @@ class Grammar:
             sep_dist_tol = (sep_dist - separation_tol_) * -1
             sep_crv = shape2record.shape.op_offset_crv(sep_dist_tol,corner=3)
             #debug.append(check_base_separation_.shape.bottom_crv)
-            #debug.append(sep_crv)
+            debug.append(sep_crv)
             ## Append crv
             sc.sticky['GLOBAL_COLLISION_LIST'].append(rs.coercecurve(sep_crv))
             
@@ -602,21 +605,25 @@ class Grammar:
             seperate_tol = 0.5
             # Check shape separation
             for i,t in enumerate(temp_node_topo.loc):
-                if 'shape2keep' in t.grammar.type['grammar']:
+                if 'keep' in t.grammar.type['grammar']:
                     GLOBAL_LST = sc.sticky['GLOBAL_COLLISION_LIST']
                     GLOBAL_LST = filter(lambda offcrv: offcrv!=None,GLOBAL_LST)
                     isSeperate = check_base_with_offset(t,GLOBAL_LST)
                     if isSeperate == True:
                         #offset_tuple
                         set_separation_record(t,offset_dist,seperate_tol)
+                    else:
+                        t.grammar.type['grammar'] = 'omit'
+                else:
+                    t.grammar.type['grammar'] = 'omit'
         else: 
             temp_node_topo.loc = [] 
         ##TEMP4MEETING
-        for i,t in enumerate(temp_node_topo.loc):
-            if 'omit' in t.grammar.type['grammar']:
-                temp_node_topo.loc[i] = None
-                debug.append(t)
-        temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
+        #for i,t in enumerate(temp_node_topo.loc):
+        #    if not 'keep' in t.grammar.type['grammar']:
+        #        temp_node_topo.loc[i] = None
+        #        debug.append(t)
+        #temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):

@@ -134,7 +134,9 @@ class LinearSystem(object):
         #Purpose: Inputs RREF system with infinite solutions and outputs basept and direction vectors
         
         #Example 1
-        #[1,1,1] = 5
+        #[1,1,1]=5
+        #[0,0,0]=0
+        #[0,0,0]=0
         #x = 5 - 1y - 1z
         #y = 0 + 1y + 0
         #z = 0 + 0 + 1z
@@ -157,11 +159,9 @@ class LinearSystem(object):
         #The logic for this hinges on: 
         #    (1) how the parameter col i is equal to normal row pivot j
         #    (2) how the parameter_col[param_index] is always equal to 1, because that is parameter
-        #param_vector[pivot_index] == - self.plane[i].normal[pivot_index]
-        #param_vector[param_index] == 1
         #So:
-        #vector_coords[param_index] = 1 << PARAM_INDEX IS ITSELF
-        #For plane in self.planes: vector_coords[pivot_index] = -plane.normal_vector[param_index]
+        #param_vector[pivot_index] == - self.plane[i].normal[param_index]
+        #param_vector[param_index] == 1 << b/c this by definition has no pivot (will be zero row), must add manually 
         #Example 1: self[pivoti].normal[1] -> t[-1,1,0], s[-1,0,1] row[1,2] is parameter
         #Example 2: self[pivoti].normal[2] -> t[0,-1,1] row[2] is parameter
         
