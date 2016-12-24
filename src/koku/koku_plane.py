@@ -55,7 +55,7 @@ class Plane(object):
             else:
                 raise e
     
-    def __str__(self):
+    def __repr__(self):
         ### This function goves is the coefficients (A,B,C)
         ### which is calculated from the basepoints.. somehow
         num_decimal_places = 3

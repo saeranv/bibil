@@ -69,7 +69,7 @@ class Line(object):
                 self.basepoint = None
             else:
                 raise e
-    def __str__(self):
+    def __repr__(self):
         num_decimal_places = 3
         def write_coefficient(coefficient, is_initial_term=False):
             coefficient = round(coefficient, num_decimal_places)

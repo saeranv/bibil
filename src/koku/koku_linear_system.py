@@ -88,10 +88,10 @@ class LinearSystem(object):
         try:
             return self.compute_ge()
         except Exception as e:
-            if (str(e)==self.NO_SOLUTIONS_MSG or\
-                str(e)==self.INF_SOLUTIONS_MSG):
+            if str(e)==self.NO_SOLUTIONS_MSG:
                 return str(e)
             else:
+                print str(e)
                 raise e
     def compute_ge(self):
         #Takes matrix and outputs gaussian_elimination
@@ -121,12 +121,12 @@ class LinearSystem(object):
                     sum_coord = Decimal(str(sum_coord))
                     if not MyDecimal(sum_coord).is_near_zero():
                         # Parameterization
-                        system.get_basept_dir_vec_from_solution()
-                        #param = Parametrization(basept,lst_dir_vec)
-                        raise Exception(self.INF_SOLUTIONS_MSG)
+                        basept, direction_vectors = system.get_basept_dir_vec_from_solution()
+                        solution = (basept, direction_vectors)
+                        print self.INF_SOLUTIONS_MSG
+                        break
                 solution.append(system[i].constant_term)
-        if solution:
-            
+        if solution and type(solution) == type([]):
             solution.reverse()
             solution = Vector(solution)
         return solution
@@ -166,44 +166,42 @@ class LinearSystem(object):
         #Example 2: self[pivoti].normal[2] -> t[0,-1,1] row[2] is parameter
         
         num_variables = self.dimension
+        num_planes = len(self.planes)
         pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
-        free_variable_indices = set(range(num_variables)) - set(pivot_indices)
+        param_indices = set(range(num_variables)) - set(pivot_indices)
+        basept = [Decimal('0')] * num_variables
+        dir_vectors = []
         
-        """   
-        bpt = map(lambda p: p.constant_term,self.planes)
-        lstdirvec = []
-        print self #RREF
-        pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
-        #Loop through rows
-        print set(range(self.dimension))
-        print set(pivot_indices)
-        free_var = set(range(self.dimension)) - set(pivot_indices)
-        for var in free_var:
-            print var
+        #Get basept: Not clever, but clear and correct
+        for i in xrange(num_variables):
+            if i <= num_planes-1:
+                basept[i] = Decimal(str(self.planes[i].constant_term))
+        basept = Vector(basept)
+
+        #Get direction vectors
+        for param_index in param_indices:
+            vector = [Decimal(str(0.))] * num_variables
+            for i in xrange(num_planes):
+                #The param row j, in col i == param coeff
+                #Except when col i == param row j
+                plane = self.planes[i]
+                pivot_index = pivot_indices[i]
+                #If no pivot, then 
+                if pivot_index < 0.:
+                    #then this and all planes after
+                    #are zeros therefore they correspond 
+                    #to parameters = 1
+                    break
+                else:
+                    vector[i] = Decimal('-1') * plane.normal_vector[param_index]
+            vector[param_index] = Decimal(str(1.))   
+            dir_vectors.append(Vector(vector))
         
-        print '-'
-        for i in xrange(len(self.planes)):
-            param = [0.0]*self.dimension
-            print self[i]
-            j = pivot_indices[i]+1
-            IsParam = False
-            while j <= self.dimension-1:
-                nonpivot_coeff = self[i].normal_vector[j]
-                if not MyDecimal(nonpivot_coeff).is_near_zero():
-                    param[j] = self[i].normal_vector[j]
-                    IsParam = True
-                j+=1
-            if IsParam:
-                lstdirvec.append(param) 
-            print '-'
-        """
-        #For each row:
-        #    keep track constant_term w/ listofbasept #this will be size of plane dimension
-        #    if params exist (non pivot indices): Create row j dict key. Value is list of 0 vec, with plane dimension
-        #       insert param number into key row j: in appropriate col i. Multiply by negative 1 
-        #bpt = Vector(bpt)
-        #map(lambda coordlst)
-        #return None, None
+        #print basept
+        #for v in dir_vectors:
+        #    print v
+                
+        return basept, dir_vectors
     def compute_rref(self):
         #RREF:
         #1. Triangular form
@@ -327,7 +325,7 @@ class LinearSystem(object):
             self.planes[i] = x
         except AssertionError:
             raise Exception(self.ALL_PLANES_MUST_BE_IN_SAME_DIM_MSG)
-    def __str__(self):
+    def __repr__(self):
         ### Prints linear system
         ### Iterates each plane as an equation, and print equation of the plane.
         ret = 'Linear System:\n'
@@ -344,12 +342,12 @@ class MyDecimal(Decimal):
 
 #p0 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
 #p1 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
-p0 = Plane(Vector(['1','0','0']),'5')
-p1 = Plane(Vector(['0','1','1']),'6')
+#p0 = Plane(Vector(['1','0','0']),'5')
+#p1 = Plane(Vector(['0','1','1']),'6')
+p0 = Plane(Vector(['1','1','1']),'5')
 
-s = LinearSystem([p0,p1])
+s = LinearSystem([p0])
 sol = s.compute_solution()
-#print s.compute_rref()
 print '-\n', sol
 
 ## Test 0

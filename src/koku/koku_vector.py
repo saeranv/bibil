@@ -28,7 +28,7 @@ class Vector(object):
         except Exception as e: #TypeError:
             print str(e)
             #raise TypeError('The coordinates must be an iterable')
-    def __str__(self):
+    def __repr__(self):
         return str([round(float(c),4) for c in self.coord])
     def __eq__(self, v):
         return self.coord == v.coord

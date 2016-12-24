@@ -22,7 +22,7 @@ class Parametrization(object):
         except AssertionError:
             raise Exception(self.BASEPT_AND_DIR_VECTORS_MUST_BE_IN_SAME_DIM_MSG)
 
-    def __str__(self):
+    def __repr__(self):
         def make_tuple_str(vec):
             bpt_str = ""
             for i in xrange(vec.dim):
