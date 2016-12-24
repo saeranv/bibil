@@ -366,6 +366,7 @@ class Shape:
         ## Extract curves from brep according to input cpt lvl
         try:
             if g == None: g = self.geom
+            #print g
             if self.is_guid(refpt): refpt = rs.coerce3dpoint(refpt)
             if self.is_guid(g): g = rs.coercebrep(g)
             plane = rc.Geometry.Plane(refpt,rc.Geometry.Vector3d(0,0,1))
@@ -699,7 +700,7 @@ class Shape:
             return None
         else: 
             try:    
-                if not curve:
+                if curve == None:
                     curve = copy.copy(self.bottom_crv)
                 if not self.is_guid(curve):
                     curve = sc.doc.Objects.AddCurve(curve)            
