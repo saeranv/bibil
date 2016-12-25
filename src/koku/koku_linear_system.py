@@ -6,6 +6,9 @@ from koku_plane import Plane
 from koku_parametrization import Parametrization
 getcontext().prec = 30
 
+class MyDecimal(Decimal):
+    def is_near_zero(self, eps=1E-10):
+        return abs(float(self)) < eps
 
 class LinearSystem(object):
 
@@ -115,45 +118,37 @@ class LinearSystem(object):
             else:
                 print str(e)
                 raise e
+        
+    def raise_exception_if_no_solution(self):
+        #Iterates backwards through planes
+        pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
+        for i in range(len(self))[::-1]:
+            j = pivot_indices[i]
+            constant_term = self[i].constant_term
+            if j < 0. and not MyDecimal(constant_term).is_near_zero():
+                # 0 = k, no solution
+                raise Exception(self.NO_SOLUTIONS_MSG)
+            
     def compute_ge(self):
         #Takes matrix and outputs gaussian_elimination
+        #and parametrization if infinite solutions
         #(a) Unique solution to matrix as vector
         #(b) Indication there is no solution
-        #(c) Indiciation there are infinite solutions
         
-        system = self.compute_rref()
         # Compute pivot indices, loop through each row,
         # Check: if unique then add to vector
         # Check: if parameter present then not unique
         # Check: if 0 = k then no solution 
-        solution = []
-        pivot_indices = system.indices_of_first_nonzero_terms_in_each_row()
+        system = self.compute_rref()
+        system.raise_exception_if_no_solution()
         
-        for i in range(len(system))[::-1]:
-            j = pivot_indices[i]
-            constant_term = system[i].constant_term
-            if j < 0 and not MyDecimal(constant_term).is_near_zero():
-                # 0 = k, no solution
-                solution = []
-                raise Exception(self.NO_SOLUTIONS_MSG)
-            else:
-                # Check if there are other zeros
-                if j+1 <= system.dimension-1: 
-                    sum_coord = reduce(lambda c,d:c+d,system[i].normal_vector[j+1:])
-                    sum_coord = Decimal(str(sum_coord))
-                    if not MyDecimal(sum_coord).is_near_zero():
-                        # Parameterization
-                        basept, direction_vectors = system.get_basept_dir_vec_from_solution()
-                        solution = Parametrization(basept,direction_vectors)
-                        #print self.INF_SOLUTIONS_MSG
-                        break
-                solution.append(system[i].constant_term)
-        if solution and type(solution) == type([]):
-            solution.reverse()
-            solution = Vector(solution)
-        return solution
-    def get_basept_dir_vec_from_solution(self):
-        #Purpose: Inputs RREF system with infinite solutions and outputs basept and direction vectors
+        base_point = system.get_base_point()
+        direction_vectors = system.get_direction_vectors()
+            
+        return Parametrization(base_point,direction_vectors)
+        
+    def get_direction_vectors(self):
+        #Purpose: Inputs RREF system and outputs direction vectors
         
         #Example 1
         #[1,1,1]=5
@@ -186,30 +181,16 @@ class LinearSystem(object):
         #param_vector[param_index] == 1 << b/c this by definition has no pivot (will be zero row), must add manually 
         #Example 1: self[pivoti].normal[1] -> t[-1,1,0], s[-1,0,1] row[1,2] is parameter
         #Example 2: self[pivoti].normal[2] -> t[0,-1,1] row[2] is parameter
-        
+       
         num_variables = self.dimension
-        num_planes = len(self.planes)
         pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
         param_indices = set(range(num_variables)) - set(pivot_indices)
-        basept = [0] * num_variables
         dir_vectors = []
-        
-        #param_indices = []
-        #for var in range(num_variables):
-        #    ##
-        
-        #Get basept: Not clever, but clear and correct
-        for i in xrange(len(self.planes)):
-            pivot_index = pivot_indices[i]
-            if pivot_index < 0:
-                break
-            basept[pivot_index] = self.planes[i].constant_term
-        basept = Vector(basept)
         
         #Get direction vectors
         for param_index in param_indices:
             vector = [0] * num_variables
-            for i in xrange(num_planes):
+            for i in xrange(len(self.planes)):
                 #The param row j, in col i == param coeff
                 #Except when col i == param row j
                 plane = self.planes[i]
@@ -223,12 +204,27 @@ class LinearSystem(object):
                 vector[i] = -1 * plane.normal_vector[param_index]
             vector[param_index] = 1   
             dir_vectors.append(Vector(vector))
+        return dir_vectors
+    def get_base_point(self):
+        #Purpose: Inputs RREF system and outputs basept
         
-        #print 'b', basept
-        #for v in dir_vectors:
-        #    print 'v', v
-                
-        return basept, dir_vectors
+        num_variables = self.dimension
+        pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
+        basept = [0] * num_variables
+    
+        #Get basept: Not clever, but clear and correct
+        #The pivot index j in basept corresponds to where you 
+        #need to put the constant_term from plane col i
+        #i.e if there is only one pivot in 3 dimensional system
+        #[1,1,1]=5
+        #Then index i=0 is the only one need to put constant term
+        #basept: [5,0,0]
+        for i in xrange(len(self.planes)):
+            pivot_index = pivot_indices[i]
+            if pivot_index < 0:
+                break
+            basept[pivot_index] = self.planes[i].constant_term
+        return Vector(basept)
     def compute_rref(self):
         #RREF:
         #1. Triangular form
@@ -236,52 +232,25 @@ class LinearSystem(object):
         #3. Each pivot variable is in its own column
         #4. Any non-single pivots are a parameter
         system = self.compute_triangular_form()
-        numofplanes = len(self)
+        numofplanes = len(system)
         nonzero_indices = system.indices_of_first_nonzero_terms_in_each_row()
-        for i in xrange(numofplanes):
-            coeff_index = nonzero_indices[i]
-            #Now we go across each row and try to set non-pivot coeff to 0 
-            j = coeff_index + 1 #because anything before pivot is zero after triangular form acheived
-            i_inc = 1 #row below you are multipying by
-            while j < self.dimension:
-                curr_coeff = MyDecimal(system[i].normal_vector[j]) 
-                #print 'cell i,j: ',i,j
-                #print system[i].normal_vector
-                
-                if not curr_coeff.is_near_zero(): #If already zero, go to next j col
-                    #start a new loop
-                    while i+i_inc < numofplanes: #check if row below exists and is nonzero
-                        #Transform coeff from row below to current i,j cell:
-                        #rowbelow = (rowbelow * curr_coeff/below_coeff) 
-                        #Then add the negative of this to current row
-                        below_coeff = MyDecimal(system[i+i_inc].normal_vector[j])
-                        if not below_coeff.is_near_zero():
-                            factor2zero = -1/below_coeff * curr_coeff
-                            system.add_multiple_times_row_to_row(factor2zero,i+i_inc,i)
-                            #increment i so you avoid messing up row cell you just zeroed
-                            i_inc += 1
-                            break                            
-                        else:#move down to next row
-                            i_inc += 1
-                    else:
-                        #this is a paramater
-                        # if all rows below are zero, then it is a parameter: continue
-                        pass
-                j += 1
         
-        
-        #Make leading/pivot coefficient to be one
-        for i in xrange(numofplanes):
+        #Iterate up through system of planes
+        for i in range(numofplanes)[::-1]:
             coeff_index = nonzero_indices[i]
-            if coeff_index >= -0.5: #will be -1 if no nonzero indices
-                coeff2one = system[i].normal_vector[coeff_index] #using my getters!
-                onefactor = Decimal(str(1./float(coeff2one)))
-                system.multiply_coefficient_and_row(onefactor,i)
             
-        #print '---'
-        #print system
-        
+            if coeff_index < 0:
+                #no pivot index, everything is zero
+                #move up
+                continue
+            
+            factor2one = Decimal('1.')/system[i].normal_vector[coeff_index]
+            system.multiply_coefficient_and_row(factor2one,i)
+            #because we are adding bottom to top, we don't mess
+            #up the pivot coefficients becaues of triangular form
+            system.clear_all_terms_above(i,coeff_index)                
         return system
+    
     def compute_triangular_form(self):
         # Compute triangular form, i.e
         # 2 1 1 = 4
@@ -322,6 +291,11 @@ class LinearSystem(object):
         #print 'rref', system
         return system
 
+    def clear_all_terms_above(self,row,coli):
+        for row2badded2 in range(row)[::-1]:
+            coeff_ref = self[row2badded2].normal_vector[coli]
+            alpha = Decimal('-1') * coeff_ref
+            self.add_multiple_times_row_to_row(alpha,row,row2badded2)
     def clear_all_terms_below(self,rowi,coli):
         #check not last row
         if rowi+1 < len(self.planes):
@@ -342,36 +316,9 @@ class LinearSystem(object):
                     return True
         return False
 
-class MyDecimal(Decimal):
-    def is_near_zero(self, eps=1E-10):
-        return abs(float(self)) < eps
 
-## Test 6: Parametrization
+## Test 7: Extending to Hyperplanes
 
-#"""
-p0 = Plane(Vector(['0.786','0.786','0.588']),'-0.714')
-p1 = Plane(Vector(['-0.138','-0.138','0.244']),'0.319')
-s = LinearSystem([p0,p1])
-sol = s.compute_solution()
-print sol
-#"""
-"""
-p0 = Plane(Vector(['8.631','5.112','-1.816']),'-5.113')
-p1 = Plane(Vector(['4.315','11.132','-5.27']),'-6.775')
-p2 = Plane(Vector(['-2.158','3.01','-1.727']),'-0.831')
-s = LinearSystem([p0,p1,p2])
-sol = s.compute_solution()
-print sol
-"""
-"""
-p0 = Plane(Vector(['0.935','1.76','-9.365']),'-9.955')
-p1 = Plane(Vector(['0.187','0.352','-1.873']),'-1.991')
-p2 = Plane(Vector(['-0.374','0.704','-3.746']),'-3.982')
-p3 = Plane(Vector(['-0.561','-1.056','5.619']),'5.973')
-s = LinearSystem([p0,p1,p2,p3])
-sol = s.compute_solution()
-print sol
-"""
 
 ## Test 0
 """
@@ -575,4 +522,30 @@ s = LinearSystem([p1,p2,p3,p4])
 #sol = s.compute_solution()
 #print sol
 #print '---'
+"""
+## Test 6: Parametrization
+
+"""
+p0 = Plane(Vector(['0.786','0.786','0.588']),'-0.714')
+p1 = Plane(Vector(['-0.131','-0.131','0.244']),'0.319')
+s = LinearSystem([p0,p1])
+sol = s.compute_solution()
+print sol
+"""
+"""
+p0 = Plane(Vector(['8.631','5.112','-1.816']),'-5.113')
+p1 = Plane(Vector(['4.315','11.132','-5.27']),'-6.775')
+p2 = Plane(Vector(['-2.158','3.01','-1.727']),'-0.831')
+s = LinearSystem([p0,p1,p2])
+sol = s.compute_solution()
+print sol
+"""
+"""
+p0 = Plane(Vector(['0.935','1.76','-9.365']),'-9.955')
+p1 = Plane(Vector(['0.187','0.352','-1.873']),'-1.991')
+p2 = Plane(Vector(['0.374','0.704','-3.746']),'-3.982')
+p3 = Plane(Vector(['-0.561','-1.056','5.619']),'5.973')
+s = LinearSystem([p0,p1,p2,p3])
+sol = s.compute_solution()
+print sol
 """

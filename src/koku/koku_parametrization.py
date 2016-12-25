@@ -15,10 +15,10 @@ class Parametrization(object):
     def __init__(self,base_pt,lst_dir_vec):
         self.base_pt = base_pt
         self.lst_dir_vec = lst_dir_vec
-        self.dim = self.base_pt.dim
+        self.dimension = self.base_pt.dim
         try:
             for v in lst_dir_vec:
-                assert v.dim == self.dim
+                assert v.dim == self.dimension
         except AssertionError:
             raise Exception(self.BASEPT_AND_DIR_VECTORS_MUST_BE_IN_SAME_DIM_MSG)
 
