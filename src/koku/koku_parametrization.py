@@ -26,7 +26,7 @@ class Parametrization(object):
         def make_tuple_str(vec):
             bpt_str = ""
             for i in xrange(vec.dim):
-                p = vec[i]
+                p = round(vec[i],4)
                 bpt_str += str(p)
                 if i < vec.dim-1: bpt_str += ', '
             return "(" + bpt_str + ")"

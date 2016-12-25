@@ -26,6 +26,27 @@ class LinearSystem(object):
             self.dimension = d
         except AssertionError:
             raise Exception(self.ALL_PLANES_MUST_BE_IN_SAME_DIM_MSG)
+    def __len__(self):
+        return len(self.planes)
+    def __getitem__(self, i):
+        return self.planes[i]
+    def __setitem__(self, i, x):
+        ### x = plane that we are setting or swapping
+        ### with plane[i]
+        try:
+            assert x.dimension == self.dimension
+            self.planes[i] = x
+        except AssertionError:
+            raise Exception(self.ALL_PLANES_MUST_BE_IN_SAME_DIM_MSG)
+    def __repr__(self):
+        ### Prints linear system
+        ### Iterates each plane as an equation, and print equation of the plane.
+        ret = 'Linear System:\n'
+        temp = []
+        for i,p in enumerate(self.planes):
+            temp += ['Equation ' + str(i) + ':' + str(p)]
+        ret += '\n'.join(temp)
+        return ret
     def swap_rows(self, row0, row1):
         #You can achieve this swap using a temporary container
         #or you can use this, which accounts for the temp storage
@@ -84,6 +105,7 @@ class LinearSystem(object):
                 else:
                     raise e
         return indices
+      
     def compute_solution(self):
         try:
             return self.compute_ge()
@@ -122,8 +144,8 @@ class LinearSystem(object):
                     if not MyDecimal(sum_coord).is_near_zero():
                         # Parameterization
                         basept, direction_vectors = system.get_basept_dir_vec_from_solution()
-                        solution = (basept, direction_vectors)
-                        print self.INF_SOLUTIONS_MSG
+                        solution = Parametrization(basept,direction_vectors)
+                        #print self.INF_SOLUTIONS_MSG
                         break
                 solution.append(system[i].constant_term)
         if solution and type(solution) == type([]):
@@ -169,18 +191,24 @@ class LinearSystem(object):
         num_planes = len(self.planes)
         pivot_indices = self.indices_of_first_nonzero_terms_in_each_row()
         param_indices = set(range(num_variables)) - set(pivot_indices)
-        basept = [Decimal('0')] * num_variables
+        basept = [0] * num_variables
         dir_vectors = []
         
+        #param_indices = []
+        #for var in range(num_variables):
+        #    ##
+        
         #Get basept: Not clever, but clear and correct
-        for i in xrange(num_variables):
-            if i <= num_planes-1:
-                basept[i] = Decimal(str(self.planes[i].constant_term))
+        for i in xrange(len(self.planes)):
+            pivot_index = pivot_indices[i]
+            if pivot_index < 0:
+                break
+            basept[pivot_index] = self.planes[i].constant_term
         basept = Vector(basept)
-
+        
         #Get direction vectors
         for param_index in param_indices:
-            vector = [Decimal(str(0.))] * num_variables
+            vector = [0] * num_variables
             for i in xrange(num_planes):
                 #The param row j, in col i == param coeff
                 #Except when col i == param row j
@@ -192,14 +220,13 @@ class LinearSystem(object):
                     #are zeros therefore they correspond 
                     #to parameters = 1
                     break
-                else:
-                    vector[i] = Decimal('-1') * plane.normal_vector[param_index]
-            vector[param_index] = Decimal(str(1.))   
+                vector[i] = -1 * plane.normal_vector[param_index]
+            vector[param_index] = 1   
             dir_vectors.append(Vector(vector))
         
-        #print basept
+        #print 'b', basept
         #for v in dir_vectors:
-        #    print v
+        #    print 'v', v
                 
         return basept, dir_vectors
     def compute_rref(self):
@@ -294,6 +321,7 @@ class LinearSystem(object):
             #print '---'
         #print 'rref', system
         return system
+
     def clear_all_terms_below(self,rowi,coli):
         #check not last row
         if rowi+1 < len(self.planes):
@@ -313,42 +341,37 @@ class LinearSystem(object):
                     self.swap_rows(rowi,index)
                     return True
         return False
-    def __len__(self):
-        return len(self.planes)
-    def __getitem__(self, i):
-        return self.planes[i]
-    def __setitem__(self, i, x):
-        ### x = plane that we are setting or swapping
-        ### with plane[i]
-        try:
-            assert x.dimension == self.dimension
-            self.planes[i] = x
-        except AssertionError:
-            raise Exception(self.ALL_PLANES_MUST_BE_IN_SAME_DIM_MSG)
-    def __repr__(self):
-        ### Prints linear system
-        ### Iterates each plane as an equation, and print equation of the plane.
-        ret = 'Linear System:\n'
-        temp = []
-        for i,p in enumerate(self.planes):
-            temp += ['Equation ' + str(i) + ':' + str(p)]
-        ret += '\n'.join(temp)
-        return ret
+
 class MyDecimal(Decimal):
     def is_near_zero(self, eps=1E-10):
         return abs(float(self)) < eps
 
 ## Test 6: Parametrization
 
-#p0 = Plane(normal_vector=Vector(['1','1','1']), constant_term='1')
-#p1 = Plane(normal_vector=Vector(['0','1','0']), constant_term='2')
-#p0 = Plane(Vector(['1','0','0']),'5')
-#p1 = Plane(Vector(['0','1','1']),'6')
-p0 = Plane(Vector(['1','1','1']),'5')
-
-s = LinearSystem([p0])
+#"""
+p0 = Plane(Vector(['0.786','0.786','0.588']),'-0.714')
+p1 = Plane(Vector(['-0.138','-0.138','0.244']),'0.319')
+s = LinearSystem([p0,p1])
 sol = s.compute_solution()
-print '-\n', sol
+print sol
+#"""
+"""
+p0 = Plane(Vector(['8.631','5.112','-1.816']),'-5.113')
+p1 = Plane(Vector(['4.315','11.132','-5.27']),'-6.775')
+p2 = Plane(Vector(['-2.158','3.01','-1.727']),'-0.831')
+s = LinearSystem([p0,p1,p2])
+sol = s.compute_solution()
+print sol
+"""
+"""
+p0 = Plane(Vector(['0.935','1.76','-9.365']),'-9.955')
+p1 = Plane(Vector(['0.187','0.352','-1.873']),'-1.991')
+p2 = Plane(Vector(['-0.374','0.704','-3.746']),'-3.982')
+p3 = Plane(Vector(['-0.561','-1.056','5.619']),'5.973')
+s = LinearSystem([p0,p1,p2,p3])
+sol = s.compute_solution()
+print sol
+"""
 
 ## Test 0
 """
