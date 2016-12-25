@@ -1,26 +1,30 @@
 '''
-Created on Jun 6, 2016
+Created on Dec 25, 2016
 #author: Saeran Vasanthakumar
 '''
 from decimal import Decimal, getcontext
 from koku_vector import Vector
-import sys
+
 getcontext().prec = 30
 
 
-class Plane(object):
+class Hyperplane(object):
     """
-    Standard form for plane is = Ax + By + Cz = k
-    This is the same as the Line module, except 'line' is 
-    replaced by 'plane'. 
+    Standard form for hyperplane is = Ax + By + Cz + .... Nn = k
+    This is the same as the Plane/Line module, except 'line'/'plane' is 
+    replaced by 'hyperplane'. 
     """
     NO_NONZERO_ELTS_FOUND_MSG = 'No nonzero elements found'
-    def __init__(self, normal_vector=None, constant_term=None):
-        self.dimension = 3
-
-        if not normal_vector:
+    EITHER_DIM_OR_NORMAL_VEC_MUST_BE_PROVIDED_MSG = "Either the dimension or normal must be provided"
+    def __init__(self, normal_vector=None, constant_term=None, dimension=None):
+        if not dimension and not normal_vector:
+            raise Exception(self.EITHER_DIM_OR_NORMAL_VEC_MUST_BE_PROVIDED_MSG)
+        elif not normal_vector:
+            self.dimension = dimension
             all_zeros = ['0']*self.dimension
             normal_vector = Vector(all_zeros)
+        else:
+            self.dimension = normal_vector.dim
         self.normal_vector = normal_vector
 
         if not constant_term:
@@ -43,13 +47,13 @@ class Plane(object):
             ## Ax + By + Cz = D
             ## if A != 0; x = D/A, y = 0, z = 0
             ## if B != 0; x = 0, y = D/B, z = 0
-            initial_index = Plane.first_nonzero_index(n)
+            initial_index = Hyperplane.first_nonzero_index(n)
             initial_coefficient = n[initial_index]
             basepoint_coords[initial_index] = c/initial_coefficient
             # Now make the basepoint a vector
             self.basepoint = Vector(basepoint_coords)
         except Exception as e:
-            if str(e) == Plane.NO_NONZERO_ELTS_FOUND_MSG:
+            if str(e) == Hyperplane.NO_NONZERO_ELTS_FOUND_MSG:
                 self.basepoint = None
             else:
                 raise e
@@ -82,7 +86,7 @@ class Plane(object):
         
         n = self.normal_vector.coord
         try:
-            initial_index = Plane.first_nonzero_index(n)
+            initial_index = Hyperplane.first_nonzero_index(n)
             terms = []
             for i in range(self.dimension):
                 if True:#round(n[i], num_decimal_places) != 0:
@@ -111,24 +115,24 @@ class Plane(object):
         for k, item in enumerate(iterable):
             if not MyDecimal(item).is_near_zero():
                 return k
-        raise Exception(Plane.NO_NONZERO_ELTS_FOUND_MSG)
+        raise Exception(Hyperplane.NO_NONZERO_ELTS_FOUND_MSG)
     
     def is_parallel(self,p):
         """
-        Planes are parallel when the normals are parallel.
+        Hyperplanes are parallel when the normals are parallel.
         Check for parallelity by comparing the normals.
         """
         if True:#try:
             bool_ = self.normal_vector.is_parallel(p.normal_vector)
             return bool_
         #except Exception as e:
-        #    print "Error checking plane parallel: ", str(e)
+        #    print "Error checking Hyperplane parallel: ", str(e)
             
     def __eq__(self,p):
         """
-        Planes are equal when they are parallel and
+        Hyperplanes are equal when they are parallel and
         their basis points are located in the same
-        plane of origin. Check this by checking to see
+        Hyperplane of origin. Check this by checking to see
         if line made by two basis points is perpendicular
         to the normal vector. 
         """
@@ -152,8 +156,8 @@ class Plane(object):
                 testvec = self.basepoint.minus(p.basepoint)
                 # Check the dot product to see if zero = ortho
                 # to the normal vectors
-                # Because plane equality occurs when basis points are
-                # in the same plane of origin
+                # Because Hyperplane equality occurs when basis points are
+                # in the same Hyperplane of origin
                 return testvec.is_orthogonal(self.normal_vector)
             else:
                 return False
@@ -167,7 +171,7 @@ class MyDecimal(Decimal):
 
 
 
-### Plane tests
+### Hyperplane tests
 
 ##init test
 #plane_0 = Plane(Vector([3,4,1]),40)
