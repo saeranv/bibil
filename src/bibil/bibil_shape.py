@@ -411,7 +411,7 @@ class Shape:
             else:
                 return 1
     def get_normal_point_inwards(self,refline_,to_outside=False):
-        ## Input a reference line and self.shape.polygon
+        ## Input a reference line or points and self.shape.polygon
         ## Returns the normal vector pointing
         ## into the polygon
         z_vector = rs.VectorCreate([0,0,0],[0,0,1]) 
@@ -434,6 +434,7 @@ class Shape:
         to_inner = rs.VectorCrossProduct(dir_vector,z_vector) 
         if to_outside == True:
             to_inner.Reverse()
+        to_inner.Unitize()
         return to_inner
     def extrude_pt_perpendicular_to_pt(self,basept_,reflineptlst,to_inside=False):
         #Input: basept, list of line pts, boolean for out or in

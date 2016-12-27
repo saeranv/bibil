@@ -203,6 +203,7 @@ class Grammar:
         sb_ref = PD_['stepback_ref']
         sb_data = PD_['stepback_data'] #height:stepback
         sb_random = PD_['stepback_randomize']
+        S = Shape()
         ##sb_data: [(height,distance),(height,distance)...]     
         if True:#try:
             #Parse setback data
@@ -236,16 +237,44 @@ class Grammar:
                         dist += random.randrange(randsb_lo,randsb_hi)
                 
                 #Dissect floor
-                #if False:
-                #    sh_top_node = None
-                #    if ht < tnode.shape.ht:
-                #        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
-                #        sh_top_node.grammar.type['label'] = 'stepbacktop'
-                #        sh_bot_node.grammar.type['label'] = 'stepbackbot'
+                if True:
+                    sh_top_node = None
+                    if ht < tnode.shape.ht:
+                        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
+                        sh_top_node.grammar.type['label'] = 'stepbacktop'
+                        sh_bot_node.grammar.type['label'] = 'stepbackbot'
                 #else:
-                sh_top_node = tnode
+                #sh_top_node = tnode
                 ##Loop through all sb_geoms
                 if sh_top_node:
+                    
+                    matrix = sh_top_node.shape.base_matrix
+                    if not matrix:
+                        matrix = sh_top_node.shape.set_base_matrix()
+                    sh_top_node.shape.basept = []
+                    sh_top_node.shape.direction = []
+                    sbrefpt = S.get_endpt4line(sb_ref[0])
+                    dir_ref = sbrefpt[1] - sbrefpt[0]
+                    
+                    ref_edge = []
+                    for i in xrange(len(matrix)):
+                        m = matrix[i]
+                        dir = m[1]-m[0]
+                        radians = rc.Geometry.Vector3d.VectorAngle(dir,dir_ref,sh_top_node.shape.cplane)
+                        degrees = math.degrees(radians)
+                        if degrees <= 15.0:#set this as tolerance in setback
+                            ref_edge.append(m)
+                        print degrees
+                    for i in xrange(len(ref_edge)):
+                        m = ref_edge[i]
+                        midpt = sh_top_node.shape.get_midpoint(m)
+                        normal = sh_top_node.shape.get_normal_point_inwards(m)
+                        normal.Unitize()
+                        normal *= dist
+                        #sh_top_node.shape.normal
+                        sh_top_node.shape.direction.append(normal)
+                        sh_top_node.shape.basept.append(midpt)
+                        
                     for sbg in sb_ref:
                         # move sbref
                         move_vector= sh_top_node.shape.normal*float(ht)
