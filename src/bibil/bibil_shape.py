@@ -269,6 +269,8 @@ class Shape:
                 #ghcomp.Flip(rc_cut,sc.sticky['surface_ref'])[0]
                 geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
                 lst_child.extend(geom_childs)
+                del rc_cut
+                del nc
                 #debug.extend(geom_childs)
         except Exception as e:
             print "Error @ shape.op_split while splitting"
@@ -414,7 +416,7 @@ class Shape:
         ## Input a reference line or points and self.shape.polygon
         ## Returns the normal vector pointing
         ## into the polygon
-        z_vector = rs.VectorCreate([0,0,0],[0,0,1]) 
+        z_vector = self.normal#rs.VectorCreate([0,0,0],[0,0,1])
         ## Make sure the line is CCW, else reverse order
         IsCCW = self.check_vertex_order(refline=refline_)
         #Check to see if reffline is not a list of two points already
@@ -431,7 +433,7 @@ class Shape:
         dir_vector = end_pts[1] - end_pts[0]
         # Create to_inner vector using crossproduct
         # CCW dir_vector X z_vector = to_inner vector 
-        to_inner = rs.VectorCrossProduct(dir_vector,z_vector) 
+        to_inner = rs.VectorCrossProduct(z_vector,dir_vector) 
         if to_outside == True:
             to_inner.Reverse()
         to_inner.Unitize()
@@ -518,9 +520,9 @@ class Shape:
         else:
             linept_ = [rotated_linept,refvec4axis]
         return linept_
-    def get_pt_of_intersection(self,line2intersect):
-        #Takes to list of pts for lines
-        #Returns the pt of intersection and bool of is intersection exist
+    def get_pt_of_intersection(self,lines2intersect):
+        #Input: list of list of pts for TWO lines
+        #Output: pt of intersection and bool of if intersection exist
         linelst4int = map(lambda lpt: rc.Geometry.Curve.CreateControlPointCurve(lpt,0),line2intersect)
         linelst4int = map(lambda crv: rs.coerceline(crv),linelst4int)    
         lineA,lineB = linelst4int[0], linelst4int[1]
@@ -645,6 +647,77 @@ class Shape:
         dist = ghcomp.CurveClosestPoint(testpt,crv)[2]
         IsColinear = True if abs(dist-0.)<tol else False
         return IsColinear
+    def intersect_ray_with_line(self,ray,line):
+        #Input: ray (basevector and dirvector), line (two pts)
+        #Output: intersection or else False
+        #This function took me half a day to understand!
+        #For ray: r0,r1; and line: a,b
+        #parametric form of ray: r0 + t_1*r1 = pt 
+        #parametric form of line: a + t_2*b = pt
+        #solve for r0 + t_1*r1 = a + t_2*b; two unknowns t_1, t_2
+        #This can result in a lot of algebra, but essentially can
+        #simplify to the vector operations below, did it by hand to check
+        #Ref: http://stackoverflow.com/questions/14307158/how-do-you-check-for-intersection-between-a-line-segment-and-a-line-ray-emanatin
+        a,b = line[0],line[1]
+        r0,r1 = ray[0], ray[1]
+        
+        ortho = rc.Geometry.Vector3d.CrossProduct(self.normal,r1)#rc.Geometry.Vector3d(ray[1].X*-1, ray[1].Y,0.0)
+        aToO = r0 - a
+        aToB = b - a
+        point_intersect = False
+        denominator = rc.Geometry.Vector3d.Multiply(aToB, ortho)
+        #Check if zero: Then cos(90) = 0, or ray normal and segment 
+        #perpendicular therefore no intersection  
+        if not self.is_near_zero(denominator):
+            cross_prod = rc.Geometry.Vector3d.CrossProduct(aToB,aToO)
+            dot_prod = rc.Geometry.Vector3d.Multiply(aToO,ortho)
+            t_1 = cross_prod.Length / denominator
+            t_2 = dot_prod / denominator
+            if t_2 >= 0. and t_2 <= 1. and t_1 >= 0.:
+                #Collision detected
+                ix,iy = r0.X + (t_1 * r1.X), r0.Y + (t_1 * r1.Y)
+                point_intersect = rc.Geometry.Vector3d(ix,iy,0.0)
+        return point_intersect    
+    def match_edges_with_refs(self,lst_edge,lst_refedge,norm_ht=0.0,angle_tol=15.0):
+        #Purpose: Identifying edges from list of edges and ref edge by angle
+        #Input: list of edges (list of pts) and list of ref_edge, tolerance
+        #Output: list of edges that match angle to ref_edge, given by distance
+        #debug = sc.sticky['debug']
+        parallel_edges = []
+        sbrefpt = self.get_endpt4line(lst_refedge[0])
+        dir_ref = sbrefpt[1] - sbrefpt[0]
+        
+        angle_tol = math.radians(angle_tol)
+        for i in xrange(len(lst_edge)):
+            m = lst_edge[i]
+            dir_vec = m[1]-m[0]
+            #Check for pi/0 (180,0 degrees)
+            IsParallel = dir_ref.IsParallelTo(dir_vec,angle_tol)
+            if not self.is_near_zero(IsParallel):#set this as tolerance in setback
+                parallel_edges.append(m)
+        #Sort by distance
+        sbrefedge = lst_refedge[0]
+        #Move the ref edge up
+        if not self.is_near_zero(norm_ht):
+            self.normal.Unitize()
+            move_vector= self.normal*norm_ht
+            sbref_crv = sc.doc.Objects.AddCurve(sbrefedge)
+            sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
+        else:
+            sbref_crv = sbrefedge
+        
+        for i in xrange(len(parallel_edges)):
+            edge = parallel_edges[i]
+            m = self.get_midpoint(edge)
+            #Change this for rear stepback
+            normal = self.get_normal_point_inwards(edge,to_outside=True)
+            ray = (m,normal)
+            #debug.extend([m,m+normal*10.0])
+            line = self.get_endpt4line(sbref_crv)
+            int_pt = self.intersect_ray_with_line(ray,line)
+            if not int_pt:
+                parallel_edges[i]= None
+        return filter(lambda n: n!=None,parallel_edges)
     def get_area(self):
         try:
             area_crv = self.bottom_crv if self.dimension == '3d' else self.crv

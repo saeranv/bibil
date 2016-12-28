@@ -204,96 +204,87 @@ class Grammar:
         sb_data = PD_['stepback_data'] #height:stepback
         sb_random = PD_['stepback_randomize']
         S = Shape()
-        ##sb_data: [(height,distance),(height,distance)...]     
-        if True:#try:
-            #Parse setback data
-            for i,sbd in enumerate(sb_data):
-                sb_data[i] = map(lambda s: float(s), sbd.split(':'))
-            #Parse setback_randomize
+        ##sb_data: [(height,distance),(height,distance)...]     :
+        #Parse setback data
+        for i,sbd in enumerate(sb_data):
+            sb_data[i] = map(lambda s: float(s), sbd.split(':'))
+        #Parse setback_randomize
+        if sb_random:
+            random_bounds = sb_random.split(':')
+            for i,rb in enumerate(random_bounds):
+                random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
+            randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
+            randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
+        
+        #Get data if not geometry
+        sbg_type = self.helper_get_type(sb_ref[0])
+        if sbg_type != "geometry":
+            sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
+            axis_matrix = sb_node_ref.shape.set_base_matrix()
+            line_lst = []
+            for vectors in axis_matrix:
+                line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
+                line_lst.append(line)
+            sb_ref = line_lst
+        ## Loop through the height,setback tuples
+        for sbd in sb_data:
+            ht, dist = sbd[0], sbd[1]
             if sb_random:
-                random_bounds = sb_random.split(':')
-                for i,rb in enumerate(random_bounds):
-                    random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
-                randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
-                randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
+                if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
+                    ht += random.randrange(randht_lo,randht_hi)
+                if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
+                    dist += random.randrange(randsb_lo,randsb_hi)
             
-            #Get data if not geometry
-            sbg_type = self.helper_get_type(sb_ref[0])
-            if sbg_type != "geometry":
-                sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
-                axis_matrix = sb_node_ref.shape.set_base_matrix()
-                line_lst = []
-                for vectors in axis_matrix:
-                    line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
-                    line_lst.append(line)
-                sb_ref = line_lst
-            ## Loop through the height,setback tuples
-            for sbd in sb_data:
-                ht, dist = sbd[0], sbd[1]
-                if sb_random:
-                    if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
-                        ht += random.randrange(randht_lo,randht_hi)
-                    if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
-                        dist += random.randrange(randsb_lo,randsb_hi)
+            #Dissect floor
+            if False:
+                sh_top_node = None
+                if ht < tnode.shape.ht:
+                    sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
+                    sh_top_node.grammar.type['label'] = 'stepbacktop'
+                    sh_bot_node.grammar.type['label'] = 'stepbackbot'
+            #else:
+            sh_top_node = tnode
+            ##Loop through all sb_geoms
+            if sh_top_node:
+                matrix = sh_top_node.shape.base_matrix
+                if not matrix:
+                    matrix = sh_top_node.shape.set_base_matrix()
+                ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,15.0)
                 
-                #Dissect floor
-                if True:
-                    sh_top_node = None
-                    if ht < tnode.shape.ht:
-                        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
-                        sh_top_node.grammar.type['label'] = 'stepbacktop'
-                        sh_bot_node.grammar.type['label'] = 'stepbackbot'
-                #else:
-                #sh_top_node = tnode
-                ##Loop through all sb_geoms
-                if sh_top_node:
-                    
-                    matrix = sh_top_node.shape.base_matrix
-                    if not matrix:
-                        matrix = sh_top_node.shape.set_base_matrix()
-                    sh_top_node.shape.basept = []
-                    sh_top_node.shape.direction = []
-                    sbrefpt = S.get_endpt4line(sb_ref[0])
-                    dir_ref = sbrefpt[1] - sbrefpt[0]
-                    
-                    ref_edge = []
-                    for i in xrange(len(matrix)):
-                        m = matrix[i]
-                        dir = m[1]-m[0]
-                        radians = rc.Geometry.Vector3d.VectorAngle(dir,dir_ref,sh_top_node.shape.cplane)
-                        degrees = math.degrees(radians)
-                        if degrees <= 15.0:#set this as tolerance in setback
-                            ref_edge.append(m)
-                        print degrees
-                    for i in xrange(len(ref_edge)):
-                        m = ref_edge[i]
-                        midpt = sh_top_node.shape.get_midpoint(m)
-                        normal = sh_top_node.shape.get_normal_point_inwards(m)
-                        normal.Unitize()
-                        normal *= dist
-                        #sh_top_node.shape.normal
-                        sh_top_node.shape.direction.append(normal)
-                        sh_top_node.shape.basept.append(midpt)
-                        
-                    for sbg in sb_ref:
-                        # move sbref
-                        move_vector= sh_top_node.shape.normal*float(ht)
-                        sbref_crv = sc.doc.Objects.AddCurve(sbg)
-                        sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
-                        cut_geom = None
-                        #cut at ht
-                        #then take top node and split that
-                        try: 
-                            cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
-                                                split_depth=float(dist*2.),split_line_ref=sbref_crv)
-                        except:
-                            pass
-                        if cut_geom:
-                            sh_top_node.shape.geom = cut_geom[0]
-                            sh_top_node.shape.reset(xy_change=True)
-        #except Exception as e:
-        #    print str(e)#,sys.exc_traceback.tb_lineno 
-        #    print "Error at Pattern.stepback"
+                #ref_edge = sb_ref
+                for sbg in ref_edge:
+                    cut_geom = None
+                    sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
+                    move_vector= sh_top_node.shape.normal*float(ht)
+                    sbref_crv = sc.doc.Objects.AddCurve(sbref_crv)
+                    sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
+                    #debug.append(sbref_crv)
+                    try: 
+                        cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
+                                            split_depth=float(dist*2.),split_line_ref=sbref_crv)
+                    except:
+                        pass
+                    if cut_geom:
+                        sh_top_node.shape.geom = cut_geom[0]
+                        sh_top_node.shape.reset(xy_change=True)
+                """
+                for sbg in sb_ref:
+                    # move sbref
+                    move_vector= sh_top_node.shape.normal*float(ht)
+                    sbref_crv = sc.doc.Objects.AddCurve(sbg)
+                    sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
+                    cut_geom = None
+                    #cut at ht
+                    #then take top node and split that
+                    try: 
+                        cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
+                                            split_depth=float(dist*2.),split_line_ref=sbref_crv)
+                    except:
+                        pass
+                    if cut_geom:
+                        sh_top_node.shape.geom = cut_geom[0]
+                        sh_top_node.shape.reset(xy_change=True)
+                """
         return tnode    
     def helper_divide_through_normal(self,temp_node_,dist_):
         #Need to rewrite this so all variables in divide is null
