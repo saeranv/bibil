@@ -9,6 +9,7 @@ import math
 import ghpythonlib.components as ghcomp
 import copy
 import scriptcontext as sc
+import itertools
 
 TOL = sc.doc.ModelAbsoluteTolerance
 
@@ -700,23 +701,25 @@ class Shape:
     def get_parallel_segments(self,lst_edge_,dir_ref_,angle_tol_):
         #Inputs lst of edges, a dir_ref
         #Outputs lst of edges that are parallel w/i tol
-        parallel_edges_ = []
+        #parallel_edges_ = []
         for i in xrange(len(lst_edge_)):
             edge_pts = lst_edge_[i]
             dir_vec = edge_pts[1]-edge_pts[0]
             #Check for pi/0 (180,0 degrees)
             IsParallel = dir_ref_.IsParallelTo(dir_ref_,angle_tol_)
             if not self.is_near_zero(IsParallel):#set this as tolerance in setback
-                parallel_edges_.append(edge_pts)
-        return parallel_edges_
+                yield edge_pts#parallel_edges_.append(edge_pts)
+        #return parallel_edges_
     def identify_front_or_back_to_ref_edge(self,ref_edge,edges_to_check,ht,front=True,ht_ref=0.0):
         #Casts a ray from front/back edges2check and sees if intersect with ref_edge
-        #If true then sends back
+        #If identifies one front edge, then will break loop send back edge
         #Used as a way to see if the edge is back or front from a reference edge
         #ht_ref is problematic. Must get rid of with implementation of push/pop matrix for ray interesction
-        front_edges = []
-        for i in xrange(len(edges_to_check)):
-            edge = edges_to_check[i]
+        #front_edges = []
+        #for i in xrange(len(edges_to_check)):
+        int_pt = None
+        for edge in edges_to_check:
+            #edge = edges_to_check[i]
             m = self.get_midpoint(edge)
             #Change this for rear stepback
             normal = self.get_normal_point_inwards(edge,to_outside=True)
@@ -725,8 +728,8 @@ class Shape:
             line = self.get_endpt4line(ref_edge)
             int_pt = self.planar_intersect_ray_with_line(ray,line,ht_ref)
             if int_pt:
-                front_edges.append(edge)
-        return front_edges
+                yield edge#front_edges.append(edge)
+        #return front_edges
     def match_edges_with_refs(self,lst_edge,lst_refedge,norm_ht=0.0,angle_tol=15.0,to_front=True):
         #Purpose: Identifying edges from list of edges and ref edge by angle
         #Input: list of edges (list of pts) and list of ref_edge, tolerance
@@ -743,7 +746,7 @@ class Shape:
             dir_ref = sbrefpt[1] - sbrefpt[0]            
             parallel_edges = self.get_parallel_segments(lst_edge,dir_ref,angle_tol)
             parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,norm_ht,front=to_front,ht_ref=norm_ht)
-   
+            
         return parallel_and_front_edges
     def vector_to_transformation_matrix(self,dir_vector):
         #obj:

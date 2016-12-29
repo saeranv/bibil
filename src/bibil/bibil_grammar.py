@@ -325,6 +325,7 @@ class Grammar:
                 #ref_edge = sb_ref
                 for sbg in ref_edge:
                     cut_geom = None
+                    
                     sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
                     move_vector= sh_top_node.shape.normal*float(ht)
                     sbref_crv = sc.doc.Objects.AddCurve(sbref_crv)
