@@ -14,6 +14,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['landuse', True],\
+    ['grammar_key','landuse'],\
     ['nodes2bucket', nodes2bucket],\
     ['end_rule']]
     

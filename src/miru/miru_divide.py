@@ -17,6 +17,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['divide', True],\
+    ['grammar_key','divide'],\
     ['div_num',divide_num],\
     ['div_deg', 0.],\
     ['div_cut', divide_cut],\

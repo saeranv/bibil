@@ -15,6 +15,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['bucket4shape', True],\
+    ['grammar_key','bucket4shape'],\
     ['apply2list',True],\
     ['end_rule']]   
     for i, r in enumerate(rule_):

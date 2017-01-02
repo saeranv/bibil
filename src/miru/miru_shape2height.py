@@ -15,6 +15,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['shape2height', True],\
+    ['grammar_key','shape2height'],\
     ['end_rule']]
     
     for i, r in enumerate(rule_):

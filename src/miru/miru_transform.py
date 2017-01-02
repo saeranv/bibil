@@ -1,32 +1,26 @@
 """----------------
-Miru Analysis Points
+Miru Stepback
 ----------------""" 
 import copy
 import scriptcontext as sc
 import rhinoscriptsyntax as rs
 import clr
+Grammar = sc.sticky["Grammar"]
 
 clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
-if run:    
+if run:
+
     rule = DataTree[object]()
     rule_ = [\
-    ['bula', True],\
-    ['grammar_key','bula'],\
-    ['bula_point_lst', map(lambda pt: rs.coerce3dpoint(pt), analysis_ref)],\
-    ['bula_value_lst', value_ref],\
+    ['transform', True],\
+    ['grammar_key','transform'],\
+    ['transform_move', move_vector],\
     ['end_rule']]
     
     for i, r in enumerate(rule_):
         rule.Add(r)
-
 else:
     rule = []
-
-
-
-
-
-

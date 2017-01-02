@@ -14,6 +14,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['meta_tree', True],\
+    ['grammar_key','meta_tree'],\
     ['meta_node', node],\
     ['end_rule']]
     

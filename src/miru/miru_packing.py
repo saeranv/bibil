@@ -28,6 +28,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['separate', True],\
+    ['grammar_key','separate'],\
     ['x_keep_omit',x_keep_omit],\
     ['y_keep_omit',y_keep_omit],\
     ['end_rule']]   

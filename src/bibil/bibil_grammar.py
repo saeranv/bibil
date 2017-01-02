@@ -27,12 +27,17 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"x",'grammar':"null",'axis':"NS",'ratio':0.,'freeze':False}
+        self.type = {'label':"x","rule_stack":[],'grammar':"null",'axis':"NS",'ratio':0.,'freeze':False}
         #need to move axis, NS, ratio to divide
     def label(self,temp_node_,PD_):
         temp_node_.grammar.type['label'] = PD_['label']
         temp_node_.grammar.type['grammar'] = 'label'
         return temp_node_
+    def make_rule_stack(self,node):
+        #returns the grammar rules that were applied to this node
+        rule_stack = node.backtrack_tree(lambda n:n,accumulate=True)
+        rule_stack = map(lambda n: n.grammar.type['grammar_key'],rule_stack)
+        return rule_stack
     def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
@@ -274,6 +279,8 @@ class Grammar:
         sb_ref = PD_['stepback_ref']
         sb_data = PD_['stepback_data'] #height:stepback
         sb_random = PD_['stepback_randomize']
+        sb_dir = PD_['stepback_dir']
+        sb_ref_tol = 15.0
         S = Shape()
         ##sb_data: [(height,distance),(height,distance)...]     :
         #Parse setback data
@@ -286,7 +293,7 @@ class Grammar:
                 random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
             randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
             randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
-        
+        if not sb_dir:sb_dir = False
         #Get data if not geometry
         sbg_type = self.helper_get_type(sb_ref[0])
         if sbg_type != "geometry":
@@ -297,6 +304,7 @@ class Grammar:
                 line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
                 line_lst.append(line)
             sb_ref = line_lst
+        debug.append(tnode.get_root().shape.geom)
         ## Loop through the height,setback tuples
         for sbd in sb_data:
             ht, dist = sbd[0], sbd[1]
@@ -320,8 +328,10 @@ class Grammar:
                 matrix = sh_top_node.shape.base_matrix
                 if not matrix:
                     matrix = sh_top_node.shape.set_base_matrix()
-                ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,15.0)
                 
+                ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,angle_tol=sb_ref_tol,to_front=not sb_dir)
+                
+        
                 #ref_edge = sb_ref
                 for sbg in ref_edge:
                     cut_geom = None
@@ -339,7 +349,37 @@ class Grammar:
                     if cut_geom:
                         sh_top_node.shape.geom = cut_geom[0]
                         sh_top_node.shape.reset(xy_change=True)
-        return tnode   
+        return tnode
+    def transform(self,temp_node_,PD_):
+        debug = sc.sticky['debug']
+        temp_node_.grammar.type['grammar'] = 'transform_move'
+        move_vector = PD_['transform_move']
+        basematrix = temp_node_.shape.base_matrix
+        if not basematrix:
+            basematrix = self.set_base_matrix()
+            
+        transform_matrix = temp_node_.shape.vector_to_transformation_matrix(move_vector)
+        moved_pts = temp_node_.shape.multiply_matrix2matrix(basematrix,transform_matrix)
+        """
+        for t in transform_matrix:
+            print t
+        print '--'
+        for b in basematrix:
+            print map(lambda c: round(c,2),b[0])
+        print '--'
+        for p in moved_pts:
+            print map(lambda c: round(c,2),p)
+        """
+        rule_stack = temp_node_.grammar.make_rule_stack(temp_node_)
+        
+        moved_pts = map(lambda v: rc.Geometry.Point3d(v[0],v[1],v[2]),moved_pts)
+        moved_pts += [moved_pts[0]]
+        new_crv = rc.Geometry.Curve.CreateControlPointCurve(moved_pts,1)
+        debug.extend(moved_pts)
+        debug.append(new_crv)
+        childnode = self.helper_geom2node(new_crv,parent_node=temp_node_,grammar="null")
+        temp_node_.loc.append(childnode)
+        return temp_node_ 
     def helper_divide_through_normal(self,temp_node_,dist_):
         #Need to rewrite this so all variables in divide is null
         #and option to orient results vertically exists
@@ -1464,7 +1504,8 @@ class Grammar:
             temp_node = self.extract_slice(temp_node,PD)
         elif PD.has_key('bucket4shape') and PD['bucket4shape'] == True:
             temp_node = self.bucket_shape(temp_node,PD)
-        
+        elif PD.has_key('transform') and PD['transform'] == True:
+            temp_node = self.transform(temp_node,PD)
         #Sort out the outputs
         if isList:
             lst_childs = temp_node

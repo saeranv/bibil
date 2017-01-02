@@ -21,6 +21,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['court', True],\
+    ['grammar_key','court'],\
     ['court_width', width],\
     ['court_node', -1],\
     ['court_slice', True],\

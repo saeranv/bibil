@@ -24,9 +24,11 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['stepback', True],\
+    ['grammar_key','stepback'],\
     ['stepback_data', height_stepback],\
     ['stepback_ref', stepback_ref],\
     ['stepback_randomize', randomize],\
+    ['stepback_dir', from_rear],\
     ['end_rule']]
     
     for i, r in enumerate(rule_):

@@ -14,6 +14,7 @@ if run:
 
     rule = DataTree[object]()
     rule_ = [['extract_slice', True],\
+             ['grammar_key','extract_slice'],\
              ['extract_slice_height', slice_height],\
              ['end_rule']]
     

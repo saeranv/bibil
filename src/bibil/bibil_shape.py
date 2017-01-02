@@ -702,11 +702,12 @@ class Shape:
         #Inputs lst of edges, a dir_ref
         #Outputs lst of edges that are parallel w/i tol
         #parallel_edges_ = []
+        #debug = sc.sticky['debug']
         for i in xrange(len(lst_edge_)):
             edge_pts = lst_edge_[i]
             dir_vec = edge_pts[1]-edge_pts[0]
             #Check for pi/0 (180,0 degrees)
-            IsParallel = dir_ref_.IsParallelTo(dir_ref_,angle_tol_)
+            IsParallel = dir_ref_.IsParallelTo(dir_vec,angle_tol_)
             if not self.is_near_zero(IsParallel):#set this as tolerance in setback
                 yield edge_pts#parallel_edges_.append(edge_pts)
         #return parallel_edges_
@@ -722,13 +723,19 @@ class Shape:
             #edge = edges_to_check[i]
             m = self.get_midpoint(edge)
             #Change this for rear stepback
-            normal = self.get_normal_point_inwards(edge,to_outside=True)
+            normal = self.get_normal_point_inwards(edge,to_outside=front)
             ray = (m,normal)
             #debug.extend([m,m+normal*10.0])
             line = self.get_endpt4line(ref_edge)
             int_pt = self.planar_intersect_ray_with_line(ray,line,ht_ref)
             if int_pt:
-                yield edge#front_edges.append(edge)
+                dist = rs.Distance(int_pt,m)
+                if not front:
+                    la,ld,sa,sd = self.get_long_short_axis()
+                    dist2sub = ld if dist - ld > 0.0 else sd
+                    dist -= dist2sub
+                if dist <= 10.0:
+                    yield edge#front_edges.append(edge)
         #return front_edges
     def match_edges_with_refs(self,lst_edge,lst_refedge,norm_ht=0.0,angle_tol=15.0,to_front=True):
         #Purpose: Identifying edges from list of edges and ref edge by angle
@@ -745,12 +752,48 @@ class Shape:
             sbrefpt = self.get_endpt4line(sbrefedge)
             dir_ref = sbrefpt[1] - sbrefpt[0]            
             parallel_edges = self.get_parallel_segments(lst_edge,dir_ref,angle_tol)
+        
             parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,norm_ht,front=to_front,ht_ref=norm_ht)
             
         return parallel_and_front_edges
     def vector_to_transformation_matrix(self,dir_vector):
-        #obj:
-        pass
+        #obj: Create transformation matrix
+        # For n-dim vector create n x n matrix
+        # where pivot variables are vector coordinates
+        dim = len(dir_vector)
+        matrix = []
+        for i in xrange(dim):
+            row = [0] * dim
+            row[i] = dir_vector[i]
+            matrix.append(row)
+        return matrix
+    def multiply_matrix2matrix(self,basematrix,transform_matrix):
+        #Takes every single vector
+        #Multiplies by transformation matrix
+        #creates polyline out of resulting moved vectors
+        #resets base plane
+        #resets rule based on base plane
+        M = []
+        dim = len(basematrix[0][0])
+        for i in xrange(len(basematrix)):
+            vector = basematrix[i][0]
+            movevector = self.vector_matrix_multiply(vector,transform_matrix,dim)
+            M.append(movevector)
+        return M
+    def vector_matrix_multiply(self,vector,transform_matrix,dim):
+        #Multiply matrix by vector
+        move_vec = []
+        for row_i in xrange(dim):
+            move_vec_coord = 0.
+            for col_i in xrange(dim):
+                vector_coord = vector[col_i]
+                plane_coefficient = transform_matrix[col_i][row_i]
+                #print row_i, col_i 
+                #print plane_coefficient, ',', vector_coord
+                #print ''
+                move_vec_coord += vector_coord * plane_coefficient
+            move_vec.append(move_vec_coord)
+        return move_vec 
     def get_area(self):
         try:
             area_crv = self.bottom_crv if self.dimension == '3d' else self.crv
