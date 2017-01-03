@@ -72,7 +72,7 @@ class Grammar:
                 except Exception as e: 
                     print 'Bibil has detected a degenerate shape', str(e)
                     child_shape = Shape(geom,parent_node.shape.cplane)
-                IsDegenerate = abs(child_shape.x_dist-0.) < 0.01 or abs(child_shape.y_dist-0.) < 0.01
+                IsDegenerate = child_shape.cpt==None or abs(child_shape.x_dist-0.) <= 0.1 or abs(child_shape.y_dist-0.) <= 0.1
             elif parent_node:
                 #cloned nodes get link to parent_node.shape
                 child_shape = parent_node.shape
@@ -280,8 +280,12 @@ class Grammar:
         sb_data = PD_['stepback_data'] #height:stepback
         sb_random = PD_['stepback_randomize']
         sb_dir = PD_['stepback_dir']
+        sb_dist_tol = PD_['stepback_tol']
+        if sb_dist_tol == None: sb_dist_tol = 10.0
         sb_ref_tol = 15.0
+        
         S = Shape()
+        
         ##sb_data: [(height,distance),(height,distance)...]     :
         #Parse setback data
         for i,sbd in enumerate(sb_data):
@@ -298,13 +302,14 @@ class Grammar:
         sbg_type = self.helper_get_type(sb_ref[0])
         if sbg_type != "geometry":
             sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
+            #debug.append(sb_node_ref.shape.geom)
             axis_matrix = sb_node_ref.shape.set_base_matrix()
             line_lst = []
             for vectors in axis_matrix:
                 line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
                 line_lst.append(line)
             sb_ref = line_lst
-        debug.append(tnode.get_root().shape.geom)
+        
         ## Loop through the height,setback tuples
         for sbd in sb_data:
             ht, dist = sbd[0], sbd[1]
@@ -329,18 +334,12 @@ class Grammar:
                 if not matrix:
                     matrix = sh_top_node.shape.set_base_matrix()
                 
-                ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,angle_tol=sb_ref_tol,to_front=not sb_dir)
+                ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=sb_dist_tol,angle_tol=sb_ref_tol,to_front=not sb_dir)
                 
-        
                 #ref_edge = sb_ref
                 for sbg in ref_edge:
                     cut_geom = None
-                    
                     sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
-                    move_vector= sh_top_node.shape.normal*float(ht)
-                    sbref_crv = sc.doc.Objects.AddCurve(sbref_crv)
-                    sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
-                    #debug.append(sbref_crv)
                     try: 
                         cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                             split_depth=float(dist*2.),split_line_ref=sbref_crv)
@@ -662,15 +661,16 @@ class Grammar:
             # check if interect with tower-seperation list
             intersect_offset = False
             for offset in GLOBLST:
-                crvA = offset
-                crvB = shape2off.shape.bottom_crv
-                #debug.append(offset)
-                #print crvA
-                setrel = shape2off.shape.check_region(crvA,crvB,tol=0.1)
-                #If not disjoint
-                if not abs(setrel-0.)<0.1:
-                    intersect_offset = True
-                    break
+                chkoff = rs.coercecurve(offset)
+                if chkoff!=None:
+                    crvA = offset
+                    crvB = shape2off.shape.bottom_crv
+                    #debug.append(offset)
+                    setrel = shape2off.shape.check_region(crvA,crvB,tol=0.1)
+                    #If not disjoint
+                    if not abs(setrel-0.)<0.1:
+                        intersect_offset = True
+                        break
             return not intersect_offset
         def set_separation_record(shape2record,sep_dist,separation_tol_):
             ## Add some tolerance to separation distance
@@ -708,12 +708,17 @@ class Grammar:
         ## Get cut dimensions     
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,x_keep_omit,y_keep_omit,cut_axis,noncut_axis)
         
+        for i in xrange(len(shapes2omit)):
+            omit = shapes2omit[i]
+            omit.delete_node()
+            del omit
+            
         temp_node_topo.loc = []
         
         if shapes2keep:
             #Flatten tree
             temp_node_topo = self.flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep",empty_parent=True)
-            temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
+            #temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
             
             # Make/call global collision list
             if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
@@ -731,9 +736,13 @@ class Grammar:
                         #offset_tuple
                         set_separation_record(t,offset_dist,seperate_tol)
                     else:
-                        t.grammar.type['grammar'] = 'omit'
+                        t.delete_node()
+                        del t
+                        #t.grammar.type['grammar'] = 'omit'
                 else:
-                    t.grammar.type['grammar'] = 'omit'
+                    t.delete_node()
+                    del t
+                    #t.grammar.type['grammar'] = 'omit'
         else: 
             temp_node_topo.loc = [] 
         ##TEMP4MEETING
@@ -742,10 +751,16 @@ class Grammar:
         #        temp_node_topo.loc[i] = None
         #        debug.append(t)
         #temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
+        if temp_node_topo.loc == []:
+            temp_node_topo.grammar.type['freeze'] = True
+        
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
             pt = n_.shape.cpt
+            if pt==None:
+                debug.append(n_.shape.geom)
+            
             refpt = rs.AddPoint(pt[0],pt[1],ht_)
             topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
             childn = self.helper_geom2node(topcrv,n_,'extracted_slice')
@@ -757,7 +772,6 @@ class Grammar:
             #for tn in lst_top_nodes: tn.grammar.type['top'] = None
             n_.loc.append(childn)
             return childn
-        
         temp_node_.grammar.type['grammar'] = 'extract_slice'
         debug = sc.sticky['debug']
         ## Warning: this function will raise height of geom 1m.
@@ -777,7 +791,7 @@ class Grammar:
                     slice_ht = map(lambda s: float(s),slice_ht)            
             #Extract topo
             for slht in slice_ht:
-                extract_topo(temp_node_,slht)
+                chld = extract_topo(temp_node_,slht)
         return temp_node_
     def set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
@@ -805,16 +819,23 @@ class Grammar:
                 val_lst = n_.grammar.type['bula_data'].value_lst
                 setht = min(val_lst)#sum(val_lst)/float(len(val_lst))
             return setht
-        
+        #print 'We are setting height!'
         temp_node_.grammar.type['grammar'] = 'height'
         debug = sc.sticky['debug']
-        #print 'We are setting height!'
         ht_ = PD_['height']
         randomize_ht = PD_['height_randomize']
+        ht_ref = PD_['height_ref']
+        
+        if ht_ref:
+            ht_type = self.helper_get_type(ht_ref)
+            if ht_type != "geometry":
+                ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
+            ht_ = ht_ref.shape.ht - temp_node_.shape.ht
         if randomize_ht:
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
             ht_ += random.randrange(randht_lo,randht_hi)
+
         n_ = temp_node_
         #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
         if type(ht_)==type('') and 'bula' in ht_:
@@ -916,8 +937,13 @@ class Grammar:
         else:
             #Check if number reference to index of depth in binary data tree
             if type_info == "string": 
-                shape_ref_ = int(shape_ref_)
-                type_info = "number"
+                try:
+                    shape_ref_ = int(shape_ref_)
+                    type_info = "number"
+                except ValueError:
+                    node_ = node_.backtrack_tree(lambda n:n.grammar.type['label']==shape_ref_,accumulate=False)
+                    type_info = "node"
+            
             if type_info == "number":
                 shape_ref_ = int(shape_ref_)
                 #positive or zero or negative
@@ -928,8 +954,8 @@ class Grammar:
                 refshape_backtrack = node_.backtrack_tree(lambda n:n.depth==refdepth,accumulate=False)
                 if refshape_backtrack:
                     refshape_ = refshape_backtrack
-            #Check if node
             elif type_info == "node":
+                #Check if node
                 refshape_ = node_
             #Assume geom
             else:
@@ -1003,13 +1029,16 @@ class Grammar:
                                     #if type(geom)!= type(rootshape.shape.geom):
                                     #    ##debug.append(geom)
                                     split_node = self.helper_geom2node(geom,None)
-                                    split_node_lst.append(split_node)
-                                    split_crv = split_node.shape.bottom_crv
-                                    set_rel = curr_node_.shape.check_region(chk_offset,split_crv,tol=0.1)
-                                    if abs(set_rel-0.)<0.1:
-                                        valid_node = split_node
+                                    if split_node==None:
+                                        pass
                                     else:
-                                        invalid_node = split_node
+                                        split_node_lst.append(split_node)
+                                        split_crv = split_node.shape.bottom_crv
+                                        set_rel = curr_node_.shape.check_region(chk_offset,split_crv,tol=0.1)
+                                        if abs(set_rel-0.)<0.1:
+                                            valid_node = split_node
+                                        else:
+                                            invalid_node = split_node
                             #except:
                                 #pass## Split fail, so test the next line split
                         matrice_max = len(matrice)==i+1
@@ -1138,6 +1167,7 @@ class Grammar:
         
         temp_node_.grammar.type['grammar'] = 'meta_tree'
         meta_node_lst = PD_['meta_node']
+        debug = sc.sticky['debug']
         #THIS SHOULD BE DONE IN TREE CLASS
         #print 'label metanode:', meta_node.parent
         #print 'label currnode: ', temp_node_

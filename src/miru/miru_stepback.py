@@ -28,6 +28,7 @@ if run:
     ['stepback_data', height_stepback],\
     ['stepback_ref', stepback_ref],\
     ['stepback_randomize', randomize],\
+    ['stepback_tol', stepback_tol],\
     ['stepback_dir', from_rear],\
     ['end_rule']]
     

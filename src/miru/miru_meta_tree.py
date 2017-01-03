@@ -11,6 +11,11 @@ from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
 if run:
+    
+    for n in node:
+        if n.grammar.type['label'] == "":
+            n.grammar.type['label'] = "UnlabeledRoot"
+    
     rule = DataTree[object]()
     rule_ = [\
     ['meta_tree', True],\

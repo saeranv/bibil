@@ -404,7 +404,7 @@ class Shape:
             if self.is_guid(crvB):
                 crvB = rs.coercecurve(crvB)
             if self.is_guid(crvA):
-                crvA = rs.coercecurve(crvA) 
+                crvA = rs.coercecurve(crvA)
             refplane = self.cplane
             setrel = rc.Geometry.Curve.PlanarClosedCurveRelationship (crvA,crvB,refplane,tol)
             if disjoint == setrel:
@@ -476,6 +476,9 @@ class Shape:
         while i < (len(endpts_lst)-1):
             curr_edgepts = endpts_lst[i]
             next_edgepts = endpts_lst[i+1]
+            #Cast to vector3d om case it is point3d
+            curr_edgepts = map(lambda p: rc.Geometry.Vector3d(p),curr_edgepts)
+            next_edgepts = map(lambda p: rc.Geometry.Vector3d(p),next_edgepts)
             
             curr_edgevector = curr_edgepts[1]-curr_edgepts[0]   
             next_edgevector = next_edgepts[1]-curr_edgepts[0]
@@ -648,7 +651,7 @@ class Shape:
         dist = ghcomp.CurveClosestPoint(testpt,crv)[2]
         IsColinear = True if abs(dist-0.)<tol else False
         return IsColinear
-    def planar_intersect_ray_with_line(self,ray,line,z=0.0):
+    def planar_intersect_ray_with_line(self,r0,r1,a,b,refz=0.0):
         #Input: ray (basevector and dirvector), line (two pts)
         #Output: intersection point or else False
         #Will only take place in 2d at defined z ht
@@ -672,36 +675,55 @@ class Shape:
         ## so that it can work outside of z-axis
         def helper_flatten_z(lst,z):
             return rc.Geometry.Vector3d(lst[0],lst[1],z)
-        #debug = sc.sticky['debug']
-        line = map(lambda n: helper_flatten_z(n,z),line)
-        ray = map(lambda r: helper_flatten_z(r,z),ray)
-        a,b = line[0],line[1]
-        r0,r1 = ray[0], ray[1]
-        #debug.append(r0)
-        #debug.append(r0+r1)
-        ray_dir = (r0+r1) - r0
-        ortho = rc.Geometry.Vector3d(ray_dir.Y*-1.,ray_dir.X,0.0)
+        debug = sc.sticky['debug']
+        z = 0.0 #flatten then unflatten
+        a = helper_flatten_z(a,z)
+        b = helper_flatten_z(b,z)
+        
+        #Correct the ordering of the line segment
+        IsCCW = self.check_vertex_order(refline=[a,b])
+        if not IsCCW:
+            a,b = b,a
+            
+        r0 = helper_flatten_z(r0,z)
+        r1 = helper_flatten_z(r1,z)
+        ray_dir = r0+(r1*5) - r0#(r0+r1) - r0
+        #debug.append(rs.AddCurve([r0,ray_dir+r0]))
+        #debug.append(b)
+        
+        ortho = rc.Geometry.Vector3d(ray_dir.Y*-1.,ray_dir.X,z)
         aToO = r0 - a
-        aToB = b - a
+        aToB = b - a 
         point_intersect = False
-        denominator = rc.Geometry.Vector3d.Multiply(aToB, ortho)
+        denominator = aToB * ortho
         #Check if zero: Then cos(90) = 0, or ray normal and segment 
         #perpendicular therefore no intersection  
+        
         if not self.is_near_zero(denominator):
             cross_prod = rc.Geometry.Vector3d.CrossProduct(aToB,aToO)
-            dot_prod = rc.Geometry.Vector3d.Multiply(aToO,ortho)
+            dot_prod = ortho * aToO
             t_1 = cross_prod.Length / denominator
             t_2 = dot_prod / denominator
-            if t_2 >= 0. and t_2 <= 1. and t_1 >= 0.: #t_1 can go to infinity
+            
+            #t_1 = abs(t_1)
+            #t_2 = abs(t_2)
+            if (t_2 >= 0. and t_2 <= 1.) and t_1 >= 0.: #t_1 can go to infinity
+                #print 't1', t_1
+                #print 't2', t_2
+                #print '--'
+                #debug.append(rs.AddCurve([r0,ray_dir+r0]))
                 #Collision detected
                 ix,iy = r0.X + (t_1 * ray_dir.X), r0.Y + (t_1 * ray_dir.Y)
                 #print t_1
-                point_intersect = rc.Geometry.Vector3d(ix,iy,z)
-        return point_intersect    
+                point_intersect = rc.Geometry.Vector3d(ix,iy,refz)
+        #if point_intersect: 
+            #debug.append(point_intersect)
+            #debug.append(rs.AddCurve([r0,point_intersect]))
+        return point_intersect,r0  
     def get_parallel_segments(self,lst_edge_,dir_ref_,angle_tol_):
         #Inputs lst of edges, a dir_ref
         #Outputs lst of edges that are parallel w/i tol
-        #parallel_edges_ = []
+        parallel_edges_ = []
         #debug = sc.sticky['debug']
         for i in xrange(len(lst_edge_)):
             edge_pts = lst_edge_[i]
@@ -709,42 +731,51 @@ class Shape:
             #Check for pi/0 (180,0 degrees)
             IsParallel = dir_ref_.IsParallelTo(dir_vec,angle_tol_)
             if not self.is_near_zero(IsParallel):#set this as tolerance in setback
-                yield edge_pts#parallel_edges_.append(edge_pts)
-        #return parallel_edges_
-    def identify_front_or_back_to_ref_edge(self,ref_edge,edges_to_check,ht,front=True,ht_ref=0.0):
+                #yield edge_pts
+                parallel_edges_.append(edge_pts)
+        return parallel_edges_
+    def identify_front_or_back_to_ref_edge(self,ref_edge,edges_to_check,dis_tol,front=True,ht_ref=0.0):
         #Casts a ray from front/back edges2check and sees if intersect with ref_edge
         #If identifies one front edge, then will break loop send back edge
         #Used as a way to see if the edge is back or front from a reference edge
         #ht_ref is problematic. Must get rid of with implementation of push/pop matrix for ray interesction
-        #front_edges = []
-        #for i in xrange(len(edges_to_check)):
+        debug = sc.sticky['debug']
+        front_edges = []
         int_pt = None
-        for edge in edges_to_check:
-            #edge = edges_to_check[i]
+        for i in xrange(len(edges_to_check)):
+            edge = edges_to_check[i]
+            edge = map(lambda pt: rc.Geometry.Point3d(pt[0],pt[1],ht_ref),edge)
+            
             m = self.get_midpoint(edge)
             #Change this for rear stepback
             normal = self.get_normal_point_inwards(edge,to_outside=front)
-            ray = (m,normal)
-            #debug.extend([m,m+normal*10.0])
+            normal.Unitize
+            ray_m,ray_norm = m, normal
             line = self.get_endpt4line(ref_edge)
-            int_pt = self.planar_intersect_ray_with_line(ray,line,ht_ref)
+            int_pt,m = self.planar_intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
+            #debug.append(rs.AddCurve([m,m+normal*10.0]))
+            #debug.append(m+normal*10.0)
             if int_pt:
                 dist = rs.Distance(int_pt,m)
+                #print dist
                 if not front:
                     la,ld,sa,sd = self.get_long_short_axis()
                     dist2sub = ld if dist - ld > 0.0 else sd
                     dist -= dist2sub
-                if dist <= 10.0:
-                    yield edge#front_edges.append(edge)
-        #return front_edges
-    def match_edges_with_refs(self,lst_edge,lst_refedge,norm_ht=0.0,angle_tol=15.0,to_front=True):
+                if dist <= dis_tol:
+                    front_edges.append(edge)
+                #debug.append(int_pt)
+                #debug.append(m)
+                #print dist
+                #print '--'
+        return front_edges
+    def match_edges_with_refs(self,lst_edge,lst_refedge,norm_ht=0.0,dist_tol=1.0,angle_tol=15.0,to_front=True):
         #Purpose: Identifying edges from list of edges and ref edge by angle
         #Input: list of edges (list of pts) and list of ref_edge, tolerance
         #Output: list of edges that match angle to ref_edge, given by distance
         #debug = sc.sticky['debug']
         parallel_and_front_edges = []
         angle_tol = math.radians(angle_tol)
-        
         #Get paralllel edges
         #Get front or back edges
         for i in xrange(len(lst_refedge)):
@@ -752,9 +783,7 @@ class Shape:
             sbrefpt = self.get_endpt4line(sbrefedge)
             dir_ref = sbrefpt[1] - sbrefpt[0]            
             parallel_edges = self.get_parallel_segments(lst_edge,dir_ref,angle_tol)
-        
-            parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,norm_ht,front=to_front,ht_ref=norm_ht)
-            
+            parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,dist_tol,front=to_front,ht_ref=norm_ht)
         return parallel_and_front_edges
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
