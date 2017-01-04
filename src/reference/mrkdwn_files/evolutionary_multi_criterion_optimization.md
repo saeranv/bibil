@@ -61,7 +61,6 @@ Goal: rank incomparable solutions within a dominance class
 ###Dimensionality Reduction
 - reduce objectives to make deciison-making easier
 
-
 ##OCTOPUS
 
 ###DEFINE
@@ -81,13 +80,56 @@ Goal: rank incomparable solutions within a dominance class
 ###SOLUTIONS VIEWER\
 ####Main viewport shows:
 - non-dominated pareto-front (opaque cubes)
-- transfparent cubes (dominated solutions still belonging to the Elite
+- transparent cubes (dominated solutions still belonging to the Elite
 - Transparent yellow cubes elite solutions from previous generations - the more transparent the older
 - Transparent yellow spherese indicate simpe marking
 ####Context menu
 - 'reinstate solution' = resptores solution parameters
 - 'mark' = adds yellow sphere around solution to keep it alive and visible
-- 'totally different parameters of two solutions' = 
+- 'Mark prefered (obj)' adds user preference at this region in the objective space: meaning weighting of objectives is aid to be preferred
+- 'Toggle show mesh' toggles between cube and mesh view of single solutuon
+- 'Delete' deletes the solutions
+
+####History Slider
+- scroll through the history of the search process
+- all history except last geneartion can be deleted with the 'X' button
+- search can be resumed from any point in history
+- marking and preferences can be done in history
+
+####PROCESS CONTROL
+- 'Start' - starts process with 2 x Population size of soltuions in beginning
+- 'Start w/ presets' used to incorporate slider setup currently in GH
+- 'Stop' stops a search, can be resumable
+- 'Reset' resets solutions
+
+####ALGO SETTINGS
+- 'Elitism' gives percentage fo new solutions that are bred out of elite instad of the entire pool, when set high more local optimization is performaed
+- 'Mut. PRobability' probability each paraetmer to become mutated with the 'Mutation Rate'
+- 'Mut. Rate' low mean little changes to parameter values, high meas big changes
+- 'Crossover rate' probability of two subsequently generated solutions to exchange parameter values
+- 'Population Size' - number of solutions per generation, total of 2 x populationsize number is number of soltuions in each generations poll
+- 'Record INterval' - interval of generations in which history record is stored 
+- 'Max evaluation time (ms)': if solution takes longer to compute, added to collection to debug
+- 'Minim. RHino on Start' - minimizes rhino and GH to optimize screen updates (min manually as well!)
+- 'Diversify Parameters' introduces additional obj dimension favors solutions different from others
+- 'Record solution meshes' mesh rep stored for history solution greatly increases memory usage
+- 'Display settings' = ParetoFront, Elite, Histort - determines which set to show
+- hypervoluume graph: mathematical measure for spread of oslutions
+- genetic distance graph: each row repsresntes paraetmer gene where corenrs of polyline rep values for parmaeters, this shows you CONVERGENCE of search
+- Objectives - list of objectives and order of how they are supplioed to cotopus, can toggle on and off with use 
+- COnvergence graph - one graph for each objective dimension showing upper and lower bounds of pareto front (dark greay), elite (light gray) for number of history soltuions
+
+
+ 
+
+
+
+
+
+
+
+
+
 
  
 
