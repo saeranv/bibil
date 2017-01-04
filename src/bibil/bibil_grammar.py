@@ -201,7 +201,7 @@ class Grammar:
         except Exception as e:
             print "Error at pattern solar envelope multi"
             print e
-    def old_stepback(self,tnode,PD_):
+    def stepback(self,tnode,PD_):
         #For profile testing
         debug = sc.sticky['debug']
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
@@ -272,7 +272,7 @@ class Grammar:
         #    print str(e)#,sys.exc_traceback.tb_lineno 
         #    print "Error at Pattern.stepback"
         return tnode    
-    def stepback(self,tnode,PD_):
+    def old_stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
         tnode.grammar.type['grammar'] = 'stepback'
@@ -794,6 +794,58 @@ class Grammar:
                 chld = extract_topo(temp_node_,slht)
         return temp_node_
     def set_height(self,temp_node_,PD_):
+        def height_from_bula(n_):
+            setht = 6. #default ht = midrise
+            bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
+            #temp
+            min_bula_node_sum = None
+            min_bula_node_index = None
+            
+            for bula_ref_index,bula_node in enumerate(bula_node_lst):
+                bula_node_sum = 0
+                buladata = bula_node.grammar.type['bula_data']
+                lpl_,lvl_, lvl_actual = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
+                
+                #for vl_ in lvl_:
+                bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
+                
+                if min_bula_node_sum == None or min_bula_node_sum > bula_node_min:
+                    min_bula_node_sum = bula_node_min
+                    min_bula_node_index = bula_ref_index
+            buladata = bula_node_lst[min_bula_node_index].grammar.type['bula_data']
+            lpl_,lvl_,actual_lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node_lst[min_bula_node_index])
+            if lpl_ != [[]]:
+                n_ = buladata.generate_bula_point([n_],lpl_,lvl_,actual_lvl_)[0]
+                val_lst = n_.grammar.type['bula_data'].value_lst
+                setht = min(val_lst)#sum(val_lst)/float(len(val_lst))
+            return setht
+        #print 'We are setting height!'
+        temp_node_.grammar.type['grammar'] = 'height'
+        debug = sc.sticky['debug']
+        ht_ = PD_['height']
+        randomize_ht = PD_['height_randomize']
+        #ht_ref = PD_['height_ref']
+        ht_ref = None
+        if ht_ref:
+            ht_type = self.helper_get_type(ht_ref)
+            if ht_type != "geometry":
+                ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
+            ht_ = ht_ref.shape.ht - temp_node_.shape.ht
+        if randomize_ht:
+            random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
+            randht_lo,randht_hi = random_bounds[0],random_bounds[1]
+            ht_ += random.randrange(randht_lo,randht_hi)
+
+        n_ = temp_node_
+        #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
+        if type(ht_)==type('') and 'bula' in ht_:
+            setht_ = height_from_bula(n_)
+        else:
+            setht_ = ht_
+        n_.shape.op_extrude(setht_)
+        #print '---'
+        return temp_node_
+    def new_set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
             setht = 6. #default ht = midrise
             bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)

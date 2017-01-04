@@ -11,12 +11,12 @@ from Grasshopper import DataTree
 
 
 if run:
-    if height_ref: height=True
+    #if height_ref: height=True
     rule = DataTree[object]()
     rule_ = [['height',height],\
-             ['grammar_key','height'],\
+             #['grammar_key','height'],\
              ['height_randomize',randomize],\
-             ['height_ref',height_ref],\
+             #['height_ref',height_ref],\
              ['end_rule']]
     
     for i, r in enumerate(rule_):
