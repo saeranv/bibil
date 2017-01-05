@@ -1210,6 +1210,7 @@ class Grammar:
             #Make bula point for each lot
             B.generate_bula_point(shape_leaves,lst_plain_pt_lst,lst_value_lst,lst_value_lst_actual)
             B.set_bula_height4viz(shape_leaves)
+        print temp_node_.traverse_tree(lambda n:n,internal=False)
     def meta_tree(self,temp_node_,PD_):
         def inc_depth(n):
             if n.parent:
