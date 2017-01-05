@@ -17,6 +17,8 @@ if run:
     ['bucket4shape', True],\
     ['grammar_key','bucket4shape'],\
     ['apply2list',True],\
+    ['keys2bucket',keys2bucket],\
+    ['fx2bucket',None],\
     ['end_rule']]   
     for i, r in enumerate(rule_):
         rule.Add(r)

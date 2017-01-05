@@ -1244,43 +1244,49 @@ class Grammar:
                     root = meta_node.get_root()
                     root.traverse_tree(lambda n:inc_depth(n),internal=True)
     def bucket_shape(self,temp_node_lst_,PD_):
-        def helper_sort_val_by_tol(node_lst,grammar2find,foo):
+        def helper_sort_val_by_tol(node_lst,grammar2find,func):
             # Input: node, str, tol, function
             # Extract ‘grammar’ and value foo 
             # add foo(value/numofleaves / TOL)
             # add to dictionary if key/not key
             # Output: key:tuple of dictionary
             grammar_dict = {}
+            key = node_lst[0].grammar.type[grammar2find]
+            #foo = eval(func)
             for node in node_lst:
-                grammar_val = foo(n,grammar2find)
-                if grammar_dict.has_key(grammar_val):
-                    grammar_dict[grammar_val].append(node)
+                if grammar_dict.has_key(key):
+                    grammar_dict[key].append(node)
                 else:
-                    grammar_dict[grammar_val] = [node]
+                    grammar_dict[key] = [node]
             lstofkeyvaltuple = grammar_dict.items()
             return lstofkeyvaltuple
         
-        def pass_grammar_rules(node_lst,grammar2findlst,funclst,B):
+        def pass_grammar_rules(node_lst,grammar2findlst,funclst):
             # pass grammars to helper
-            for func,grammar2find in zip(funclst,grammar2findlst):
+            B = []
+            for grammar2find,func in zip(grammar2findlst,funclst):
                 lstkeyval = helper_sort_val_by_tol(node_lst,grammar2find,func)
                 B.append(lstkeyval)
             return B
         
         ## Purpose: buckets input shapes
         debug = sc.sticky['debug']
-        for n in temp_node_lst_: n.grammar.type['grammar'] = 'bucket_shape'
+        apply2 = PD_['apply2list']
+        keys2bucket = PD_['keys2bucket']#'height','primary_axis_vector']
+        fx2bucket = PD_['fx2bucket']
+        
+        #Apply grammar key
+        for i in xrange(len(temp_node_lst_)): 
+            temp_node_lst_[i].grammar.type['grammar'] = 'bucket_shape'
         nodes2bucket = temp_node_lst_
         
         ## Bucket: [(grammar_key,{keyval:lstofnode}),(grammar_key,{keyval:lstofnode})]
-        #init_dict = {'init':{}}
-        Bucket = []
-        grammar2findlst = ['height','primary_axis_vector']
-        httol = 10. 
-        #abs(b1-b2) <= tol
-        htfoo = lambda n: str(round(n.shape.ht/9.0,2))
+        ## keys2find = [key1,key2,key3]
         
+        Bucket = pass_grammar_rules(nodes2bucket,keys2bucket,fx2bucket)        
         """
+        ###This is for energy archetype identification
+        #htfoo = lambda n: str(round(n.shape.ht/9.0,2))
         for n in nodes2bucket:
             lstn = n.backtrack_tree(lambda n_:n_.grammar.type.has_key('ratio'),accumulate=True)
             bucket.append(n.shape.bottom_crv)
@@ -1298,7 +1304,7 @@ class Grammar:
                     bucket.append(topcrv)
         debug.extend(bucket)      
         """
-        return temp_node_lst_
+        return Bucket
     def building_analysis(self,node_in,height,GFA,groundFloor_ht,restFloor_ht):
         def get_label(n):
             label_ = []
