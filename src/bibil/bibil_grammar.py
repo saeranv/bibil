@@ -201,7 +201,7 @@ class Grammar:
         except Exception as e:
             print "Error at pattern solar envelope multi"
             print e
-    def stepback(self,tnode,PD_):
+    def old_stepback(self,tnode,PD_):
         #For profile testing
         debug = sc.sticky['debug']
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
@@ -272,7 +272,7 @@ class Grammar:
         #    print str(e)#,sys.exc_traceback.tb_lineno 
         #    print "Error at Pattern.stepback"
         return tnode    
-    def old_stepback(self,tnode,PD_):
+    def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
         tnode.grammar.type['grammar'] = 'stepback'
@@ -793,7 +793,7 @@ class Grammar:
             for slht in slice_ht:
                 chld = extract_topo(temp_node_,slht)
         return temp_node_
-    def set_height(self,temp_node_,PD_):
+    def old_set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
             setht = 6. #default ht = midrise
             bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
@@ -845,7 +845,7 @@ class Grammar:
         n_.shape.op_extrude(setht_)
         #print '---'
         return temp_node_
-    def new_set_height(self,temp_node_,PD_):
+    def set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
             setht = 6. #default ht = midrise
             bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
