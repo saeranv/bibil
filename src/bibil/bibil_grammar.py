@@ -1252,9 +1252,9 @@ class Grammar:
             # add to dictionary if key/not key
             # Output: key:tuple of dictionary
             grammar_dict = {}
-            key = node_lst[0].grammar.type[grammar2find]
             #foo = eval(func)
             for node in node_lst:
+                key = node.grammar.type[grammar2find]
                 if grammar_dict.has_key(key):
                     grammar_dict[key].append(node)
                 else:
