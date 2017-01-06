@@ -878,11 +878,14 @@ class Grammar:
         randomize_ht = PD_['height_randomize']
         ht_ref = PD_['height_ref']
         
+        print 'adfasdfsd'
+        
         if ht_ref:
             ht_type = self.helper_get_type(ht_ref)
             if ht_type != "geometry":
                 ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
             ht_ = ht_ref.shape.ht - temp_node_.shape.ht
+        
         if randomize_ht:
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
@@ -1595,6 +1598,7 @@ class Grammar:
             temp_node = self.bucket_shape(temp_node,PD)
         elif PD.has_key('transform') and PD['transform'] == True:
             temp_node = self.transform(temp_node,PD)
+        
         #Sort out the outputs
         if isList:
             lst_childs = temp_node
