@@ -28,6 +28,8 @@ class Tree:
     def delete_node(self):
         if self is not None:
             self.loc = []
+            del self.shape.geom
+            del self.shape
             if self.parent:
                 for i,pc in enumerate(self.parent.loc):
                     if self.parent.loc[i] is self: 

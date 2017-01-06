@@ -313,7 +313,10 @@ class Grammar:
         ## Loop through the height,setback tuples
         for sbd in sb_data:
             ht, dist = sbd[0], sbd[1]
-            if sb_random:
+            
+            IsHighEnough = ht < tnode.shape.ht
+            
+            if IsHighEnough and sb_random:
                 if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
                     ht += random.randrange(randht_lo,randht_hi)
                 if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
@@ -329,7 +332,7 @@ class Grammar:
             #else:
             sh_top_node = tnode
             ##Loop through all sb_geoms
-            if sh_top_node:
+            if IsHighEnough and sh_top_node:
                 matrix = sh_top_node.shape.base_matrix
                 if not matrix:
                     matrix = sh_top_node.shape.set_base_matrix()
@@ -877,8 +880,6 @@ class Grammar:
         ht_ = PD_['height']
         randomize_ht = PD_['height_randomize']
         ht_ref = PD_['height_ref']
-        
-        print 'adfasdfsd'
         
         if ht_ref:
             ht_type = self.helper_get_type(ht_ref)
