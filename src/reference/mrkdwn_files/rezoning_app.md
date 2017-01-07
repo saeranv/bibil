@@ -55,7 +55,7 @@ http://www.toronto.ca/legdocs/mmis/2016/te/bgrd/backgroundfile-92308.pdf
 - height of development: would be tallest building in area, no "contextual/policy bsis for height" staff recommend it be lowered
 - possible provision of community infrastructure
 - shaodwing on the jr public school
-- this whole "contextual" argument is truly asinine
+- this whole "contextual" argument is weak on performance grounds
 
 
 
