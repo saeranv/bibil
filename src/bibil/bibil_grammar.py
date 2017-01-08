@@ -61,7 +61,7 @@ class Grammar:
         child_node,child_shape = None, None
         IsDegenerate = False
         tree_depth = 0
-        try:
+        if True:#try:
             if geom:
                 geom = helper_curve2srf(geom)
                 cplane_ref = None
@@ -86,8 +86,8 @@ class Grammar:
                 child_grammar.type["label"] = label
                 child_grammar.type["grammar"] = grammar
                 child_node = Tree(child_shape,child_grammar,parent=parent_node,depth=tree_depth)
-        except Exception as e:
-            print "Error at Pattern.helper_geom2node", str(e)
+        #except Exception as e:
+        #    print "Error at Pattern.helper_geom2node", str(e)
         return child_node
     def helper_clone_node(self,node_,parent_node=None,label="x"):
         #Purpose: Input node, and output new node with same Shape, new Grammar
