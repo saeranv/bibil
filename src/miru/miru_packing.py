@@ -19,18 +19,24 @@ import copy
 import scriptcontext as sc
 import clr
 import random 
+import rhinoscriptsyntax as rs
 
 clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
 if run:
+    if add_collision!=[]:
+        add_collision = filter(lambda n: n!=None,add_collision)
+        add_collision = map(lambda c: rs.coercegeometry(c), add_collision)
+        
     rule = DataTree[object]()
     rule_ = [\
     ['separate', True],\
     ['grammar_key','separate'],\
     ['x_keep_omit',x_keep_omit],\
     ['y_keep_omit',y_keep_omit],\
+    ['add_collision',add_collision],\
     ['end_rule']]   
     for i, r in enumerate(rule_):
         rule.Add(r)

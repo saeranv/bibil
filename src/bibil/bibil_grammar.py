@@ -662,19 +662,22 @@ class Grammar:
             return shape2omit_lst,shape2keep_lst
         def check_base_with_offset(shape2off,GLOBLST):
             # check if interect with tower-seperation list
-            intersect_offset = False
+            IsSeparate_ = True
             for offset in GLOBLST:
                 chkoff = rs.coercecurve(offset)
                 if chkoff!=None:
-                    crvA = offset
+                    crvA = chkoff
                     crvB = shape2off.shape.bottom_crv
-                    #debug.append(offset)
-                    setrel = shape2off.shape.check_region(crvA,crvB,tol=0.1)
+                    #debug.append(chkoffset)
+                    setrel = shape2off.shape.check_region(crvA,crvB,tol=1.0)
                     #If not disjoint
-                    if not abs(setrel-0.)<0.1:
-                        intersect_offset = True
+                    #if not abs(setrel-0.)<=0.1:
+                    #    debug.append(crvB)
+                    #    debug.append(crvA)
+                    if not abs(setrel-0.)<=0.1:
+                        IsSeparate_ = False
                         break
-            return not intersect_offset
+            return IsSeparate_
         def set_separation_record(shape2record,sep_dist,separation_tol_):
             ## Add some tolerance to separation distance
             sep_dist_tol = (sep_dist - separation_tol_) * -1
@@ -693,6 +696,8 @@ class Grammar:
         #Extract data
         x_keep_omit = PD_['x_keep_omit']
         y_keep_omit = PD_['y_keep_omit']
+        #Check collision detection
+        add_collision = PD_['add_collision']
         
         #Parse the data
         x_keep_omit = map(lambda s: float(s), x_keep_omit.split(','))
@@ -726,6 +731,8 @@ class Grammar:
             # Make/call global collision list
             if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
                 sc.sticky['GLOBAL_COLLISION_LIST'] = []
+            if add_collision != []:
+                sc.sticky['GLOBAL_COLLISION_LIST'].extend(add_collision)
             
             offset_dist = x_keep_omit[1]
             seperate_tol = 0.5
@@ -739,10 +746,12 @@ class Grammar:
                         #offset_tuple
                         set_separation_record(t,offset_dist,seperate_tol)
                     else:
+                        temp_node_topo.loc[i] = None
                         t.delete_node()
                         del t
                         #t.grammar.type['grammar'] = 'omit'
                 else:
+                    temp_node_topo.loc[i] = None
                     t.delete_node()
                     del t
                     #t.grammar.type['grammar'] = 'omit'
