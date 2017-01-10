@@ -890,12 +890,26 @@ class Grammar:
         randomize_ht = PD_['height_randomize']
         ht_ref = PD_['height_ref']
         
+        ### If ht_ and ht_ref have values: then ht_ is taken as a maximum!!
+        
         if ht_ref:
             ht_type = self.helper_get_type(ht_ref)
             if ht_type != "geometry":
                 ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
-            ht_ = ht_ref.shape.ht - temp_node_.shape.ht
-        
+            
+            #Check to make sure ref is not the same
+            if abs(ht_ref.shape.ht-temp_node_.shape.ht)>1.0:
+                ht_w_ref = ht_ref.shape.ht - temp_node_.shape.ht
+            else:
+                ht_w_ref = temp_node_.shape.ht
+            #Check if maxht is defined
+            ht_copy = copy.copy(ht_)
+            if ht_==True:
+                ht_ = ht_w_ref
+            else:
+                ht_ = ht_w_ref if ht_w_ref <= ht_ else ht_copy
+            #print ht_, ht_copy, ht_w_ref
+                
         if randomize_ht:
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]

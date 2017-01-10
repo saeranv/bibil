@@ -11,7 +11,7 @@ from Grasshopper import DataTree
 
 
 if run:
-    if height_ref: height=True
+    if height_ref and not height: height=True
     rule = DataTree[object]()
     rule_ = [['height',height],\
              ['grammar_key','height'],\
