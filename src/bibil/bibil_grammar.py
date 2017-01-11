@@ -297,8 +297,17 @@ class Grammar:
                 random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
             randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
             randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
+        
+        if sb_dir == "side":
+            IsSide = True
+            sb_dir = None  
+        else:
+            IsSide = False
         if not sb_dir:sb_dir = False
+        
         #Get data if not geometry
+        IsSelf = True if sb_ref[0] == -1 else False
+         
         sbg_type = self.helper_get_type(sb_ref[0])
         if sbg_type != "geometry":
             sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
@@ -333,11 +342,25 @@ class Grammar:
             sh_top_node = tnode
             ##Loop through all sb_geoms
             if IsHighEnough and sh_top_node:
+                #Get self matrix to match
                 matrix = sh_top_node.shape.base_matrix
                 if not matrix:
                     matrix = sh_top_node.shape.set_base_matrix()
                 
-                ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=sb_dist_tol,angle_tol=sb_ref_tol,to_front=not sb_dir)
+                if IsSelf:
+                    if IsSide:
+                        mi1 = matrix.pop()
+                        mi2 = int(random.randrange(0,len(matrix))) 
+                        if random.randrange(1,11)>5:
+                            matrix = [matrix[mi2],mi1]
+                        else:
+                            matrix = [matrix[mi2]]
+                    
+                    matrix = map(lambda ptlst:map(lambda pt:rc.Geometry.Point3d(pt[0],pt[1],ht),ptlst),matrix)
+                    ref_edge = matrix
+                    debug.extend(reduce(lambda x,y:x+y,matrix))
+                else:##need to rethink this
+                    ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=sb_dist_tol,angle_tol=sb_ref_tol,to_front=not sb_dir)
                 
                 #ref_edge = sb_ref
                 for sbg in ref_edge:
@@ -687,7 +710,7 @@ class Grammar:
                 print str(e)
                 print 'Error at set_separation_record'
             #debug.append(check_base_separation_.shape.bottom_crv)
-            debug.append(sep_crv)
+            #debug.append(sep_crv)
             ## Append crv
             sc.sticky['GLOBAL_COLLISION_LIST'].append(sep_crv)
             
@@ -717,7 +740,7 @@ class Grammar:
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,x_keep_omit,y_keep_omit,cut_axis,noncut_axis)
         
         #print temp_node_topo,x_keep_omit,y_keep_omit
-        debug.append(temp_node_topo.shape.geom)
+        #debug.append(temp_node_topo.shape.geom)
             
         for i in xrange(len(shapes2omit)):
             omit = shapes2omit[i]
