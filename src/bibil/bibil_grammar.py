@@ -669,12 +669,12 @@ class Grammar:
                     crvA = chkoff
                     crvB = shape2off.shape.bottom_crv
                     #debug.append(chkoffset)
-                    setrel = shape2off.shape.check_region(crvA,crvB,tol=1.0)
+                    setrel = shape2off.shape.check_region(crvA,crvB,tol=0.1)
                     #If not disjoint
                     #if not abs(setrel-0.)<=0.1:
                     #    debug.append(crvB)
                     #    debug.append(crvA)
-                    if not abs(setrel-0.)<=0.1:
+                    if not abs(setrel-0.)<=0.001:
                         IsSeparate_ = False
                         break
             return IsSeparate_
@@ -716,6 +716,9 @@ class Grammar:
         ## Get cut dimensions     
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,x_keep_omit,y_keep_omit,cut_axis,noncut_axis)
         
+        #print temp_node_topo,x_keep_omit,y_keep_omit
+        debug.append(temp_node_topo.shape.geom)
+            
         for i in xrange(len(shapes2omit)):
             omit = shapes2omit[i]
             omit.delete_node()
@@ -757,6 +760,9 @@ class Grammar:
                     #t.grammar.type['grammar'] = 'omit'
         else: 
             temp_node_topo.loc = [] 
+        
+        temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
+        
         ##TEMP4MEETING
         #for i,t in enumerate(temp_node_topo.loc):
         #    if not 'keep' in t.grammar.type['grammar']:
@@ -1703,7 +1709,7 @@ class Grammar:
                 n.traverse_tree(lambda n:n.delete_node(),internal=True)
                 #if n.grammar.type['top'] == None:
                 #    n.grammar.type['top'] = True
-            
+        
         if chk_input_len:
             if abs(len(label__)-1.) < 0.5 or abs(len(label__)-0.) < 0.5:
                 #label is treated as a rule
