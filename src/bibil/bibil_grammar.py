@@ -349,12 +349,15 @@ class Grammar:
                 
                 if IsSelf:
                     if IsSide:
-                        mi1 = matrix.pop()
-                        mi2 = int(random.randrange(0,len(matrix))) 
-                        if random.randrange(1,11)>5:
-                            matrix = [matrix[mi2],mi1]
+                        mi1 = int(random.randrange(0,len(matrix))) 
+                        if random.randrange(0,2)==1:
+                            if mi1 < len(matrix)-1:
+                                mi2 = mi1 + 1
+                            else:
+                                mi2 = mi1 - 1
+                            matrix = [matrix[mi1],matrix[mi2]]
                         else:
-                            matrix = [matrix[mi2]]
+                            matrix = [matrix[mi1]]
                     
                     matrix = map(lambda ptlst:map(lambda pt:rc.Geometry.Point3d(pt[0],pt[1],ht),ptlst),matrix)
                     ref_edge = matrix
@@ -1607,13 +1610,15 @@ class Grammar:
         else:
             for i,child_node_ in enumerate(child_node_lst_):
                 ## Apply pattern
-                if True:#try:
+                try:
                     ParamDict = child_node_.grammar.type 
                     node_out_ = self.main_grammar(child_node_,ParamDict)
                     RhinoApp.Wait() 
-                L.extend(node_out_)
-                #except Exception as e:
-                #    print "Error @ Pattern.main_pattern"
+                    L.extend(node_out_)
+                except Exception as e:
+                    print "Error @ Pattern.main_pattern"
+                
+                
         return L
     def main_grammar(self,temp_node,PD):
         isList = type(temp_node) == type([])
@@ -1660,6 +1665,7 @@ class Grammar:
         
         ## Check freezing
         lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
+        
         ## Finish
         return lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
