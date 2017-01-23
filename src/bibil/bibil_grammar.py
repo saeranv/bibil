@@ -713,7 +713,7 @@ class Grammar:
                 print str(e)
                 print 'Error at set_separation_record'
             #debug.append(check_base_separation_.shape.bottom_crv)
-            #debug.append(sep_crv)
+            debug.append(sep_crv)
             ## Append crv
             sc.sticky['GLOBAL_COLLISION_LIST'].append(sep_crv)
             
