@@ -396,6 +396,7 @@ if _runIt == True:
     checkData = checkTheInputs()
 if checkData == True:
     splitBldgMassesLists = main(_bldgMasses, bldgsFlr2FloorHeights_)
+    
     if splitBldgMassesLists!= -1:
         splitBldgMasses = DataTree[Object]()
         names = DataTree[Object]()
