@@ -756,13 +756,20 @@ class Shape:
             #debug.append(rs.AddCurve([m,m+normal*10.0]))
             #debug.append(m+normal*10.0)
             if int_pt:
-                dist = rs.Distance(int_pt,m)
-                #print dist
-                if not front:
+                m_ = rs.AddPoint(m[0],m[1],ht_ref)
+                dist = rs.Distance(int_pt,m_)
+                debug.append(int_pt)
+                debug.append(m_)
+                if not front:    
+                    #int_pt2,m2 = self.planar_intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
                     la,ld,sa,sd = self.get_long_short_axis()
                     dist2sub = ld if dist - ld > 0.0 else sd
-                    dist -= dist2sub
-                if dist <= dis_tol:
+                    print round(sd,2), round(ld,2), round(dist2sub,2)
+                    dist2chk = dist - dist2sub
+                else:
+                    dist2chk = dist    
+                print 'tol', dist2chk, round(dist,2), dis_tol
+                if dist2chk <= dis_tol:
                     front_edges.append(edge)
                 #debug.append(int_pt)
                 #debug.append(m)
@@ -783,7 +790,11 @@ class Shape:
             sbrefpt = self.get_endpt4line(sbrefedge)
             dir_ref = sbrefpt[1] - sbrefpt[0]            
             parallel_edges = self.get_parallel_segments(lst_edge,dir_ref,angle_tol)
+            print 'pe', len(parallel_edges)
             parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,dist_tol,front=to_front,ht_ref=norm_ht)
+            print 'ph', len(parallel_and_front_edges)
+            print norm_ht
+            print '---'
         return parallel_and_front_edges
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix

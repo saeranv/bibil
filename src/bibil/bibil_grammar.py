@@ -361,14 +361,14 @@ class Grammar:
                     
                     matrix = map(lambda ptlst:map(lambda pt:rc.Geometry.Point3d(pt[0],pt[1],ht),ptlst),matrix)
                     ref_edge = matrix
-                    debug.extend(reduce(lambda x,y:x+y,matrix))
+                    #debug.extend(reduce(lambda x,y:x+y,matrix))
                 else:##need to rethink this
                     ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=sb_dist_tol,angle_tol=sb_ref_tol,to_front=not sb_dir)
-                
                 #ref_edge = sb_ref
                 for sbg in ref_edge:
                     cut_geom = None
                     sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
+                    #debug.append(sbref_crv)
                     try: 
                         cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                             split_depth=float(dist*2.),split_line_ref=sbref_crv)
@@ -529,8 +529,44 @@ class Grammar:
                 if 'simple_divide' not in grid_type: 
                     for nc in node_.loc:
                         helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
-        
-        
+        def new_helper_divide_recurse(node_seed,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
+            
+            nodelst = [node_seed]
+            while len(nodelst)>0:
+                node_ = nodelst.pop()
+                ## Split, make a node, and recurse.
+                if grid_type == "subdivide_depth":
+                    node_ = helper_subdivide_depth(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+                elif grid_type == "subdivide_depth_same":
+                    node_ = helper_subdivide_depth_same(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+                elif grid_type == "subdivide_dim":
+                    node_ = helper_subdivide_dim(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+                else:#simple_divide
+                    node_ = helper_simple_divide(node_,div_,div_depth_,ratio_,axis_ref=axis_)
+            
+                if count >=200.:
+                    pass
+                elif node_.grammar.type['ratio'] > 0.0001:
+                    #node_.grammar.type['ratio'] = 1. - node_.grammar.type['ratio']
+                    #debug.extend(node_.shape.bbpts)
+                    loc = node_.shape.op_split(node_.grammar.type['axis'],node_.grammar.type['ratio'],0.,split_depth=cwidth_)
+                    #debug.extend(loc)
+                    #print len(loc)
+                    for i,child_geom in enumerate(loc):
+                        #print 'child nodes'
+                        ###debug.append(child_geom)
+                        child_node = self.helper_geom2node(child_geom,node_)
+                        #print child_node.shape.x_dist
+                        #print child_node.shape.y_dist
+                        if child_node: node_.loc.append(child_node)
+                    #print loc
+                    #print '----'
+                    if 'simple_divide' not in grid_type: 
+                        #for nc in node_.loc:
+                        nodelst.extend(node_.loc)
+                        #helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
+            
+            
         node.grammar.type['grammar'] = 'divide' 
         debug = sc.sticky['debug']
         if type(PD_)==type([]):
@@ -1707,18 +1743,16 @@ class Grammar:
             return rule_
         def helper_main_recurse(lst_node_,rule_lst):
             #if no rules/label_rules node is just passed through
-            if rule_lst == []:
-                for i,ng in enumerate(lst_node_):
-                    if type(T) != type(ng):
-                        ng = self.helper_geom2node(ng)
-                        lst_node_[i] = ng
-                return lst_node_
-            else:
+            while len(rule_lst) > 0:
                 rule_ = rule_lst.pop(0)
                 #apply rule to current list of nodes, get child lists flat
                 lst_node_leaves = self.node2grammar(lst_node_,rule_)
-                return helper_main_recurse(lst_node_leaves,rule_lst)
-        
+                lst_node_ = lst_node_leaves
+            for i,ng in enumerate(lst_node_):
+                if type(T) != type(ng):
+                    ng = self.helper_geom2node(ng)
+                    lst_node_[i] = ng
+                return lst_node_
         T = Tree()
         lst_node_out = []
         #Check inputs
