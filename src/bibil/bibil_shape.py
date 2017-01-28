@@ -439,8 +439,8 @@ class Shape:
             to_inner.Reverse()
         to_inner.Unitize()
         return to_inner
-    def extrude_pt_perpendicular_to_pt(self,basept_,reflineptlst,to_inside=False):
-        #Input: basept, list of line pts, boolean for out or in
+    def extrude_pt_perpendicular_to_pt(self,basept_,reflineptlst):
+        #Input: basept, list of line pts
         #Output: pt that is 90 degrees from that pt
         normvector = self.get_normal_point_inwards(reflineptlst)
         perppt = basept_ + normvector
@@ -758,17 +758,17 @@ class Shape:
             if int_pt:
                 m_ = rs.AddPoint(m[0],m[1],ht_ref)
                 dist = rs.Distance(int_pt,m_)
-                debug.append(int_pt)
-                debug.append(m_)
+                #debug.append(int_pt)
+                #debug.append(m_)
                 if not front:    
                     #int_pt2,m2 = self.planar_intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
                     la,ld,sa,sd = self.get_long_short_axis()
                     dist2sub = ld if dist - ld > 0.0 else sd
-                    print round(sd,2), round(ld,2), round(dist2sub,2)
+                    #print round(sd,2), round(ld,2), round(dist2sub,2)
                     dist2chk = dist - dist2sub
                 else:
                     dist2chk = dist    
-                print 'tol', dist2chk, round(dist,2), dis_tol
+                #print 'tol', dist2chk, round(dist,2), dis_tol
                 if dist2chk <= dis_tol:
                     front_edges.append(edge)
                 #debug.append(int_pt)
@@ -790,12 +790,30 @@ class Shape:
             sbrefpt = self.get_endpt4line(sbrefedge)
             dir_ref = sbrefpt[1] - sbrefpt[0]            
             parallel_edges = self.get_parallel_segments(lst_edge,dir_ref,angle_tol)
-            print 'pe', len(parallel_edges)
+            #print 'pe', len(parallel_edges)
             parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,dist_tol,front=to_front,ht_ref=norm_ht)
-            print 'ph', len(parallel_and_front_edges)
-            print norm_ht
-            print '---'
+            #print 'ph', len(parallel_and_front_edges)
+            #print norm_ht
+            #print '---'
         return parallel_and_front_edges
+    def offset_perpendicular_from_line(self,ref_line,dist2offset):
+        #debug = sc.sticky['debug']
+        L = []
+        reflineendpts = self.get_endpt4line(ref_line)
+        for i in xrange(len(reflineendpts)):
+            basept_ = reflineendpts[i]
+            normvector = self.get_normal_point_inwards(reflineendpts)
+            perppt1 = basept_ + normvector * dist2offset
+            perppt2 = basept_ + normvector * -1.0 * dist2offset
+            if i%2==0:
+                L.append(perppt1)
+                L.append(perppt2)
+            else:
+                L.append(perppt2)
+                L.append(perppt1)
+        L += [L[0]]
+        return L
+            
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
         # For n-dim vector create n x n matrix

@@ -286,6 +286,8 @@ class Grammar:
         
         S = Shape()
         
+        #Clean/Define the Inputs
+        
         ##sb_data: [(height,distance),(height,distance)...]     :
         #Parse setback data
         for i,sbd in enumerate(sb_data):
@@ -318,7 +320,18 @@ class Grammar:
                 line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
                 line_lst.append(line)
             sb_ref = line_lst
-        
+        #Add a check for street heuristics
+        if not tnode.grammar.type.has_key('street_tolerance_curve'):
+            tnode.grammar.type['street_tolerance_curve'] = []
+        for i in xrange(len(sb_ref)):
+            sbrefline = sb_ref[i]
+            perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol) 
+            streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
+            tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
+            IsIntersect = tnode.shape.check_region(streetoffcrv)
+            if self.is_near_zero(IsIntersect):
+                return tnode
+            
         ## Loop through the height,setback tuples
         for sbd in sb_data:
             ht, dist = sbd[0], sbd[1]
@@ -339,8 +352,10 @@ class Grammar:
             #        sh_top_node.grammar.type['label'] = 'stepbacktop'
             #        sh_bot_node.grammar.type['label'] = 'stepbackbot'
             #else:
+            
             sh_top_node = tnode
-            ##Loop through all sb_geoms
+            
+            ##Now actually implement setback
             if IsHighEnough and sh_top_node:
                 #Get self matrix to match
                 matrix = sh_top_node.shape.base_matrix
@@ -1609,13 +1624,14 @@ class Grammar:
         else:
             for i,child_node_ in enumerate(child_node_lst_):
                 ## Apply pattern
-                try:
+                #try:
+                if True:
                     ParamDict = child_node_.grammar.type 
                     node_out_ = self.main_grammar(child_node_,ParamDict)
                     RhinoApp.Wait() 
                     L.extend(node_out_)
-                except Exception as e:
-                    print "Error @ Pattern.main_pattern"
+                #except Exception as e:
+                #    print "Error @ Pattern.main_pattern"
                 
                 
         return L
@@ -1710,7 +1726,10 @@ class Grammar:
                 rule_ = rule_lst.pop(0)
                 #apply rule to current list of nodes, get child lists flat
                 lst_node_leaves = self.node2grammar(lst_node_,rule_)
-                lst_node_ = lst_node_leaves
+                if len(lst_node_leaves) > 0.001:
+                    lst_node_ = lst_node_leaves
+                else:
+                    break
             for i,ng in enumerate(lst_node_):
                 if type(T) != type(ng):
                     ng = self.helper_geom2node(ng)
