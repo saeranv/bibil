@@ -498,7 +498,7 @@ class Grammar:
             hnode.grammar.type['axis'] = axis_ref
             hnode.grammar.type['ratio'] =ratio_
             return hnode
-        def old_helper_divide_recurse(node_,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
+        def helper_divide_recurse(node_,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
             ## Split, make a node, and recurse.
             if grid_type == "subdivide_depth":
                 node_ = helper_subdivide_depth(node_,div_,div_depth_,ratio_,axis_ref=axis_)
@@ -529,48 +529,6 @@ class Grammar:
                 if 'simple_divide' not in grid_type: 
                     for nc in node_.loc:
                         helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
-        def helper_divide_recurse(node_seed,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
-            nodelst = [node_seed]
-            print 'newrevrecurse'
-            print grid_type
-            while len(nodelst) > 0:
-                node_ = nodelst.pop()
-                ## Split, make a node, and recurse.
-                if grid_type == "subdivide_depth":
-                    node_ = helper_subdivide_depth(node_,div_,div_depth_,ratio_,axis_ref=axis_)
-                elif grid_type == "subdivide_depth_same":
-                    node_ = helper_subdivide_depth_same(node_,div_,div_depth_,ratio_,axis_ref=axis_)
-                elif grid_type == "subdivide_dim":
-                    node_ = helper_subdivide_dim(node_,div_,div_depth_,ratio_,axis_ref=axis_)
-                else:#simple_divide
-                    node_ = helper_simple_divide(node_,div_,div_depth_,ratio_,axis_ref=axis_)
-            
-                if count >=2000.:
-                    pass
-                elif node_.grammar.type['ratio'] > 0.001:
-                    #node_.grammar.type['ratio'] = 1. - node_.grammar.type['ratio']
-                    #debug.extend(node_.shape.bbpts)
-                    loc = node_.shape.op_split(node_.grammar.type['axis'],node_.grammar.type['ratio'],0.,split_depth=cwidth_)
-                    #debug.extend(loc)
-                    #print len(loc)
-                    for i,child_geom in enumerate(loc):
-                        #print 'child nodes'
-                        ###debug.append(child_geom)
-                        child_node = self.helper_geom2node(child_geom,node_)
-                        #print child_node.shape.x_dist
-                        #print child_node.shape.y_dist
-                        if child_node: node_.loc.append(child_node)
-                    #print loc
-                    #print '----'
-                    
-                    if 'simple_divide' not in grid_type: 
-                        #for nc in node_.loc:
-                        nodelst.extend(node_.loc)
-                        #helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
-                    else:
-                        nodelst = []
-                div_depth_+=1
-                count += 1
                 
         node.grammar.type['grammar'] = 'divide' 
         debug = sc.sticky['debug']
