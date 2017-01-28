@@ -498,7 +498,7 @@ class Grammar:
             hnode.grammar.type['axis'] = axis_ref
             hnode.grammar.type['ratio'] =ratio_
             return hnode
-        def helper_divide_recurse(node_,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
+        def old_helper_divide_recurse(node_,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
             ## Split, make a node, and recurse.
             if grid_type == "subdivide_depth":
                 node_ = helper_subdivide_depth(node_,div_,div_depth_,ratio_,axis_ref=axis_)
@@ -529,10 +529,11 @@ class Grammar:
                 if 'simple_divide' not in grid_type: 
                     for nc in node_.loc:
                         helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
-        def new_helper_divide_recurse(node_seed,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
-            
+        def helper_divide_recurse(node_seed,grid_type_,div_,div_depth_,cwidth_,ratio_,axis_,count):
             nodelst = [node_seed]
-            while len(nodelst)>0:
+            print 'newrevrecurse'
+            print grid_type
+            while len(nodelst) > 0:
                 node_ = nodelst.pop()
                 ## Split, make a node, and recurse.
                 if grid_type == "subdivide_depth":
@@ -544,9 +545,9 @@ class Grammar:
                 else:#simple_divide
                     node_ = helper_simple_divide(node_,div_,div_depth_,ratio_,axis_ref=axis_)
             
-                if count >=200.:
+                if count >=2000.:
                     pass
-                elif node_.grammar.type['ratio'] > 0.0001:
+                elif node_.grammar.type['ratio'] > 0.001:
                     #node_.grammar.type['ratio'] = 1. - node_.grammar.type['ratio']
                     #debug.extend(node_.shape.bbpts)
                     loc = node_.shape.op_split(node_.grammar.type['axis'],node_.grammar.type['ratio'],0.,split_depth=cwidth_)
@@ -561,12 +562,16 @@ class Grammar:
                         if child_node: node_.loc.append(child_node)
                     #print loc
                     #print '----'
+                    
                     if 'simple_divide' not in grid_type: 
                         #for nc in node_.loc:
                         nodelst.extend(node_.loc)
                         #helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
-            
-            
+                    else:
+                        nodelst = []
+                div_depth_+=1
+                count += 1
+                
         node.grammar.type['grammar'] = 'divide' 
         debug = sc.sticky['debug']
         if type(PD_)==type([]):
