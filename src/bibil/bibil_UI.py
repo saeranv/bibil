@@ -10,6 +10,7 @@ clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
+node_in = filter(lambda n:n!=None,node_in)
 if run and node_in != []:
     node_in = filter(lambda n: n!=None,node_in)
     if rule_in.BranchCount < 0.5:

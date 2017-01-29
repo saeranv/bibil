@@ -320,7 +320,8 @@ class Grammar:
                 line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
                 line_lst.append(line)
             sb_ref = line_lst
-        #Add a check for street heuristics
+        
+        #Add a check for street tolerance
         if not tnode.grammar.type.has_key('street_tolerance_curve'):
             tnode.grammar.type['street_tolerance_curve'] = []
         for i in xrange(len(sb_ref)):
@@ -331,7 +332,7 @@ class Grammar:
             IsIntersect = tnode.shape.check_region(streetoffcrv)
             if self.is_near_zero(IsIntersect):
                 return tnode
-            
+
         ## Loop through the height,setback tuples
         for sbd in sb_data:
             ht, dist = sbd[0], sbd[1]

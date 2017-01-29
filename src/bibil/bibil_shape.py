@@ -24,7 +24,7 @@ class Shape:
     def __init__(self,geom=None,cplane=None):
         self.geom = geom
         self.cplane = cplane
-        self.north = rs.VectorCreate([0,1,0],[0,0,0])
+        self.north = rc.Geometry.Vector3d(0,1,0)#rs.VectorCreate([0,1,0],[0,0,0])
         self.area = None
         self.dimension = '3d'
         self.bottom_crv = None
@@ -651,11 +651,17 @@ class Shape:
         dist = ghcomp.CurveClosestPoint(testpt,crv)[2]
         IsColinear = True if abs(dist-0.)<tol else False
         return IsColinear
-    def planar_intersect_ray_with_line(self,r0,r1,a,b,refz=0.0):
+    def planar_intersect_ray_with_line(self,base_vector,direction_vector,linept1,linept2,refz=0.0):
         #Input: ray (basevector and dirvector), line (two pts)
         #Output: intersection point or else False
         #Will only take place in 2d at defined z ht
         #This function took me half a day to understand!
+        
+        r0 = base_vector
+        r1 = direction_vector
+        a = linept1
+        b = linept2
+        
         #For ray: r0,r1; and line: a,b
         #parametric form of ray: r0 + t_1*r1 = pt 
         #parametric form of line: a + t_2*b = pt
@@ -675,7 +681,8 @@ class Shape:
         ## so that it can work outside of z-axis
         def helper_flatten_z(lst,z):
             return rc.Geometry.Vector3d(lst[0],lst[1],z)
-        debug = sc.sticky['debug']
+        
+        #debug = sc.sticky['debug']
         z = 0.0 #flatten then unflatten
         a = helper_flatten_z(a,z)
         b = helper_flatten_z(b,z)
@@ -719,7 +726,36 @@ class Shape:
         #if point_intersect: 
             #debug.append(point_intersect)
             #debug.append(rs.AddCurve([r0,point_intersect]))
-        return point_intersect,r0  
+        return point_intersect
+    def intersect_ray_with_line(self,base_vector,direction_vector,linept1,linept2,refz=None):
+        #Input: ray (basevector and dirvector), line (two pts)
+        #Output: intersection point or else False
+        #Same as above but with rhinocommon library
+        
+        vertical_tolerance = -5.0
+        r0 = base_vector
+        r1 = direction_vector
+        a = linept1
+        b = linept2
+        a.Z = a.Z + vertical_tolerance
+        b.Z = b.Z + vertical_tolerance 
+        if refz==None: refz = self.ht
+        refz -= vertical_tolerance
+        debug = sc.sticky['debug']
+        
+        #extrude as surface to check int
+        upnormal = self.normal * refz
+        upnormalcrv = rc.Geometry.Curve.CreateControlPointCurve([self.cpt,self.cpt + upnormal])
+        reflinepath = rc.Geometry.Curve.CreateControlPointCurve([a,b])
+        srf2int = rc.Geometry.SumSurface.Create(reflinepath,upnormalcrv)
+        ray = rc.Geometry.Ray3d(r0,r1)
+        point_intersect_lst = rc.Geometry.Intersect.Intersection.RayShoot(ray,[srf2int],1)
+        if point_intersect_lst:
+            point_intersect_lst = list(point_intersect_lst)
+            #debug.extend(point_intersect_lst)
+            #debug.append(self.cpt)
+        
+        return point_intersect_lst
     def get_parallel_segments(self,lst_edge_,dir_ref_,angle_tol_):
         #Inputs lst of edges, a dir_ref
         #Outputs lst of edges that are parallel w/i tol
@@ -748,33 +784,25 @@ class Shape:
             
             m = self.get_midpoint(edge)
             #Change this for rear stepback
-            normal = self.get_normal_point_inwards(edge,to_outside=front)
-            normal.Unitize
-            ray_m,ray_norm = m, normal
+            normal2steprefline = self.get_normal_point_inwards(edge,to_outside=front)
+            ray_m,ray_norm = m, normal2steprefline
             line = self.get_endpt4line(ref_edge)
-            int_pt,m = self.planar_intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
-            #debug.append(rs.AddCurve([m,m+normal*10.0]))
-            #debug.append(m+normal*10.0)
+            int_pt = self.intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
+            #debug.append(m)
+            
             if int_pt:
-                m_ = rs.AddPoint(m[0],m[1],ht_ref)
-                dist = rs.Distance(int_pt,m_)
+                int_pt = int_pt[0]
+                ray2geom = rc.Geometry.Ray3d(int_pt,normal2steprefline*-1)
                 #debug.append(int_pt)
-                #debug.append(m_)
-                if not front:    
-                    #int_pt2,m2 = self.planar_intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
-                    la,ld,sa,sd = self.get_long_short_axis()
-                    dist2sub = ld if dist - ld > 0.0 else sd
-                    #print round(sd,2), round(ld,2), round(dist2sub,2)
-                    dist2chk = dist - dist2sub
-                else:
-                    dist2chk = dist    
-                #print 'tol', dist2chk, round(dist,2), dis_tol
-                if dist2chk <= dis_tol:
-                    front_edges.append(edge)
-                #debug.append(int_pt)
-                #debug.append(m)
-                #print dist
-                #print '--'
+                #debug.append(int_pt + normal2steprefline*-10)
+                pt4front = rc.Geometry.Intersect.Intersection.RayShoot(ray2geom,[self.geom],1)
+                if pt4front: 
+                    m_ht = rs.AddPoint(m[0],m[1],ht_ref)
+                    dist2front = rs.Distance(pt4front[0],m_ht)
+                    if front==True and self.is_near_zero(dist2front):
+                        front_edges.append(edge)
+                    elif front==False and not self.is_near_zero(dist2front):
+                        front_edges.append(edge)
         return front_edges
     def match_edges_with_refs(self,lst_edge,lst_refedge,norm_ht=0.0,dist_tol=1.0,angle_tol=15.0,to_front=True):
         #Purpose: Identifying edges from list of edges and ref edge by angle
