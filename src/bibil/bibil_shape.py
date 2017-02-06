@@ -20,7 +20,7 @@ class Shape:
     Parent shape operations and information
     """
     TOL = sc.doc.ModelAbsoluteTolerance
-    
+
     def __init__(self,geom=None,cplane=None):
         self.geom = geom
         self.cplane = cplane
@@ -41,7 +41,7 @@ class Shape:
                 print str(e), "Error at Shape.reset()"
     def reset(self,xy_change=True):
         def get_dim_bbox(b):
-            ## counterclockwise, start @ bottom SW  
+            ## counterclockwise, start @ bottom SW
             #      n_wt
             #      -----
             #      |   |
@@ -51,21 +51,21 @@ class Shape:
             #     s_wt = x_dist
             """    self.s_wt,self.e_ht,self.n_wt,self.w_ht """
             return b[:2],b[1:3],b[2:4],[b[3],b[0]]
-                
+
         # primary edges
         if xy_change == True:
             try:
                 self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
             except Exception as e:
-                #print str(e)##sys.exc_traceback.tb_lineno 
+                #print str(e)##sys.exc_traceback.tb_lineno
                 self.bottom_crv = None
             try:
                 if self.cplane == None:
                     self.cplane = self.get_cplane_advanced(self.geom)
                 self.primary_axis_vector = self.cplane.YAxis
-                
+
             except Exception as e:
-                print str(e)##sys.exc_traceback.tb_lineno 
+                print str(e)##sys.exc_traceback.tb_lineno
                 self.cplane, self.primary_axis_vector = None, None
             try:
                 self.bbpts = self.get_boundingbox(self.geom,self.cplane)
@@ -84,12 +84,12 @@ class Shape:
                 self.area = None
             except Exception as e:
                 #print str(e)
-                self.bbpts,self.s_wt,self.e_ht,self.n_wt,self.w_ht = None, None, None, None, None 
+                self.bbpts,self.s_wt,self.e_ht,self.n_wt,self.w_ht = None, None, None, None, None
             try:
                 bp = self.bbpts
                 self.cpt = rc.Geometry.AreaMassProperties.Compute(self.bottom_crv).Centroid
             except Exception as e:
-                #print str(e)#sys.exc_traceback.tb_lineno 
+                #print str(e)#sys.exc_traceback.tb_lineno
                 self.cpt = None
         try:# curve profile info
             if xy_change == False:
@@ -97,20 +97,20 @@ class Shape:
             self.ht = float(self.bbpts[4][2])
             self.z_dist = float(float(self.bbpts[4][2]) - self.cpt[2])
         except Exception as e:
-            #print str(e)#sys.exc_traceback.tb_lineno 
+            #print str(e)#sys.exc_traceback.tb_lineno
             self.ht, self.z_dist = None, None
     def calculate_ratio_from_dist(self,axis,dist,dir_=0.):
-        # Direction of cut   
+        # Direction of cut
         # Long axis: YAxis
         # 1.0 ^
-        #     |   
-        # 0.5 ^ w_ht = y_dist  
-        #     |   
+        #     |
+        # 0.5 ^ w_ht = y_dist
+        #     |
         # 0.0 ->->->->->->->
         #     0.0  0.5   1.0
         #  s_wt = x_dist
-        
-        ## dir: 0 = cut dist from bottom 
+
+        ## dir: 0 = cut dist from bottom
         ## dir: 1 = cut dist from top
         ## test1: 25m/100m
         ## if dir == 0: ratio = 0.25
@@ -125,7 +125,7 @@ class Shape:
         # Cut from bottom
         ratio = dist/float(total_dist)
         # Cut from top
-        if dir_ > 0.5: 
+        if dir_ > 0.5:
             ratio = 1. - ratio
         return ratio
     def vector2axis(self,ref_vector):
@@ -152,13 +152,17 @@ class Shape:
             try:
                 zht = ratio_ * self.z_dist
                 splitptlst = self.bbpts[:4]+[self.bbpts[0]]
+                #splitcurve_ = rc.Geometry.Curve.CreateControlPointCurve(splitptlst[:4],1)
+                #splitcurve_ = sc.doc.Objects.AddCurve(splitcurve_)
+                #debug.append(splitcurve_)
                 splitptlst = map(lambda b:rc.Geometry.Point3d(b[0],b[1],b[2]+zht),splitptlst)
                 splitcurve = rc.Geometry.Curve.CreateControlPointCurve(splitptlst,1)
+                #debug.append(splitcurve)
                 split_surf_ = rc.Geometry.Brep.CreatePlanarBreps(splitcurve)[0]
                 return split_surf_
             except Exception as e:
                 print "Error @ shape.helper_make_split_srf_z"
-                print str(e)#sys.exc_traceback.tb_lineno 
+                print str(e)#sys.exc_traceback.tb_lineno
         def helper_make_split_line_xy(ratio_,degree,ref_shape=None):
             debug = sc.sticky['debug']
             try:
@@ -170,23 +174,23 @@ class Shape:
                     s_wt,n_wt = self.s_wt,self.n_wt
                     e_ht,w_ht = self.e_ht,self.w_ht
                     x_dist,y_dist = self.x_dist,self.y_dist
-                    
+
                 if axis == "NS":
                     edge_0, edge_1 = s_wt, n_wt
                     dist = ratio_* x_dist
                 else:#if axis == "EW"
                     edge_0, edge_1 = e_ht, w_ht
                     dist = ratio_* y_dist
-                    
+
                 ### helper geom that splits box
                 line_0 = rs.AddLine(edge_0[0],edge_0[1])
                 line_1 = rs.AddLine(edge_1[1],edge_1[0])
                 # ^flip because counterclockwise
                 mid_0 = rs.DivideCurveLength(line_0,dist,True,True)[1]
-                mid_1 = rs.DivideCurveLength(line_1,dist,True,True)[1]            
+                mid_1 = rs.DivideCurveLength(line_1,dist,True,True)[1]
                 split_line = rs.AddCurve([mid_0,mid_1],1)
                 if float(degree) > 0.5:
-                    cpt = rs.DivideCurve(split_line,2,True,True)[1] 
+                    cpt = rs.DivideCurve(split_line,2,True,True)[1]
                     split_line = rs.RotateObject(split_line,cpt,degree)
                 sc_ = 1.5,1.5,1.5
                 line_cpt = rs.DivideCurve(split_line,2)[1]
@@ -195,13 +199,13 @@ class Shape:
                 return split_line_sc
             except Exception as e:
                 pass#print "Error @ shape.helper_make_split_srf_xy"
-                #print str(e)#sys.exc_traceback.tb_lineno 
+                #print str(e)#sys.exc_traceback.tb_lineno
         def helper_make_split_surf(split_line__):
-            if self.ht < 1: 
+            if self.ht < 1:
                 ht = 1.
-            else: 
+            else:
                 ht = self.ht
-            split_path = rs.AddCurve([[0,0,0],[0,0,ht*2]],1)    
+            split_path = rs.AddCurve([[0,0,0],[0,0,ht*2]],1)
             if not self.is_guid(split_line__):
                 split_line__ = sc.doc.Objects.AddCurve(split_line__)
             split_surf = rs.coercebrep(rs.ExtrudeCurve(split_line__,split_path))
@@ -227,17 +231,18 @@ class Shape:
                 split_line_ = helper_make_split_line_xy(ratio_,deg_)
                 split_line_ = rs.coercecurve(split_line_)
                 split_surf_ = helper_make_split_surf(split_line_)
-                
+
             return split_line_, split_surf_
-        
+
         rs.EnableRedraw(False)
         split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
         #debug.append(split_surf)
         try:#if True:
             ## For split_depth == 0.
             if split_depth <= 0.1:
-                geom = rs.coercebrep(self.geom) if self.is_guid(self.geom) else self.geom 
+                geom = rs.coercebrep(self.geom) if self.is_guid(self.geom) else self.geom
                 lst_child = geom.Split(split_surf,TOL)
+                #debug.append(lst_child[0])
             ## For split_depth > 0.
             else:
                 if self.z_dist < 0.09:
@@ -251,14 +256,14 @@ class Shape:
                 z_vector = rs.VectorCreate([0,0,0],[0,0,1])
                 # create forward and backwards vector using crossproduct
                 normal_f = rs.VectorCrossProduct(dir_vector,z_vector)
-                normal_b = rs.VectorCrossProduct(z_vector,dir_vector) 
-                
+                normal_b = rs.VectorCrossProduct(z_vector,dir_vector)
+
                 sc_ = split_depth,split_depth,split_depth
-                
+
                 normal_f.Unitize()
                 normal_b.Unitize()
                 normal_b = map(lambda v: v*split_depth/2.,normal_b)
-                
+
                 c = rs.AddCurve([rs.AddPoint(0,0,0),rs.AddPoint(normal_f[0],normal_f[1],normal_f[2])],0)
                 c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
                 rc_cut = rs.ExtrudeSurface(split_surf,c)
@@ -275,27 +280,27 @@ class Shape:
                 #debug.extend(geom_childs)
         except Exception as e:
             print "Error @ shape.op_split while splitting"
-            print str(e)#, sys.traceback.tb_lineno 
-            
+            print str(e)#, sys.traceback.tb_lineno
+
         ## Clean up or rearrange or cap the split child geometries
         try:
             if float(len(lst_child)) < 1. or lst_child == [None] or lst_child == []:
                 lst_child = []
             else:
-                if not self.is_guid(lst_child[0]): 
+                if not self.is_guid(lst_child[0]):
                     lst_child_ = map(lambda child: sc.doc.Objects.AddBrep(child), lst_child)
                 map(lambda child: rs.CapPlanarHoles(child),lst_child_)
                 lst_child = map(lambda child: rs.coercebrep(child),lst_child_)
                 if axis == "Z":
                     z_0 = rc.Geometry.AreaMassProperties.Compute(lst_child[0]).Centroid[2]
-                    z_1 = rc.Geometry.AreaMassProperties.Compute(lst_child[1]).Centroid[2]    
-                    if z_0 > z_1: 
+                    z_1 = rc.Geometry.AreaMassProperties.Compute(lst_child[1]).Centroid[2]
+                    if z_0 > z_1:
                         tempchild = lst_child.pop(0)
                         lst_child.append(tempchild)
         except Exception as e:
             print "Error @ shape.op_split while formatting children"
-            print str(e)#, sys.traceback.tb_lineno 
-        
+            print str(e)#, sys.traceback.tb_lineno
+
         rs.EnableRedraw(False)
         return lst_child
     def get_boundingbox(self,geom_,cplane_):
@@ -310,28 +315,28 @@ class Shape:
             return check_bbpts(bbpts_)
         except Exception as e:
             print "Error @ get_boundingbox"
-            #print str(e)#sys.exc_traceback.tb_lineno 
+            #print str(e)#sys.exc_traceback.tb_lineno
     def check_shape_dim(self,axis_,dim_,shape=None,min_or_max=False,tol=0.1):
         ### Checks that the shape dimension is equal to
         if shape==None:
             shape = self
-        if "EW" in axis_:    
+        if "EW" in axis_:
             shapedim = shape.x_dist
         else:
             shapedim = shape.y_dist
         if min_or_max != False:
             ## Check if more than min
-            if 'min' in min_or_max: 
+            if 'min' in min_or_max:
                 IsWidth = (shapedim+tol) >= dim_
             ## Check if less than max
             else:
-                IsWidth = shapedim <= (dim_+tol) 
+                IsWidth = shapedim <= (dim_+tol)
         else:
             IsWidth = abs(shapedim-dim_) <= tol
             #print shapedim, dim_
         return IsWidth
     def is_guid(self,geom):
-        return type(rs.AddPoint(0,0,0)) == type(geom)     
+        return type(rs.AddPoint(0,0,0)) == type(geom)
     def convert_rc(self,dim=None):
         # phase this function out
         try:
@@ -348,7 +353,7 @@ class Shape:
                 self.geom = rs.coercegeometry(self.geom)
         except Exception as e:
             print "Error @ shape.convert_rc"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno
     def convert_guid(self,dim='2d'):
         # phase this out
         try:
@@ -364,7 +369,7 @@ class Shape:
                 self.geom = sc.doc.Objects.AddBrep(self.geom)
         except Exception as e:
             print "Error @ shape.convert_guid"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno
     def get_bottom(self,g,refpt,tol=0.1):
         ## Extract curves from brep according to input cpt lvl
         try:
@@ -377,7 +382,7 @@ class Shape:
             return crvs[0]
         except Exception as e:
             print "Error @ shape.get_bottom"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno
     def move_geom(self,obj,dir_vector,copy=False):
         #Moves a geometry
         #Note, you will likely have to convert to guid and convert back to rc geom
@@ -429,12 +434,12 @@ class Shape:
             end_pts = [end_pts[1],end_pts[0]]
         #To check the CCW dir
         #debug.append(n_.data.shape.get_endpt4line(park_line_)[0])
-        
+
         # Get direction vector and take cross-product
         dir_vector = end_pts[1] - end_pts[0]
         # Create to_inner vector using crossproduct
-        # CCW dir_vector X z_vector = to_inner vector 
-        to_inner = rs.VectorCrossProduct(z_vector,dir_vector) 
+        # CCW dir_vector X z_vector = to_inner vector
+        to_inner = rs.VectorCrossProduct(z_vector,dir_vector)
         if to_outside == True:
             to_inner.Reverse()
         to_inner.Unitize()
@@ -447,12 +452,12 @@ class Shape:
         return perppt
     def check_vertex_order(self,refline=None):
         ### Check if the shape is counter-clockwise
-        ### This is achieved by walking the polygon, 
+        ### This is achieved by walking the polygon,
         ### and then summing the crossproduct
         ### of each adjacent vectors. If the resulting crossproduct sum
-        ### is positive, then according to the RHR it is CCW else it 
+        ### is positive, then according to the RHR it is CCW else it
         ### is negative. If refline provided, we make a triangle
-        ### with refline and cpt  
+        ### with refline and cpt
         ### Ref: http://stackoverflow.com/posts/1167206/revisions
         if refline!=None:
             endpts_lst = []
@@ -463,13 +468,13 @@ class Shape:
             # Make triangle
             endpts_lst.append([self.cpt,linepts[0]])
             endpts_lst.append(linepts)
-            endpts_lst.append([linepts[1],self.cpt])    
+            endpts_lst.append([linepts[1],self.cpt])
         else:
             #need to test this!
             print 'First time testing the vertex order for polygon'
             print 'double check this at def check_vertex_order'
             endpts_lst = self.set_base_matrix()
-        
+
         ## Loop through and take the crossproduct of edge
         i = 0
         sum_of_cross_product = 0.
@@ -479,13 +484,13 @@ class Shape:
             #Cast to vector3d om case it is point3d
             curr_edgepts = map(lambda p: rc.Geometry.Vector3d(p),curr_edgepts)
             next_edgepts = map(lambda p: rc.Geometry.Vector3d(p),next_edgepts)
-            
-            curr_edgevector = curr_edgepts[1]-curr_edgepts[0]   
+
+            curr_edgevector = curr_edgepts[1]-curr_edgepts[0]
             next_edgevector = next_edgepts[1]-curr_edgepts[0]
-            cp = rs.VectorCrossProduct(curr_edgevector,next_edgevector) 
+            cp = rs.VectorCrossProduct(curr_edgevector,next_edgevector)
             sum_of_cross_product += cp[2]
             i+=1
-        
+
         #if positive, then according to RHR, vertices are CCW
         if sum_of_cross_product > 0.:
             return True
@@ -518,7 +523,7 @@ class Shape:
         magnitude = dir_vec.Length
         rot_vector = rot_vector * magnitude
         rotated_linept = rot_vector + refvec4axis
-        
+
         if movehead==True:
             linept_ = [refvec4axis,rotated_linept]
         else:
@@ -528,7 +533,7 @@ class Shape:
         #Input: list of list of pts for TWO lines
         #Output: pt of intersection and bool of if intersection exist
         linelst4int = map(lambda lpt: rc.Geometry.Curve.CreateControlPointCurve(lpt,0),line2intersect)
-        linelst4int = map(lambda crv: rs.coerceline(crv),linelst4int)    
+        linelst4int = map(lambda crv: rs.coerceline(crv),linelst4int)
         lineA,lineB = linelst4int[0], linelst4int[1]
         IsIntersect,a,b = rc.Geometry.Intersect.Intersection.LineLine(lineA,lineB)
         if IsIntersect:
@@ -550,7 +555,7 @@ class Shape:
         ## direction counterclockwise
         ## but can start from anywhere!
         #debug = sc.sticky['debug']
-        
+
         if self.base_matrix == None:
             if crv == None:
                 crv = self.bottom_crv
@@ -595,7 +600,7 @@ class Shape:
                     power_num = 0.
                 lop.append(power_num)
             return lop
-        
+
         ### Purpose: Input 2d planar curve
         ### and return list of vector axis based
         ### on prominence
@@ -615,7 +620,7 @@ class Shape:
             return self.primary_axis_vector
         except Exception as e:
             print "Error @ shape.get_shape_axis"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno
     def get_cplane_advanced(self,g):
         def helper_define_axis_pts(primary_vec):
             ##(origin,x,y)
@@ -645,7 +650,7 @@ class Shape:
             return cplane
         except Exception as e:
             print "Error @ shape.get_cplane_advanced"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno
     def check_colinear_pt(self,crv,testpt,tol=0.01):
         ## May need to swap with own method
         dist = ghcomp.CurveClosestPoint(testpt,crv)[2]
@@ -656,62 +661,62 @@ class Shape:
         #Output: intersection point or else False
         #Will only take place in 2d at defined z ht
         #This function took me half a day to understand!
-        
+
         r0 = base_vector
         r1 = direction_vector
         a = linept1
         b = linept2
-        
+
         #For ray: r0,r1; and line: a,b
-        #parametric form of ray: r0 + t_1*r1 = pt 
+        #parametric form of ray: r0 + t_1*r1 = pt
         #parametric form of line: a + t_2*b = pt
-        
+
         #ray: r0 + t * d
         #r0: base point
         #d: direction vector
         #t = scalar parameter t, where 0 <= t < infinity
         #if line segment, then 0 <= t <= 1 is the parametric form of a line.
-        
+
         #Solve for r0 + t_1*r1 = a + t_2*b; two unknowns t_1, t_2
         #This can result in a lot of algebra, but essentially can
         #simplify to the vector operations below
         #Ref: http://stackoverflow.com/questions/14307158/how-do-you-check-for-intersection-between-a-line-segment-and-a-line-ray-emanatin
-        
+
         ## This needs to have push/pop/transformation matrix
         ## so that it can work outside of z-axis
         def helper_flatten_z(lst,z):
             return rc.Geometry.Vector3d(lst[0],lst[1],z)
-        
+
         #debug = sc.sticky['debug']
         z = 0.0 #flatten then unflatten
         a = helper_flatten_z(a,z)
         b = helper_flatten_z(b,z)
-        
+
         #Correct the ordering of the line segment
         IsCCW = self.check_vertex_order(refline=[a,b])
         if not IsCCW:
             a,b = b,a
-            
+
         r0 = helper_flatten_z(r0,z)
         r1 = helper_flatten_z(r1,z)
         ray_dir = r0+(r1*5) - r0#(r0+r1) - r0
         #debug.append(rs.AddCurve([r0,ray_dir+r0]))
         #debug.append(b)
-        
+
         ortho = rc.Geometry.Vector3d(ray_dir.Y*-1.,ray_dir.X,z)
         aToO = r0 - a
-        aToB = b - a 
+        aToB = b - a
         point_intersect = False
         denominator = aToB * ortho
-        #Check if zero: Then cos(90) = 0, or ray normal and segment 
-        #perpendicular therefore no intersection  
-        
+        #Check if zero: Then cos(90) = 0, or ray normal and segment
+        #perpendicular therefore no intersection
+
         if not self.is_near_zero(denominator):
             cross_prod = rc.Geometry.Vector3d.CrossProduct(aToB,aToO)
             dot_prod = ortho * aToO
             t_1 = cross_prod.Length / denominator
             t_2 = dot_prod / denominator
-            
+
             #t_1 = abs(t_1)
             #t_2 = abs(t_2)
             if (t_2 >= 0. and t_2 <= 1.) and t_1 >= 0.: #t_1 can go to infinity
@@ -723,7 +728,7 @@ class Shape:
                 ix,iy = r0.X + (t_1 * ray_dir.X), r0.Y + (t_1 * ray_dir.Y)
                 #print t_1
                 point_intersect = rc.Geometry.Vector3d(ix,iy,refz)
-        #if point_intersect: 
+        #if point_intersect:
             #debug.append(point_intersect)
             #debug.append(rs.AddCurve([r0,point_intersect]))
         return point_intersect
@@ -731,18 +736,18 @@ class Shape:
         #Input: ray (basevector and dirvector), line (two pts)
         #Output: intersection point or else False
         #Same as above but with rhinocommon library
-        
+
         vertical_tolerance = -5.0
         r0 = base_vector
         r1 = direction_vector
         a = linept1
         b = linept2
         a.Z = a.Z + vertical_tolerance
-        b.Z = b.Z + vertical_tolerance 
+        b.Z = b.Z + vertical_tolerance
         if refz==None: refz = self.ht
         refz -= vertical_tolerance
         debug = sc.sticky['debug']
-        
+
         #extrude as surface to check int
         upnormal = self.normal * refz
         upnormalcrv = rc.Geometry.Curve.CreateControlPointCurve([self.cpt,self.cpt + upnormal])
@@ -754,7 +759,7 @@ class Shape:
             point_intersect_lst = list(point_intersect_lst)
             #debug.extend(point_intersect_lst)
             #debug.append(self.cpt)
-        
+
         return point_intersect_lst
     def get_parallel_segments(self,lst_edge_,dir_ref_,angle_tol_):
         #Inputs lst of edges, a dir_ref
@@ -781,7 +786,7 @@ class Shape:
         for i in xrange(len(edges_to_check)):
             edge = edges_to_check[i]
             edge = map(lambda pt: rc.Geometry.Point3d(pt[0],pt[1],ht_ref),edge)
-            
+
             m = self.get_midpoint(edge)
             #Change this for rear stepback
             normal2steprefline = self.get_normal_point_inwards(edge,to_outside=front)
@@ -789,14 +794,14 @@ class Shape:
             line = self.get_endpt4line(ref_edge)
             int_pt = self.intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
             #debug.append(m)
-            
+
             if int_pt:
                 int_pt = int_pt[0]
                 ray2geom = rc.Geometry.Ray3d(int_pt,normal2steprefline*-1)
                 #debug.append(int_pt)
                 #debug.append(int_pt + normal2steprefline*-10)
                 pt4front = rc.Geometry.Intersect.Intersection.RayShoot(ray2geom,[self.geom],1)
-                if pt4front: 
+                if pt4front:
                     m_ht = rs.AddPoint(m[0],m[1],ht_ref)
                     dist2front = rs.Distance(pt4front[0],m_ht)
                     if front==True and self.is_near_zero(dist2front):
@@ -816,7 +821,7 @@ class Shape:
         for i in xrange(len(lst_refedge)):
             sbrefedge = lst_refedge[i]
             sbrefpt = self.get_endpt4line(sbrefedge)
-            dir_ref = sbrefpt[1] - sbrefpt[0]            
+            dir_ref = sbrefpt[1] - sbrefpt[0]
             parallel_edges = self.get_parallel_segments(lst_edge,dir_ref,angle_tol)
             #print 'pe', len(parallel_edges)
             parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,dist_tol,front=to_front,ht_ref=norm_ht)
@@ -841,7 +846,7 @@ class Shape:
                 L.append(perppt1)
         L += [L[0]]
         return L
-            
+
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
         # For n-dim vector create n x n matrix
@@ -874,12 +879,12 @@ class Shape:
             for col_i in xrange(dim):
                 vector_coord = vector[col_i]
                 plane_coefficient = transform_matrix[col_i][row_i]
-                #print row_i, col_i 
+                #print row_i, col_i
                 #print plane_coefficient, ',', vector_coord
                 #print ''
                 move_vec_coord += vector_coord * plane_coefficient
             move_vec.append(move_vec_coord)
-        return move_vec 
+        return move_vec
     def get_area(self):
         try:
             area_crv = self.bottom_crv if self.dimension == '3d' else self.crv
@@ -893,9 +898,9 @@ class Shape:
             return area
         except Exception as e:
             print "Error @ shape.get_area"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno
     def get_long_short_axis(self):
-        if (self.x_dist > self.y_dist): 
+        if (self.x_dist > self.y_dist):
             long_dist,short_dist = self.x_dist,self.y_dist
             long_axis,short_axis = 'EW','NS'
         else:
@@ -905,7 +910,7 @@ class Shape:
     def op_extrude(self,z_dist,curve=None):
         debug = sc.sticky['debug']
         try:
-            returnflag = True 
+            returnflag = True
             if curve == None:
                 curve = rs.coercecurve(self.bottom_crv) if self.is_guid(self.bottom_crv) else self.bottom_crv
                 returnflag = True
@@ -917,7 +922,7 @@ class Shape:
                 if refcpt[2] < self.cpt[2]:
                     #print 'move up'
                     ext.Translate(0.,0.,z_dist)
-            else: 
+            else:
                 if refcpt[2] > self.cpt[2]:
                     #print 'move down'
                     ext.Translate(0.,0.,z_dist*-1)
@@ -929,37 +934,37 @@ class Shape:
                 self.reset(xy_change=False)
         except Exception as e:
             print "Error @ Shape.op_extrude"
-            print str(e)#sys.exc_traceback.tb_lineno 
+            print str(e)#sys.exc_traceback.tb_lineno
     def op_offset_crv(self,dim,curve=None,count=0,refcpt=None,corner=1):
         #print 'count: ', count, 'dim: ', dim
         if count > 5. or abs(dim-0.)<=0.1:
             return None
-        else: 
-            try:    
+        else:
+            try:
                 if curve == None:
                     curve = copy.copy(self.bottom_crv)
                 if not self.is_guid(curve):
-                    curve = sc.doc.Objects.AddCurve(curve)            
-                if not refcpt: 
+                    curve = sc.doc.Objects.AddCurve(curve)
+                if not refcpt:
                     refcpt = rs.CurveAreaCentroid(curve)[0]
                 offcurve = rs.OffsetCurve(rs.CopyObject(curve),refcpt,dim,None,corner)
                 #print 'offcurve', offcurve
-                if not offcurve or len(offcurve) > 1: 
+                if not offcurve or len(offcurve) > 1:
                     dim -= 1.
                     count += 1
                     return self.op_offset_crv(dim,curve,count,refcpt,corner)
                 else:
-                    return offcurve[0] 
+                    return offcurve[0]
             except Exception as e:
                 print "Error @ Shape.op_offset_crv"
-                print str(e)#sys.exc_traceback.tb_lineno 
+                print str(e)#sys.exc_traceback.tb_lineno
     def op_offset(self,dim,curve,dir="courtyard",useoffcrv=False):
         try:
             rs.EnableRedraw(False)
             shapecurve = self.bottom_crv
             abort = False
             if not self.is_guid(curve):
-                curve = sc.doc.Objects.AddCurve(curve)            
+                curve = sc.doc.Objects.AddCurve(curve)
             if self.is_guid(shapecurve):
                 shapecurve = rs.coercegeometry(rs.CopyObject(shapecurve))
             #curve = "let's break this fucker."
@@ -970,9 +975,9 @@ class Shape:
             if not useoffcrv:
                 check_curve = self.op_offset_crv(dim,copy_curve,0,refcpt=cpt)
             else: check_curve = copy_curve
-        
+
             if check_curve:
-                if self.is_guid(check_curve): 
+                if self.is_guid(check_curve):
                     offcurve = rs.coercecurve(check_curve)
                 else:
                     offcurve = check_curve
@@ -1025,15 +1030,15 @@ class Shape:
                         elif len(booldiff)> 0.1:
                             self.geom = booldiff[0]
                     self.reset()
-                except Exception,e: 
-                    print str(e)#sys.exc_traceback.tb_lineno 
+                except Exception,e:
+                    print str(e)#sys.exc_traceback.tb_lineno
                     print 'fail op_offset'
             rs.EnableRedraw(True)
             return diff_geom
         except Exception as e:
             print 'Error @ Shape.op_offset'
-            print str(e)#sys.exc_traceback.tb_l          
-    
+            print str(e)#sys.exc_traceback.tb_l
+
 
 if True:
     sc.sticky["Shape"] = Shape

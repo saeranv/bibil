@@ -23,7 +23,7 @@ sc.sticky['debug'] = []
 debug = sc.sticky["debug"]
 
 TOL = sc.doc.ModelAbsoluteTolerance
-    
+
 class Grammar:
     """Grammar """
     def __init__(self):
@@ -45,18 +45,18 @@ class Grammar:
             if type(geom_) != type(rs.AddPoint(0,0,0)):
                 points = [rc.Geometry.Point3d(0,0,0),rc.Geometry.Point3d(0,1,0),rc.Geometry.Point3d(1,0,0)]
                 curve = rc.Geometry.Curve.CreateControlPointCurve(points,1)
-                if geom_.ObjectType == curve.ObjectType: 
+                if geom_.ObjectType == curve.ObjectType:
                     curve_guid = sc.doc.Objects.AddCurve(geom_)
             else:
-                if rs.IsCurve(geom_): 
+                if rs.IsCurve(geom_):
                     curve_guid = geom_
             if curve_guid:
                 srf_guid = rs.AddPlanarSrf(curve_guid)[0]
                 rc_brep = rs.coercebrep(srf_guid)
                 return rc_brep
             else:
-                return rs.coercebrep(geom_)     
-        
+                return rs.coercebrep(geom_)
+
         debug = sc.sticky['debug']
         child_node,child_shape = None, None
         IsDegenerate = False
@@ -65,18 +65,18 @@ class Grammar:
             if geom:
                 geom = helper_curve2srf(geom)
                 cplane_ref = None
-                if parent_node: 
+                if parent_node:
                     cplane_ref = parent_node.shape.cplane
                 try:
                     child_shape = Shape(geom,cplane=cplane_ref)
-                except Exception as e: 
+                except Exception as e:
                     print 'Bibil has detected a degenerate shape', str(e)
                     child_shape = Shape(geom,parent_node.shape.cplane)
                 IsDegenerate = child_shape.cpt==None or abs(child_shape.x_dist-0.) <= 0.1 or abs(child_shape.y_dist-0.) <= 0.1
             elif parent_node:
                 #cloned nodes get link to parent_node.shape
                 child_shape = parent_node.shape
-            if parent_node: 
+            if parent_node:
                 tree_depth = parent_node.depth+1
             if IsDegenerate == False:
                 if geom:
@@ -105,7 +105,7 @@ class Grammar:
             # Move up to lot_node height
             rc.Geometry.PolyCurve.Translate(basecrv,0.,0.,seht_)
             return basecrv
-        
+
         def helper_intersect_solar(se_,node_,seht_):
             nodegeomlst = node_.shape.op_split("Z",seht_/node_.shape.z_dist)
             nodebase,nodetop = nodegeomlst[0],nodegeomlst[1]
@@ -148,18 +148,18 @@ class Grammar:
                 data.shape.convert_guid(dim='3d')
                 #curve = top_crv#rs.CopyObject(data.shape.bottom_crv,[0,0,data.shape.ht])
                 #g = copy.copy(rs.coercegeometry(data.shape.geom))
-                cpt = rs.coerce3dpoint(data.shape.top_cpt)#[cpt[0], cpt[1], data.shape.ht] 
+                cpt = rs.coerce3dpoint(data.shape.top_cpt)#[cpt[0], cpt[1], data.shape.ht]
                 curve = data.shape.top_crv
-                
+
                 se = data.shape.op_solar_envelope(start,end,curve)
-                
+
                 htpt = rs.AddPoint(cpt[0],cpt[1],ht)#data.shape.ht)
                 if curve:
                     bottom_crv = curve
                 else:
                     if not data.shape.is_guid(data.shape.bottom_crv):
                         tcrv = sc.doc.Objects.AddCurve(data.shape.bottom_crv)
-                    else: 
+                    else:
                         tcrv = data.shape.bottom_crv
                     tvec = rs.VectorCreate(data.shape.top_cpt, data.shape.cpt)
                     bottom_crv = rs.CopyObject(tcrv,tvec)
@@ -172,9 +172,9 @@ class Grammar:
                 srf = rs.coercegeometry(srf)
                 TOL = sc.doc.ModelAbsoluteTolerance
                 ###debug.append(srf)
-                try: 
+                try:
                     se =  rc.Geometry.Brep.CreateBooleanIntersection(se,srf,TOL)[0]
-                except: 
+                except:
                     print 'error at solar multi helper'
                 return se
             except Exception as e:
@@ -192,10 +192,10 @@ class Grammar:
                 except Exception as e:
                     print "Error at solar_envelope multi"
                     print e
-                try: 
+                try:
                     unioned = unioned[0]
                     subnode.shape.geom = unioned
-                except: 
+                except:
                     print 'error multi unioning solartypes'
             return temp_node_
         except Exception as e:
@@ -209,7 +209,7 @@ class Grammar:
         sb_ref = PD_['stepback_ref']
         sb_data = PD_['stepback_data'] #height:stepback
         sb_random = PD_['stepback_randomize']
-        ##sb_data: [(height,distance),(height,distance)...]     
+        ##sb_data: [(height,distance),(height,distance)...]
         if True:#try:
             #Parse setback data
             for i,sbd in enumerate(sb_data):
@@ -221,7 +221,7 @@ class Grammar:
                     random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
                 randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
                 randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
-            
+
             #Get data if not geometry
             sbg_type = self.helper_get_type(sb_ref[0])
             if sbg_type != "geometry":
@@ -240,7 +240,7 @@ class Grammar:
                         ht += random.randrange(randht_lo,randht_hi)
                     if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
                         dist += random.randrange(randsb_lo,randsb_hi)
-                
+
                 #Dissect floor
                 #if False:
                 #    sh_top_node = None
@@ -260,7 +260,7 @@ class Grammar:
                         cut_geom = None
                         #cut at ht
                         #then take top node and split that
-                        try: 
+                        try:
                             cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                                 split_depth=float(dist*2.),split_line_ref=sbref_crv)
                         except:
@@ -269,9 +269,9 @@ class Grammar:
                             sh_top_node.shape.geom = cut_geom[0]
                             sh_top_node.shape.reset(xy_change=True)
         #except Exception as e:
-        #    print str(e)#,sys.exc_traceback.tb_lineno 
+        #    print str(e)#,sys.exc_traceback.tb_lineno
         #    print "Error at Pattern.stepback"
-        return tnode    
+        return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
         ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
@@ -283,11 +283,11 @@ class Grammar:
         sb_dist_tol = PD_['stepback_tol']
         if sb_dist_tol == None: sb_dist_tol = 10.0
         sb_ref_tol = 15.0
-        
+
         S = Shape()
-        
+
         #Clean/Define the Inputs
-        
+
         ##sb_data: [(height,distance),(height,distance)...]     :
         #Parse setback data
         for i,sbd in enumerate(sb_data):
@@ -299,17 +299,17 @@ class Grammar:
                 random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
             randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
             randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
-        
+
         if sb_dir == "side":
             IsSide = True
-            sb_dir = None  
+            sb_dir = None
         else:
             IsSide = False
         if not sb_dir:sb_dir = False
-        
+
         #Get data if not geometry
         IsSelf = True if sb_ref[0] == -1 else False
-         
+
         sbg_type = self.helper_get_type(sb_ref[0])
         if sbg_type != "geometry":
             sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
@@ -320,13 +320,13 @@ class Grammar:
                 line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
                 line_lst.append(line)
             sb_ref = line_lst
-        
+
         #Add a check for street tolerance
         if not tnode.grammar.type.has_key('street_tolerance_curve'):
             tnode.grammar.type['street_tolerance_curve'] = []
         for i in xrange(len(sb_ref)):
             sbrefline = sb_ref[i]
-            perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol) 
+            perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol)
             streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
             tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
             IsIntersect = tnode.shape.check_region(streetoffcrv)
@@ -336,36 +336,38 @@ class Grammar:
         ## Loop through the height,setback tuples
         for sbd in sb_data:
             ht, dist = sbd[0], sbd[1]
-            
+
             IsHighEnough = ht < tnode.shape.ht
-            
+
             if IsHighEnough and sb_random:
                 if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
                     ht += random.randrange(randht_lo,randht_hi)
                 if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
                     dist += random.randrange(randsb_lo,randsb_hi)
-            
+
             #Dissect floor
-            #if False:
+            #if True:
             #    sh_top_node = None
             #    if ht < tnode.shape.ht:
             #        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
-            #        sh_top_node.grammar.type['label'] = 'stepbacktop'
-            #        sh_bot_node.grammar.type['label'] = 'stepbackbot'
+            #        if sh_bot_node and sh_top_node:
+            #            sh_top_node.grammar.type['label'] = 'stepbacktop'
+            #            sh_bot_node.grammar.type['label'] = 'stepbackbot'
+            #        else:
+            #            break
             #else:
-            
             sh_top_node = tnode
-            
+
             ##Now actually implement setback
             if IsHighEnough and sh_top_node:
                 #Get self matrix to match
                 matrix = sh_top_node.shape.base_matrix
                 if not matrix:
                     matrix = sh_top_node.shape.set_base_matrix()
-                
+
                 if IsSelf:
                     if IsSide:
-                        mi1 = int(random.randrange(0,len(matrix))) 
+                        mi1 = int(random.randrange(0,len(matrix)))
                         if random.randrange(0,2)==1:
                             if mi1 < len(matrix)-1:
                                 mi2 = mi1 + 1
@@ -374,7 +376,7 @@ class Grammar:
                             matrix = [matrix[mi1],matrix[mi2]]
                         else:
                             matrix = [matrix[mi1]]
-                    
+
                     matrix = map(lambda ptlst:map(lambda pt:rc.Geometry.Point3d(pt[0],pt[1],ht),ptlst),matrix)
                     ref_edge = matrix
                     #debug.extend(reduce(lambda x,y:x+y,matrix))
@@ -385,7 +387,7 @@ class Grammar:
                     cut_geom = None
                     sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
                     #debug.append(sbref_crv)
-                    try: 
+                    try:
                         cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                             split_depth=float(dist*2.),split_line_ref=sbref_crv)
                     except:
@@ -401,7 +403,7 @@ class Grammar:
         basematrix = temp_node_.shape.base_matrix
         if not basematrix:
             basematrix = self.set_base_matrix()
-            
+
         transform_matrix = temp_node_.shape.vector_to_transformation_matrix(move_vector)
         moved_pts = temp_node_.shape.multiply_matrix2matrix(basematrix,transform_matrix)
         """
@@ -415,7 +417,7 @@ class Grammar:
             print map(lambda c: round(c,2),p)
         """
         rule_stack = temp_node_.grammar.make_rule_stack(temp_node_)
-        
+
         moved_pts = map(lambda v: rc.Geometry.Point3d(v[0],v[1],v[2]),moved_pts)
         moved_pts += [moved_pts[0]]
         new_crv = rc.Geometry.Curve.CreateControlPointCurve(moved_pts,1)
@@ -423,12 +425,13 @@ class Grammar:
         debug.append(new_crv)
         childnode = self.helper_geom2node(new_crv,parent_node=temp_node_,grammar="null")
         temp_node_.loc.append(childnode)
-        return temp_node_ 
+        return temp_node_
     def helper_divide_through_normal(self,temp_node_,dist_):
         #Need to rewrite this so all variables in divide is null
         #and option to orient results vertically exists
         #Divides based on 'height'
         #print 'helperdividethroughnormal chk'
+        debug = sc.sticky['debug']
         bottom_shape,top_shape = None, None
         ratio_ = (dist_ - temp_node_.shape.cpt[2])/temp_node_.shape.z_dist
         PD = {}
@@ -438,12 +441,14 @@ class Grammar:
         PD['div_ratio'] = ratio_
         PD['div_type'] = 'simple_divide'
         PD['axis'] = "Z"
+        PD['div_ratio'] = 0.5
         temp_node_ = self.divide(temp_node_,PD)
+
         if temp_node_.loc:
             ext_pt = temp_node_.shape.cpt + (temp_node_.shape.normal * dist_)
             dist_0 = temp_node_.loc[0].shape.cpt - ext_pt
             dist_1 = temp_node_.loc[1].shape.cpt - ext_pt
-            
+
             if dist_0.Length > dist_1.Length:
                 bottom_shape = temp_node_.loc[0]
                 top_shape = temp_node_.loc[1]
@@ -454,9 +459,10 @@ class Grammar:
             #lst_top_nodes = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
             #for tn in lst_top_nodes: tn.grammar.type['top'] = False
             #top_shape.grammar.type['top'] = True
+        #debug.append(bottom_shape.shape.geom)
         return bottom_shape,top_shape
-    def divide(self,node,PD_):       
-        def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):            
+    def divide(self,node,PD_):
+        def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):
             #print 'divdepth, div', div_depth,',', div
             # stop subdivide
             if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
@@ -472,7 +478,7 @@ class Grammar:
             hnode.grammar.type['axis'] = haxis
             hnode.grammar.type['ratio'] = hratio
             return hnode
-        def helper_subdivide_depth_same(hnode,div,div_depth,ratio_,axis_ref="NS"):            
+        def helper_subdivide_depth_same(hnode,div,div_depth,ratio_,axis_ref="NS"):
             # base case: stop subdivide
             if int(div_depth) >= int(div) or abs(div-0.) <= 0.01:
                 haxis,hratio = axis_ref,0.
@@ -485,7 +491,7 @@ class Grammar:
             hnode.grammar.type['axis'] = haxis
             hnode.grammar.type['ratio'] = hratio
             return hnode
-        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol_=3.):            
+        def helper_subdivide_dim(hnode,div,div_depth,ratio_,axis_ref="NS",tol_=3.):
             def equals(a,b,tol=int(3)):
                 return abs(a-b) <= tol
             def greater(a,b,tol=int(3)):
@@ -496,14 +502,14 @@ class Grammar:
             grid_x, grid_y = float(div[0]), float(div[1])
             #print 'g', grid_x, grid_y
             #print 'gref', ss.y_dist, ss.x_dist
-            
+
             if greater(ss.y_dist,grid_y,tol_):
-                haxis = "EW" 
+                haxis = "EW"
                 hratio = grid_y/float(ss.y_dist)
-            elif greater(ss.x_dist,grid_x,tol_): 
+            elif greater(ss.x_dist,grid_x,tol_):
                 haxis = "NS"
                 hratio = grid_x/float(ss.x_dist)
-            else: 
+            else:
                 haxis,hratio = axis_ref,0.
             #print haxis, hratio
             #print '--'
@@ -524,7 +530,7 @@ class Grammar:
                 node_ = helper_subdivide_dim(node_,div_,div_depth_,ratio_,axis_ref=axis_)
             else:#simple_divide
                 node_ = helper_simple_divide(node_,div_,div_depth_,ratio_,axis_ref=axis_)
-        
+
             if count >=200.:
                 pass
             elif node_.grammar.type['ratio'] > 0.0001:
@@ -542,11 +548,11 @@ class Grammar:
                     if child_node: node_.loc.append(child_node)
                 #print loc
                 #print '----'
-                if 'simple_divide' not in grid_type: 
+                if 'simple_divide' not in grid_type:
                     for nc in node_.loc:
                         helper_divide_recurse(nc,grid_type,div_,div_depth_+1,cwidth_,ratio_,axis_,count+1)
-                
-        node.grammar.type['grammar'] = 'divide' 
+
+        node.grammar.type['grammar'] = 'divide'
         debug = sc.sticky['debug']
         if type(PD_)==type([]):
             div = PD_[0]
@@ -581,7 +587,7 @@ class Grammar:
             ## Outputs the lines of tn that are colinear to refnode
             ## Loop through all lines in refshape
             ## Loop through all lines in tempnode
-            ## if colinear line, add to colinear_lst 
+            ## if colinear line, add to colinear_lst
             ref_base = refnode_.shape.set_base_matrix()
             foo_colinear = refnode_.shape.check_colinear_pt
             colinear_lst = []
@@ -610,7 +616,7 @@ class Grammar:
             up_vec = rc.Geometry.Vector3d(0,0,1)
             cross = rc.Geometry.Vector3d.CrossProduct(ccw_vec,up_vec)
             return cross
-        
+
         ## Takes a node and finds the vector perpendicular to the surface
         ## pointing inward, relative to the rootnode surface
         ## This should be abstracted and moved to shape class
@@ -657,12 +663,12 @@ class Grammar:
             #cut_axis: axis that cuts perpendicular to primary axis of shape
             #EW will cut y_dist
             #NS will cut x_dist
-            #In bibil - y_axis (cutting EW) is always set as the primary axis. 
-            
+            #In bibil - y_axis (cutting EW) is always set as the primary axis.
+
             #Prep inputs
-            x_keep_,x_omit_ = x_keep_omit_[0],x_keep_omit_[1] 
+            x_keep_,x_omit_ = x_keep_omit_[0],x_keep_omit_[1]
             y_keep_,y_omit_ = y_keep_omit_[0],y_keep_omit_[1]
-            
+
             #Make first division
             divbydim = (x_keep_+x_omit_,y_keep_+y_omit_)
             dummy_ratio, dummy_axis, dummy_deg = 0.5, "NS", 0.
@@ -674,11 +680,11 @@ class Grammar:
             ##Now recursively divide once for dim keep and check dim...
             shape2keep_lst = []
             shape2omit_lst = []
-            
+
             #Set inputs for simple divide
             topo_child_lst = temp_node_topo_.traverse_tree(lambda n:n, internal=False)
             #debug.extend(map(lambda n:n.shape.geom,topo_child_lst))
-            #EW checks x_dist, NS checks y_dist << THIS SHOULD BE CHANGED TO HAVE SAME NAME        
+            #EW checks x_dist, NS checks y_dist << THIS SHOULD BE CHANGED TO HAVE SAME NAME
             if "EW" in cut_axis:##then the we are cutting y axis, give y dims
                 dimprimekeep = y_keep_
                 dimsecondkeep = x_keep_
@@ -724,14 +730,14 @@ class Grammar:
             sep_dist_tol = (sep_dist - separation_tol_) * -1
             try:
                 sep_crv = shape2record.shape.op_offset_crv(sep_dist_tol,corner=3)
-            except Exception as e: 
+            except Exception as e:
                 print str(e)
                 print 'Error at set_separation_record'
             #debug.append(check_base_separation_.shape.bottom_crv)
             debug.append(sep_crv)
             ## Append crv
             sc.sticky['GLOBAL_COLLISION_LIST'].append(sep_crv)
-            
+
         debug = sc.sticky['debug']
         temp_node_.grammar.type['grammar'] = 'separate'
         #Extract data
@@ -739,45 +745,45 @@ class Grammar:
         y_keep_omit = PD_['y_keep_omit']
         #Check collision detection
         add_collision = PD_['add_collision']
-        
+
         #Parse the data
         x_keep_omit = map(lambda s: float(s), x_keep_omit.split(','))
         y_keep_omit = map(lambda s: float(s), y_keep_omit.split(','))
-        
+
         temp_node_topo = temp_node_#copy.deepcopy(sep_ref_node)
-        
+
         ## Get normal to exterior srf
         try:
             normal2srf = self.helper_normal2extsrf(temp_node_topo)
             cut_axis = temp_node_topo.shape.vector2axis(normal2srf)
         except:
             cut_axis = "NS"
-        noncut_axis = "EW" if "NS" in cut_axis else "NS" 
-        
-        ## Get cut dimensions     
+        noncut_axis = "EW" if "NS" in cut_axis else "NS"
+
+        ## Get cut dimensions
         shapes2omit,shapes2keep = separate_dim(temp_node_topo,x_keep_omit,y_keep_omit,cut_axis,noncut_axis)
-        
+
         #print temp_node_topo,x_keep_omit,y_keep_omit
         #debug.append(temp_node_topo.shape.geom)
-            
+
         for i in xrange(len(shapes2omit)):
             omit = shapes2omit[i]
             omit.delete_node()
             del omit
-            
+
         temp_node_topo.loc = []
-        
+
         if shapes2keep:
             #Flatten tree
             temp_node_topo = self.flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep",empty_parent=True)
             #temp_node_topo = self.flatten_node_tree_single_child(shapes2omit,temp_node_topo,grammar="shape2omit",empty_parent=False)
-            
+
             # Make/call global collision list
             if not sc.sticky.has_key('GLOBAL_COLLISION_LIST'):
                 sc.sticky['GLOBAL_COLLISION_LIST'] = []
             if add_collision != []:
                 sc.sticky['GLOBAL_COLLISION_LIST'].extend(add_collision)
-            
+
             offset_dist = x_keep_omit[1]
             seperate_tol = 0.5
             # Check shape separation
@@ -799,11 +805,11 @@ class Grammar:
                     t.delete_node()
                     del t
                     #t.grammar.type['grammar'] = 'omit'
-        else: 
-            temp_node_topo.loc = [] 
-        
+        else:
+            temp_node_topo.loc = []
+
         temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
-        
+
         ##TEMP4MEETING
         #for i,t in enumerate(temp_node_topo.loc):
         #    if not 'keep' in t.grammar.type['grammar']:
@@ -812,14 +818,14 @@ class Grammar:
         #temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
         if temp_node_topo.loc == []:
             temp_node_topo.grammar.type['freeze'] = True
-        
+
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
             pt = n_.shape.cpt
             if pt==None:
                 debug.append(n_.shape.geom)
-            
+
             refpt = rs.AddPoint(pt[0],pt[1],ht_)
             topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
             childn = self.helper_geom2node(topcrv,n_,'extracted_slice')
@@ -838,16 +844,16 @@ class Grammar:
         #IsTop = False
         #Check inputs
         if type(slice_ht) != type([]): slice_ht = [slice_ht]
-        if slice_ht == [] or slice_ht == [None]: 
+        if slice_ht == [] or slice_ht == [None]:
             slice_ht = ['max']
             ##unsure about this but works for now...
             #IsTop = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'])
-        if slice_ht:  
+        if slice_ht:
             if self.helper_get_type(slice_ht[0]) == "string":
                 if slice_ht[0] == 'max':
                     slice_ht = [temp_node_.shape.ht]
                 else:
-                    slice_ht = map(lambda s: float(s),slice_ht)            
+                    slice_ht = map(lambda s: float(s),slice_ht)
             #Extract topo
             for slht in slice_ht:
                 chld = extract_topo(temp_node_,slht)
@@ -859,15 +865,15 @@ class Grammar:
             #temp
             min_bula_node_sum = None
             min_bula_node_index = None
-            
+
             for bula_ref_index,bula_node in enumerate(bula_node_lst):
                 bula_node_sum = 0
                 buladata = bula_node.grammar.type['bula_data']
                 lpl_,lvl_, lvl_actual = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
-                
+
                 #for vl_ in lvl_:
                 bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
-                
+
                 if min_bula_node_sum == None or min_bula_node_sum > bula_node_min:
                     min_bula_node_sum = bula_node_min
                     min_bula_node_index = bula_ref_index
@@ -911,15 +917,15 @@ class Grammar:
             #temp
             min_bula_node_sum = None
             min_bula_node_index = None
-            
+
             for bula_ref_index,bula_node in enumerate(bula_node_lst):
                 bula_node_sum = 0
                 buladata = bula_node.grammar.type['bula_data']
                 lpl_,lvl_, lvl_actual = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
-                
+
                 #for vl_ in lvl_:
                 bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
-                
+
                 if min_bula_node_sum == None or min_bula_node_sum > bula_node_min:
                     min_bula_node_sum = bula_node_min
                     min_bula_node_index = bula_ref_index
@@ -936,14 +942,14 @@ class Grammar:
         ht_ = PD_['height']
         randomize_ht = PD_['height_randomize']
         ht_ref = PD_['height_ref']
-        
+
         ### If ht_ and ht_ref have values: then ht_ is taken as a maximum!!
-        
+
         if ht_ref:
             ht_type = self.helper_get_type(ht_ref)
             if ht_type != "geometry":
                 ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
-            
+
             #Check to make sure ref is not the same
             if abs(ht_ref.shape.ht-temp_node_.shape.ht)>1.0:
                 ht_w_ref = ht_ref.shape.ht - temp_node_.shape.ht
@@ -956,7 +962,7 @@ class Grammar:
             else:
                 ht_ = ht_w_ref if ht_w_ref <= ht_ else ht_copy
             #print ht_, ht_copy, ht_w_ref
-                
+
         if randomize_ht:
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
@@ -973,7 +979,7 @@ class Grammar:
         return temp_node_
     def get_solar_zone(self,start_time,end_time,curve=None,zonetype='envelope'):
         try:
-            if type(curve) == type(rs.AddPoint(0,0,0)): 
+            if type(curve) == type(rs.AddPoint(0,0,0)):
                 curve = rs.coercecurve(curve)
             if 'envelope' in zonetype:
                 se = ghcomp.DIVA.SolarEnvelope(curve,43.65,start_time,end_time)
@@ -1014,18 +1020,18 @@ class Grammar:
                     ## Check diff node dimension and store it
                     if diff_node:
                         chk_EW_dim = diff_node.shape.check_shape_dim("EW",dist_,min_or_max='min')
-                        chk_NS_dim = diff_node.shape.check_shape_dim("NS",dist_,min_or_max='min') 
+                        chk_NS_dim = diff_node.shape.check_shape_dim("NS",dist_,min_or_max='min')
                         if chk_EW_dim and chk_NS_dim:
                             diffn = diff_node
                     distlst_.insert(0,dist_)
-                    ## Change the relationships 
+                    ## Change the relationships
                     return helper_recurse(diff_node,rootref_,distlst_,dist_acc+dist_,dellst_,lst_ring,diffn,count+1)
                 except Exception as e:
                     pass#print 'error at concentric', str(e)
         debug = sc.sticky['debug']
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
         rootref = temp_node_.get_root()
-        
+
         for subdiv in lon:
             ringlst = helper_recurse(subdiv,rootref,distlst,0.,dellst,[],None,0)
             ringlst = filter(lambda n: n!=None,ringlst)
@@ -1042,7 +1048,7 @@ class Grammar:
         #Check if number reference to index of depth in binary data tree
         if type_ref_ == None:
             type_info = None
-        elif type(type_ref_)==type(""): 
+        elif type(type_ref_)==type(""):
             type_info = "string"
         elif type(type_ref_) == type(1) or type(type_ref_) == type(1.):
             type_info = "number"
@@ -1062,14 +1068,14 @@ class Grammar:
             refshape_ = node_
         else:
             #Check if number reference to index of depth in binary data tree
-            if type_info == "string": 
+            if type_info == "string":
                 try:
                     shape_ref_ = int(shape_ref_)
                     type_info = "number"
                 except ValueError:
                     node_ = node_.backtrack_tree(lambda n:n.grammar.type['label']==shape_ref_,accumulate=False)
                     type_info = "node"
-            
+
             if type_info == "number":
                 shape_ref_ = int(shape_ref_)
                 #positive or zero or negative
@@ -1121,7 +1127,7 @@ class Grammar:
                 n.grammar.type['grammar'] = grammar
         parent_ref_node.loc.extend(lstofchild)
         return parent_ref_node
-    def court(self,temp_node_,PD_):        
+    def court(self,temp_node_,PD_):
         def court_slice(curr_node,rootshape,width_,cut_width_):
             def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count,count_subdiv,cut_width__):
                 #print count, curr_node_
@@ -1143,7 +1149,7 @@ class Grammar:
                         dirvec = line[1]-line[0]
                         # get magnitude of line
                         dist = math.sqrt(sum(map(lambda p: p*p,dirvec)))
-                        if dist > tol: 
+                        if dist > tol:
                             split_crv = rs.AddCurve(line,1)
                             midpt = curr_node_.shape.get_midpoint(line)
                             sc_ = 5,5,0
@@ -1190,7 +1196,7 @@ class Grammar:
                 # OR the node has no valid split lines (invalid_node == None)
                 # then we send it back into the recurser.
                 return recurse_slice(invalid_node,matrice,valid_node_lst,diff,count+1,count_subdiv,cut_width__)
-            
+
             ### REWRITE AS EXTRUSION OF BASE_MATRIX
             ### O(2n) complexity time
             offset = rootshape.op_offset_crv(width_)
@@ -1206,13 +1212,13 @@ class Grammar:
                 #debug.append(diff.shape.geom)
                 #print diff
                 curr_node = self.flatten_node_tree_single_child(L,curr_node,grammar="courtslice")
-                
+
             else:
                 diff = None
             return diff
-        
-        #Unpack the parameters         
-        
+
+        #Unpack the parameters
+
         temp_node_.grammar.type['grammar'] = 'court'
         court_ref = PD_['court_ref']
         court_width = PD_['court_width']
@@ -1225,11 +1231,11 @@ class Grammar:
             random_bounds = map(lambda r: int(float(r)),court_randomize.split('>'))
             randct_lo,randct_hi = random_bounds[0],random_bounds[1]
             court_width += random.randrange(randct_lo,randct_hi)
-        
+
         debug = sc.sticky['debug']
         diff = None
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
-        
+
         for subdiv in lon:
             subdiv.shape.convert_rc('3d')
             refshape_node = self.helper_get_ref_node(court_ref,subdiv)
@@ -1243,10 +1249,10 @@ class Grammar:
                 try:
                     subdiv.shape.op_offset(court_width,refshape.bottom_crv,dir="courtyard")
                 except Exception as e:
-                    print 'Error @ court', str(e)        
+                    print 'Error @ court', str(e)
         return diff
     def set_bula_point(self,temp_node_,PD_):
-        
+
         temp_node_.grammar.type['grammar'] = 'bula'
         #Move this back to Bula as main_bula
         B = Bula()
@@ -1254,7 +1260,7 @@ class Grammar:
         #Get the inputs
         analysis_ref = PD_['bula_point_lst']
         value_ref = PD_['bula_value_lst']
-        
+
         ##Check to see what are input combo
         chk_apt = filter(lambda x: x!=None,analysis_ref) != []
         chk_val = filter(lambda x: x!=None,value_ref) != []
@@ -1273,8 +1279,8 @@ class Grammar:
                 value_ref,value_ref_actual = B.apply_formula2points(value_ref,analysis_ref)
         if value_ref_actual == None:
                 value_ref_actual = copy.copy(value_ref)
-        if chk_apt and chk_val: 
-            #Convert from guid 
+        if chk_apt and chk_val:
+            #Convert from guid
             if S.is_guid(analysis_ref[0]):
                 analysis_pts = map(lambda p: rs.coerce3dpoint(p),analysis_ref)
             #Sort analysis pts into leaf nodes
@@ -1291,7 +1297,7 @@ class Grammar:
                 n.depth = n.parent.depth + 1
             else:
                 n.depth = 0
-        
+
         temp_node_.grammar.type['grammar'] = 'meta_tree'
         meta_node_lst = PD_['meta_node']
         debug = sc.sticky['debug']
@@ -1311,7 +1317,7 @@ class Grammar:
                     new_child_node = temp_node_.get_root()
                     #Insert and link both ways
                     meta_node.loc.append(new_child_node)
-                    #Give a unique id to meta_node to make sure we don't double ref 
+                    #Give a unique id to meta_node to make sure we don't double ref
                     meta_node.grammar.type['label'] += str(random.randrange(1,1000))
                     #Now reference it
                     new_child_node.parent = meta_node
@@ -1321,7 +1327,7 @@ class Grammar:
     def bucket_shape(self,temp_node_lst_,PD_):
         def helper_sort_val_by_tol(node_lst,grammar2find,func):
             # Input: node, str, tol, function
-            # Extract ‘grammar’ and value foo 
+            # Extract ï¿½grammarï¿½ and value foo
             # add foo(value/numofleaves / TOL)
             # add to dictionary if key/not key
             # Output: key:tuple of dictionary
@@ -1335,7 +1341,7 @@ class Grammar:
                     grammar_dict[key] = [node]
             lstofkeyvaltuple = grammar_dict.items()
             return lstofkeyvaltuple
-        
+
         def pass_grammar_rules(node_lst,grammar2findlst,funclst):
             # pass grammars to helper
             B = []
@@ -1343,22 +1349,22 @@ class Grammar:
                 lstkeyval = helper_sort_val_by_tol(node_lst,grammar2find,func)
                 B.append(lstkeyval)
             return B
-        
+
         ## Purpose: buckets input shapes
         debug = sc.sticky['debug']
         apply2 = PD_['apply2list']
         keys2bucket = PD_['keys2bucket']#'height','primary_axis_vector']
         fx2bucket = PD_['fx2bucket']
-        
+
         #Apply grammar key
-        for i in xrange(len(temp_node_lst_)): 
+        for i in xrange(len(temp_node_lst_)):
             temp_node_lst_[i].grammar.type['grammar'] = 'bucket_shape'
         nodes2bucket = temp_node_lst_
-        
+
         ## Bucket: [(grammar_key,{keyval:lstofnode}),(grammar_key,{keyval:lstofnode})]
         ## keys2find = [key1,key2,key3]
-        
-        Bucket = pass_grammar_rules(nodes2bucket,keys2bucket,fx2bucket)        
+
+        Bucket = pass_grammar_rules(nodes2bucket,keys2bucket,fx2bucket)
         """
         ###This is for energy archetype identification
         #htfoo = lambda n: str(round(n.shape.ht/9.0,2))
@@ -1377,20 +1383,20 @@ class Grammar:
                     #print topcrv
                     #tn = self.helper_geom2node(topcrv)
                     bucket.append(topcrv)
-        debug.extend(bucket)      
+        debug.extend(bucket)
         """
         return Bucket
     def building_analysis(self,node_in,height,GFA,groundFloor_ht,restFloor_ht):
         def get_label(n):
             label_ = []
             root = n[0].get_root()
-            L = root.traverse_tree(lambda n:n,internal=True) 
+            L = root.traverse_tree(lambda n:n,internal=True)
             for nl in L:
                 #print nl
                 label_.append(nl)
             return label_
         def make_analysis(nodelen,pd):
-            ## Input: dictionary of parameter key, list of data value 
+            ## Input: dictionary of parameter key, list of data value
             ## Output: Filtered list of str: with keys and value
             L = [""] * nodelen
             if pd.has_key('height'):
@@ -1419,7 +1425,7 @@ class Grammar:
                 PD['div_type'] = 'simple_divide'
                 PD['axis'] = "Z"
                 divnode = n__.grammar.divide(n_,PD)
-                
+
                 if abs(divnode.loc[0].shape.ht - groundht) < 0.01:
                     groundfloor = divnode.loc[0]
                     restfloor = divnode.loc[1]
@@ -1450,13 +1456,13 @@ class Grammar:
                 #debug.extend(map(lambda n:n.shape.geom,divnode.loc))
                 L.append(str(round(abs(gfacalc),1)))
             return L,ReadMe_
-        
+
         node = filter(lambda n: n!=None,node_in)
         if node and node != []:
             node = map(lambda n: copy.deepcopy(n),node)
             debug = sc.sticky['debug']
             ReadMe = ""
-            
+
             #These always appear by default
             label_out = get_label(node)
             geom_out = map(lambda n:n.shape.geom,node)
@@ -1502,39 +1508,39 @@ class Grammar:
         loc = temp_node_.traverse_tree(lambda n:n,internal=True)
         loc.pop(0)
         temp_node_ = self.flatten_node_tree_single_child(loc,temp_node_)
-        
+
         return temp_node_
     def squeeze_angle(self,temp_node_,angle,ht_inc,side_inc):
         #Purpose: Input node, angle degree
         #Output a shape2d with angle chagned according to degree
-        
+
         ## Prep inputs
         debug = sc.sticky['debug']
         #Get base matrix
         base_matrix = temp_node_.shape.set_base_matrix()
         lines2rotate = [base_matrix[0],base_matrix[1]]
         line2intersect = []
-        
-        ## Roteate intersection lines outside 
+
+        ## Roteate intersection lines outside
         for i,linept_ in enumerate(lines2rotate):
             if i%2==0:
                 heta = False
                 basept_index = 0
             else:
                 heta = True
-                basept_index = 1 
+                basept_index = 1
             toin = False
-            linept_ = temp_node_.shape.rotate_vector_from_axis(angle,linept_,movehead=heta,to_inside=toin)    
-            
+            linept_ = temp_node_.shape.rotate_vector_from_axis(angle,linept_,movehead=heta,to_inside=toin)
+
             ## Increment side length
-            if not self.is_near_zero(side_inc,eps=1E-10): 
+            if not self.is_near_zero(side_inc,eps=1E-10):
                 newdirvec = linept_[1] - linept_[0]
                 newdirvec.Unitize()
                 sideincvec = newdirvec * side_inc
                 orig_vec = linept_[1] - linept_[0]
                 extended_vec = orig_vec + sideincvec
                 linept_[1] = linept_[0] + extended_vec
-            
+
             lines2rotate[i] = linept_
             newbasept = lines2rotate[i][basept_index]
             #Getting the perp pt for each rotated line
@@ -1544,7 +1550,7 @@ class Grammar:
             else:
                 perp_linept_ = [newbasept,perppt]
             line2intersect.append(perp_linept_)
-        
+
         ## Intersect the two lines
         #lines2rotate: first two lines that we rotated
         #line2intersect: lines we are going to intersect
@@ -1565,14 +1571,14 @@ class Grammar:
                 pts4crv.append(b[0])
             pts4crv += [pts4crv[0]]
             shapecrv = rc.Geometry.Curve.CreateControlPointCurve(pts4crv,1)
-            
+
             ## Increment height
             if not self.is_near_zero(ht_inc,eps=1E-10):
                 htvec = rc.Geometry.Vector3d(0,0,ht_inc)
                 shapecrv_guid = sc.doc.Objects.AddCurve(shapecrv)
-                movevec = temp_node_.shape.move_geom(shapecrv_guid,htvec) 
+                movevec = temp_node_.shape.move_geom(shapecrv_guid,htvec)
                 shapecrv = rs.coercecurve(movevec)
-            
+
             ## Mutate the node
             temp_node_child = self.helper_geom2node(shapecrv,temp_node_,grammar="squeeze_angle")
             temp_node_.loc.append(temp_node_child)
@@ -1583,38 +1589,38 @@ class Grammar:
             copytype = copy.deepcopy(type_)
             copy_node_.grammar.type.update(copytype)
             return copy_node_
-        def helper_clone_node(node_geom): 
+        def helper_clone_node(node_geom):
             #Purpose: Create a node from geometry/parent node
             #if geometry, turned into node w/ blank label
             #if node, clone a child node w/ blank label
             if type(T) == type(node_geom):
-                # If node create 'clone', new tree, new Grammar, link to same Shape 
+                # If node create 'clone', new tree, new Grammar, link to same Shape
                 childn = self.helper_clone_node(node_geom,parent_node=node_geom)
                 node_geom.loc.append(childn)
                 n_ = childn
             else:
                 n_ = self.helper_geom2node(node_geom)
-            return n_       
+            return n_
         ## Purpose: Input list of nodes, applies type
         ## Applies pattern based on types
         ## outputs node
         T = Tree()
         L = []
-        
+
         #Apply rule to each node
         child_node_lst_ = []
         for i,node_ in enumerate(lst_node_):
-            ## Everytime we add a rule, we clone a node. 
+            ## Everytime we add a rule, we clone a node.
             ## Every rule mutates the node, or creates child nodes.
-            ## If node create 'clone', new tree, new Grammar, link to same Shape   
+            ## If node create 'clone', new tree, new Grammar, link to same Shape
             child_node_ = helper_clone_node(node_)
             ## Apply type to node that we will apply rule to
             child_node_ = helper_type2node(child_node_,rule_in_)
             child_node_lst_.append(child_node_)
-        
+
         ##Check how we apply the rules
         IsApply2Full = rule_in_.has_key('apply2list') and  rule_in_['apply2list'] == True
-        
+
         #Feed in entire list of nodes
         if IsApply2Full:
             #When we apply full list, we assume we are applying same rule to all nodes
@@ -1627,27 +1633,27 @@ class Grammar:
                 ## Apply pattern
                 #try:
                 if True:
-                    ParamDict = child_node_.grammar.type 
+                    ParamDict = child_node_.grammar.type
                     node_out_ = self.main_grammar(child_node_,ParamDict)
-                    RhinoApp.Wait() 
+                    RhinoApp.Wait()
                     L.extend(node_out_)
                 #except Exception as e:
                 #    print "Error @ Pattern.main_pattern"
-                
-                
+
+
         return L
     def main_grammar(self,temp_node,PD):
         isList = type(temp_node) == type([])
-        
+
         ## ---- START TEST --- ##
         ## Date 2016 11 30 << if this doesn't pop up delete this check.
         if not isList and temp_node.shape:
             gb = temp_node.shape.geom
-            if temp_node.shape.is_guid(gb): 
+            if temp_node.shape.is_guid(gb):
                 print 'guid identified in grammar.main_grammar dont delete this'
                 #node.shape.geom = rs.coercebrep(gb)
         ## ---- END TEST --- ##
-        
+
         if PD.has_key('label_UI') and PD['label_UI'] == True:
             temp_node = self.label(temp_node,PD)
         elif PD.has_key('divide') and PD['divide'] == True:
@@ -1672,37 +1678,37 @@ class Grammar:
             temp_node = self.bucket_shape(temp_node,PD)
         elif PD.has_key('transform') and PD['transform'] == True:
             temp_node = self.transform(temp_node,PD)
-        
+
         #Sort out the outputs
         if isList:
             lst_childs = temp_node
         else:
             lst_childs = temp_node.traverse_tree(lambda n:n,internal=False) #change this to based on inoput type
-        
+
         ## Check freezing
         lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
-        
+
         ## Finish
         return lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
             #Purpose: Extract rules from tree insert nest list of rule dictionaries
             B = Bula()
-            
+
             #Convert tree to flat list
             #Also we will add label rules to top
-            
+
             flat_lst = label_lst_
             flat_lst_ = B.ghtree2nestlist(rule_tree_,nest=False)
-            flat_lst += flat_lst_ 
-            
+            flat_lst += flat_lst_
+
             #Convert flat list to nested list of typology rules
             nest_rdict = []
             rdict = {}#copy.deepcopy(Miru)
             for parselst in flat_lst:
                 if parselst[0] != 'end_rule':
                     miru_key,miru_val = parselst[0],parselst[1]
-                    rdict[miru_key] = miru_val  
+                    rdict[miru_key] = miru_val
                 else:
                     nest_rdict.append(rdict)
                     rdict = {}
@@ -1711,9 +1717,9 @@ class Grammar:
             #    print 'bula', i['bula']
             #    print 'bula', i['bula_value_lst'][0]
             #    print '---'
-            
+
             return nest_rdict
-        def helper_label2rule(labelin): 
+        def helper_label2rule(labelin):
             rule_ = []
             if labelin:
                 rule_ = [\
@@ -1748,14 +1754,14 @@ class Grammar:
             chk_input_len = True
         elif len(label__) <= 0.5:
             chk_input_len = True
-        
+
         #Check if rule has already propogated
         for n in node_in_:
             if type(n) == type(T) and len(n.loc) > 0.5:
                 n.traverse_tree(lambda n:n.delete_node(),internal=True)
                 #if n.grammar.type['top'] == None:
                 #    n.grammar.type['top'] = True
-        
+
         if chk_input_len:
             if abs(len(label__)-1.) < 0.5 or abs(len(label__)-0.) < 0.5:
                 #label is treated as a rule
@@ -1764,13 +1770,13 @@ class Grammar:
                 else:
                     label_rule_ = []
                 #nest rules
-                nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)    
+                nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
                 #make label a rule
-                #recursively create a child node derived from parent and apply a grammar rule           
+                #recursively create a child node derived from parent and apply a grammar rule
                 lst_node_out_ = helper_main_recurse(node_in_,nested_rule_dict)
                 lst_node_out.extend(lst_node_out_)
             else:
-                #print 'multiple labels'                
+                #print 'multiple labels'
                 #Map label num to label num if multiple labels
                 for lab,node_ in zip(label__,node_in_):
                     #label is treated as a rule
@@ -1778,13 +1784,13 @@ class Grammar:
                     #nest rules
                     nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
                     #make label a rule
-                    #recursively create a child node derived from parent and apply a grammar rule           
+                    #recursively create a child node derived from parent and apply a grammar rule
                     lst_node_out_ = helper_main_recurse([node_],nested_rule_dict)
                     lst_node_out.extend(lst_node_out_)
         else:
             print 'Check the length of your inputs'
-        
-        return lst_node_out 
-                    
+
+        return lst_node_out
+
 if True:
     sc.sticky["Grammar"] = Grammar
