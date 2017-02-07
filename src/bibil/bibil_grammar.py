@@ -27,7 +27,8 @@ TOL = sc.doc.ModelAbsoluteTolerance
 class Grammar:
     """Grammar """
     def __init__(self):
-        self.type = {'label':"x","rule_stack":[],'grammar':"null",'axis':"NS",'ratio':0.,'freeze':False}
+        self.type = {'label':"x","rule_stack":[],'grammar':"null",\
+                     'axis':"NS",'ratio':0.,'freeze':False,'dispose':False}
         #need to move axis, NS, ratio to divide
     def label(self,temp_node_,PD_):
         temp_node_.grammar.type['label'] = PD_['label']
@@ -38,6 +39,14 @@ class Grammar:
         rule_stack = node.backtrack_tree(lambda n:n,accumulate=True)
         rule_stack = map(lambda n: n.grammar.type['grammar_key'],rule_stack)
         return rule_stack
+    def dispose_geom(self,node):
+        if not node.grammar.type['dispose'] and len(node.loc)>0.5:
+            node.grammar.type['dispose']=True
+            del node.shape.geom
+            del node.shape.bbpts
+            node.shape.geom = None
+            node.shape.bbpts = None
+            
     def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
@@ -334,10 +343,14 @@ class Grammar:
                 return tnode
 
         ## Loop through the height,setback tuples
-        for sbd in sb_data:
+        
+        #rename tnode
+        node2cut = tnode
+        for sb_index in xrange(len(sb_data)):
+            sbd = sb_data[sb_index]
             ht, dist = sbd[0], sbd[1]
 
-            IsHighEnough = ht < tnode.shape.ht
+            IsHighEnough = ht < node2cut.shape.ht
 
             if IsHighEnough and sb_random:
                 if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
@@ -346,20 +359,18 @@ class Grammar:
                     dist += random.randrange(randsb_lo,randsb_hi)
 
             #Dissect floor
-            #if True:
-            #    sh_top_node = None
-            #    if ht < tnode.shape.ht:
-            #        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
-            #        if sh_bot_node and sh_top_node:
-            #            sh_top_node.grammar.type['label'] = 'stepbacktop'
-            #            sh_bot_node.grammar.type['label'] = 'stepbackbot'
-            #        else:
-            #            break
-            #else:
-            sh_top_node = tnode
-
+            if False:
+                sh_bot_node,sh_top_node = self.helper_divide_through_normal(node2cut,ht)
+                if sh_bot_node and sh_top_node:
+                    sh_top_node.grammar.type['label'] = 'stepbacktop'
+                    sh_bot_node.grammar.type['label'] = 'stepbackbot'
+                    #debug.append(sh_bot_node.shape.geom)
+                else:
+                    break
+            else:
+                sh_top_node = node2cut
             ##Now actually implement setback
-            if IsHighEnough and sh_top_node:
+            if IsHighEnough:
                 #Get self matrix to match
                 matrix = sh_top_node.shape.base_matrix
                 if not matrix:
@@ -395,6 +406,9 @@ class Grammar:
                     if cut_geom:
                         sh_top_node.shape.geom = cut_geom[0]
                         sh_top_node.shape.reset(xy_change=True)
+                node2cut = sh_top_node
+            else:
+                break
         return tnode
     def transform(self,temp_node_,PD_):
         debug = sc.sticky['debug']
@@ -434,6 +448,7 @@ class Grammar:
         debug = sc.sticky['debug']
         bottom_shape,top_shape = None, None
         ratio_ = (dist_ - temp_node_.shape.cpt[2])/temp_node_.shape.z_dist
+        
         PD = {}
         PD['div_num'] = 1
         PD['div_deg'] = 0.
@@ -441,9 +456,8 @@ class Grammar:
         PD['div_ratio'] = ratio_
         PD['div_type'] = 'simple_divide'
         PD['axis'] = "Z"
-        PD['div_ratio'] = 0.5
         temp_node_ = self.divide(temp_node_,PD)
-
+        
         if temp_node_.loc:
             ext_pt = temp_node_.shape.cpt + (temp_node_.shape.normal * dist_)
             dist_0 = temp_node_.loc[0].shape.cpt - ext_pt
@@ -459,7 +473,6 @@ class Grammar:
             #lst_top_nodes = temp_node_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
             #for tn in lst_top_nodes: tn.grammar.type['top'] = False
             #top_shape.grammar.type['top'] = True
-        #debug.append(bottom_shape.shape.geom)
         return bottom_shape,top_shape
     def divide(self,node,PD_):
         def helper_subdivide_depth(hnode,div,div_depth,ratio_,axis_ref="NS"):
@@ -546,6 +559,9 @@ class Grammar:
                     #print child_node.shape.x_dist
                     #print child_node.shape.y_dist
                     if child_node: node_.loc.append(child_node)
+                
+                node_.grammar.dispose_geom(node_)
+                
                 #print loc
                 #print '----'
                 if 'simple_divide' not in grid_type:
@@ -1687,9 +1703,16 @@ class Grammar:
 
         ## Check freezing
         lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
-
+        
+        internal_nodes = temp_node.traverse_tree(lambda n:n,internal=True)
+        #.backtrack_tree(lambda n:len(n.loc)>0.5,accumulate=True)
+        for in_node in internal_nodes:
+            in_node.grammar.dispose_geom(in_node)
+        
         ## Finish
         return lst_childs
+    
+
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
             #Purpose: Extract rules from tree insert nest list of rule dictionaries
@@ -1737,11 +1760,12 @@ class Grammar:
                     lst_node_ = lst_node_leaves
                 else:
                     break
+                
             for i,ng in enumerate(lst_node_):
                 if type(T) != type(ng):
                     ng = self.helper_geom2node(ng)
                     lst_node_[i] = ng
-                return lst_node_
+            return lst_node_
         T = Tree()
         lst_node_out = []
         #Check inputs
@@ -1773,7 +1797,7 @@ class Grammar:
                 nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
                 #make label a rule
                 #recursively create a child node derived from parent and apply a grammar rule
-                lst_node_out_ = helper_main_recurse(node_in_,nested_rule_dict)
+                lst_node_out_ = helper_main_recurse(node_in_,nested_rule_dict)   
                 lst_node_out.extend(lst_node_out_)
             else:
                 #print 'multiple labels'
@@ -1789,7 +1813,8 @@ class Grammar:
                     lst_node_out.extend(lst_node_out_)
         else:
             print 'Check the length of your inputs'
-
+         
+        
         return lst_node_out
 
 if True:
