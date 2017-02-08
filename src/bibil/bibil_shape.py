@@ -848,6 +848,7 @@ class Shape:
         L += [L[0]]
         return L
     def compute_straight_skeleton(self):
+        debug = sc.sticky["debug"]
         ##Initialization
         #1a. Organize given vertices into LAV in SLAV
         #LAV is a doubly linked list (DLL). Here I'll treat 
@@ -908,24 +909,52 @@ class Shape:
         #Initialize List of Active Vertices as Double Linked List
         LAV = DoubleLinkedList()
         #Add all vertices and incident edges from polygon
-        for i in xrange(len(self.base_matrix[:-1])):
+        for i in xrange(len(self.base_matrix)):
             v = self.base_matrix[i][0]
-            edge_next = self.base_matrix[i]
-            if i==0: i = -1
+            i -= 1
             edge_prev = self.base_matrix[i]
+            edge_next = self.base_matrix[i+1]
             vrt = Vertex(v,edge_prev,edge_next)
             LAV.append(vrt)
-            
+        
         #Compute the vertex angle bisector (ray) bi
-        #iterate through vertex
+        curr_node = LAV.head
+        for i in xrange(LAV.size):
+            print 'index:', i
+            edge_prev = curr_node.data.edge_prev
+            edge_next = curr_node.data.edge_next
+            dir_prev = edge_prev[1]-edge_prev[0]
+            dir_next = edge_next[1]-edge_next[0]
+            # Get angle
+            dotprod = rc.Geometry.Vector3d.Multiply(dir_next,dir_prev)
+            cos_angle = dotprod/(dir_next.Length * dir_prev.Length)
+            rad = math.acos(cos_angle)
+            # rotate next point by rad
+            crossprod = rc.Geometry.Vector3d.CrossProduct(dir_next,dir_prev)
+            dir_next.Unitize()
+            dir_next.Rotate(-1.*rad/2.,crossprod)
+            
+            ray_origin = curr_node.data.vertex
+            ray_dir = dir_next
+            
+            
+            
+            if True:
+                debug.append(ray_origin)
+                debug.append(ray_origin + ray_dir*20.)
+                #debug.append(curr_node.data.vertex)
+                #debug.append(edge_next[1])
+                #debug.extend(edge_next)
+            #next node
+            curr_node = curr_node.next
+        
         #get two edges
         #calculate bisector
         #if bisector on wrong side of normal, flip
         
         #print LAV.head.data.edge_next
-        print LAV.tail.next
+        #print LAV.tail.next
         print '--'
-        print 'shape'
         
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
