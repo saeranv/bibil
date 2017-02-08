@@ -11,6 +11,7 @@ import copy
 import scriptcontext as sc
 import itertools
 
+
 TOL = sc.doc.ModelAbsoluteTolerance
 
 
@@ -846,7 +847,86 @@ class Shape:
                 L.append(perppt1)
         L += [L[0]]
         return L
-
+    def compute_straight_skeleton(self):
+        ##Initialization
+        #1a. Organize given vertices into LAV in SLAV
+        #LAV is a doubly linked list (DLL). Here I'll treat 
+        #normal python list as DLL, rather then write a new obj
+        class DoubleLinkedList(object):
+            #Creates empty doubly linked list
+            def __init__(self):
+                self.size = 0
+                self.head = None
+                self.tail = None
+            def IsEmpty(self):
+                return self.size == 0
+            def __len__(self):
+                return self.size
+            def append(self,data):
+                new_node = DLLNode(data,None,None)
+                if self.head == None:
+                    self.head = self.tail = new_node
+                else:
+                    #Add new node to front of list
+                    new_node.prev = self.tail
+                    new_node.next = None
+                    self.tail.next = new_node
+                    self.tail = new_node
+                #Now complete circle
+                self.head.prev = self.tail
+                self.tail.next = self.head 
+                self.size += 1
+        class DLLNode(object):
+            def __init__(self,data,prev,next):
+                self.data = data
+                self.next = None
+                self.prev = None
+            def __str__(self):
+                return str(self.data)
+        class Vertex(object):
+            def __init__(self,vertex,edge_prev=None,edge_next=None):
+                self.vertex = vertex
+                self.edge_prev = edge_prev
+                self.edge_next = edge_next
+            def __str__(self):
+                return str(self.vertex)
+        ##Test
+        #dll = DoubleLinkedList()
+        #dll.append(1)
+        #dll.append(2)
+        #dll.append(3)
+        
+        #Test initialization
+        #print 'head', dll.head
+        #print 'tail', dll.tail
+        #print '== 2', dll.head.next
+        #print '== 2', dll.tail.prev
+        #print '== 3', dll.head.prev
+        #print '== 1', dll.tail.next 
+        #print '== 3', dll.head.next.next
+        
+        #Initialize List of Active Vertices as Double Linked List
+        LAV = DoubleLinkedList()
+        #Add all vertices and incident edges from polygon
+        for i in xrange(len(self.base_matrix[:-1])):
+            v = self.base_matrix[i][0]
+            edge_next = self.base_matrix[i]
+            if i==0: i = -1
+            edge_prev = self.base_matrix[i]
+            vrt = Vertex(v,edge_prev,edge_next)
+            LAV.append(vrt)
+            
+        #Compute the vertex angle bisector (ray) bi
+        #iterate through vertex
+        #get two edges
+        #calculate bisector
+        #if bisector on wrong side of normal, flip
+        
+        #print LAV.head.data.edge_next
+        print LAV.tail.next
+        print '--'
+        print 'shape'
+        
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
         # For n-dim vector create n x n matrix

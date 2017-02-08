@@ -1599,6 +1599,9 @@ class Grammar:
             temp_node_child = self.helper_geom2node(shapecrv,temp_node_,grammar="squeeze_angle")
             temp_node_.loc.append(temp_node_child)
         return temp_node_
+    def straight_skeleton(self,temp_node_,PD_):
+        temp_node_.shape.compute_straight_skeleton()
+        return temp_node_
     def node2grammar(self,lst_node_,rule_in_):
         def helper_type2node(copy_node_,type_):
             #type: list of (dictionary of typology parameters)
@@ -1694,7 +1697,8 @@ class Grammar:
             temp_node = self.bucket_shape(temp_node,PD)
         elif PD.has_key('transform') and PD['transform'] == True:
             temp_node = self.transform(temp_node,PD)
-
+        elif PD.has_key('straight_skeleton') and PD['straight_skeleton'] == True:
+            temp_node = self.straight_skeleton(temp_node,PD)
         #Sort out the outputs
         if isList:
             lst_childs = temp_node
