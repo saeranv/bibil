@@ -9,7 +9,7 @@ import math
 import ghpythonlib.components as ghcomp
 import copy
 import scriptcontext as sc
-import itertools
+from itertools import cycle
 
 
 TOL = sc.doc.ModelAbsoluteTolerance
@@ -847,12 +847,24 @@ class Shape:
                 L.append(perppt1)
         L += [L[0]]
         return L
+    def get_inner_angle(self,v1,v2,anglerad):
+        # False if cross is positive
+        # True if negative or zero
+        # Need to do more research to understand this
+        # Modified to opposite based on how I implemented
+        # dir_next, dir_prev
+        #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
+        IsPositive = v1[0] * v2[1] > v2[0] * v1[1]
+        if IsPositive:
+            anglerad = 2.*math.pi - anglerad
+        return anglerad
     def compute_straight_skeleton(self):
         debug = sc.sticky["debug"]
         ##Initialization
         #1a. Organize given vertices into LAV in SLAV
-        #LAV is a doubly linked list (DLL). Here I'll treat 
-        #normal python list as DLL, rather then write a new obj
+        #LAV is a doubly linked list (DLL).
+        
+        #could just be cycle==?
         class DoubleLinkedList(object):
             #Creates empty doubly linked list
             def __init__(self):
@@ -884,11 +896,13 @@ class Shape:
                 self.prev = None
             def __str__(self):
                 return str(self.data)
+        
         class Vertex(object):
             def __init__(self,vertex,edge_prev=None,edge_next=None):
                 self.vertex = vertex
                 self.edge_prev = edge_prev
                 self.edge_next = edge_next
+                self.bisector_ray = None
             def __str__(self):
                 return str(self.vertex)
         ##Test
@@ -912,6 +926,7 @@ class Shape:
         for i in xrange(len(self.base_matrix)):
             v = self.base_matrix[i][0]
             i -= 1
+            #swap this for inner angle???
             edge_prev = self.base_matrix[i]
             edge_next = self.base_matrix[i+1]
             vrt = Vertex(v,edge_prev,edge_next)
@@ -920,40 +935,53 @@ class Shape:
         #Compute the vertex angle bisector (ray) bi
         curr_node = LAV.head
         for i in xrange(LAV.size):
-            print 'index:', i
+            #print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
-            dir_prev = edge_prev[1]-edge_prev[0]
+            dir_prev = edge_prev[0]-edge_prev[1]
             dir_next = edge_next[1]-edge_next[0]
+            dir_prev.Unitize()
+            dir_next.Unitize()
+            
             # Get angle
             dotprod = rc.Geometry.Vector3d.Multiply(dir_next,dir_prev)
             cos_angle = dotprod/(dir_next.Length * dir_prev.Length)
-            rad = math.acos(cos_angle)
-            # rotate next point by rad
-            crossprod = rc.Geometry.Vector3d.CrossProduct(dir_next,dir_prev)
-            dir_next.Unitize()
-            dir_next.Rotate(-1.*rad/2.,crossprod)
+            dotrad = math.acos(cos_angle)
             
+            inrad = self.get_inner_angle(dir_prev,dir_next,dotrad)
+            
+            #Flip the cross prod if dotprod gave outer angle
+            if self.is_near_zero(abs(inrad - dotrad)):
+                crossprod = rc.Geometry.Vector3d.CrossProduct(dir_next,dir_prev)
+            else:
+                crossprod = rc.Geometry.Vector3d.CrossProduct(dir_prev,dir_next)
+            
+            #Rotate next point CCW by inner_rad
+            dir_next.Rotate(inrad/2.,crossprod)
+            
+            #Create bisector ray
             ray_origin = curr_node.data.vertex
             ray_dir = dir_next
-            
-            
+            #Create ray tuple
+            curr_node.data.bisector_ray = (ray_origin,ray_dir)
             
             if True:
                 debug.append(ray_origin)
                 debug.append(ray_origin + ray_dir*20.)
-                #debug.append(curr_node.data.vertex)
-                #debug.append(edge_next[1])
-                #debug.extend(edge_next)
-            #next node
             curr_node = curr_node.next
         
-        #get two edges
-        #calculate bisector
-        #if bisector on wrong side of normal, flip
-        
-        #print LAV.head.data.edge_next
-        #print LAV.tail.next
+        #Compute bisector intersections
+        curr_node = LAV.head
+        PQ = [] #This needs to be a priorityQueue
+        for i in xrange(LAV.size):
+            #Get shortest intersection btwn neigbhor bisectors
+            #http://stackoverflow.com/questions/2931573/determining-if-two-rays-intersect
+            print i 
+            curr_ray = curr_node.data.bisector_ray
+            prev_ray = curr_node.prev.data.bisector_ray
+            next_ray = curr_node.next.data.bisector_ray
+            curr_node = curr_node.next
+            
         print '--'
         
     def vector_to_transformation_matrix(self,dir_vector):
