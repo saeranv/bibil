@@ -10,7 +10,7 @@ import ghpythonlib.components as ghcomp
 import copy
 import scriptcontext as sc
 from itertools import cycle
-
+import heapq
 
 TOL = sc.doc.ModelAbsoluteTolerance
 
@@ -760,8 +760,18 @@ class Shape:
             point_intersect_lst = list(point_intersect_lst)
             #debug.extend(point_intersect_lst)
             #debug.append(self.cpt)
-
         return point_intersect_lst
+    def extend_ray_to_line(self,chk_ray,lineref):
+        #ray: (ray_origin (pt), ray_dir (vector)
+        #line: control point curve
+        #Output: line that is intersected
+        chk_line = rc.Geometry.Curve.CreateControlPointCurve([chk_ray[0],chk_ray[0]+chk_ray[1]*2.],0)
+        #Checking t parameter: 0.0 = ray_origin, 1.0 = ray_endpt
+        #b,t = chk_line.ClosestPoint(chk_ray[0],0.001)
+        #print t < chk_line.Domain.Mid
+        chk_line_end = rc.Geometry.CurveEnd.End
+        int_line = chk_line.ExtendByLine(chk_line_end,[lineref])
+        return int_line
     def get_parallel_segments(self,lst_edge_,dir_ref_,angle_tol_):
         #Inputs lst of edges, a dir_ref
         #Outputs lst of edges that are parallel w/i tol
@@ -847,15 +857,13 @@ class Shape:
                 L.append(perppt1)
         L += [L[0]]
         return L
-    def get_inner_angle(self,v1,v2,anglerad):
-        # False if cross is positive
-        # True if negative or zero
-        # Need to do more research to understand this
-        # Modified to opposite based on how I implemented
-        # dir_next, dir_prev
+    def get_inner_angle(self,v_prev,v_next,anglerad):
+        #Input: v2,v1 as direction vectors facing away from ref pt, and angle to check
+        # True if cross is positive
+        # False if negative or zero
         #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
-        IsPositive = v1[0] * v2[1] > v2[0] * v1[1]
-        if IsPositive:
+        IsPositive = v_next[0] * v_prev[1] > v_prev[0] * v_next[1]
+        if not IsPositive:
             anglerad = 2.*math.pi - anglerad
         return anglerad
     def compute_straight_skeleton(self):
@@ -905,6 +913,12 @@ class Shape:
                 self.bisector_ray = None
             def __str__(self):
                 return str(self.vertex)
+        
+        #Create Priotity Queue from Python module
+        #https://docs.python.org/2.7/library/heapq.html#priority-queue-implementation-notes
+        PQ = []
+        #heapq.heappush(PQ,item)
+        
         ##Test
         #dll = DoubleLinkedList()
         #dll.append(1)
@@ -921,6 +935,8 @@ class Shape:
         #print '== 3', dll.head.next.next
         
         #Initialize List of Active Vertices as Double Linked List
+        
+        
         LAV = DoubleLinkedList()
         #Add all vertices and incident edges from polygon
         for i in xrange(len(self.base_matrix)):
@@ -952,36 +968,76 @@ class Shape:
             
             #Flip the cross prod if dotprod gave outer angle
             if self.is_near_zero(abs(inrad - dotrad)):
-                crossprod = rc.Geometry.Vector3d.CrossProduct(dir_next,dir_prev)
-            else:
                 crossprod = rc.Geometry.Vector3d.CrossProduct(dir_prev,dir_next)
+            else:
+                crossprod = rc.Geometry.Vector3d.CrossProduct(dir_next,dir_prev)
             
             #Rotate next point CCW by inner_rad
-            dir_next.Rotate(inrad/2.,crossprod)
+            dir_next.Rotate(-inrad/2.,crossprod)
             
             #Create bisector ray
             ray_origin = curr_node.data.vertex
             ray_dir = dir_next
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
-            
-            if True:
-                debug.append(ray_origin)
-                debug.append(ray_origin + ray_dir*20.)
             curr_node = curr_node.next
         
         #Compute bisector intersections
         curr_node = LAV.head
-        PQ = [] #This needs to be a priorityQueue
         for i in xrange(LAV.size):
             #Get shortest intersection btwn neigbhor bisectors
-            #http://stackoverflow.com/questions/2931573/determining-if-two-rays-intersect
-            print i 
+            #Get long axis of shape 
+            #Multiply by 1.5 turn into line
+            #find intersection of lines
+            print 'index:', i 
+            
+            #hypothenuse = sqrt(a^2 + b^2) = c; to get longest line
+            side1 = self.get_long_short_axis()[1]
+            side2 = self.get_long_short_axis()[3]
+            linedim = math.sqrt(side1*side1 + side2*side2)
+            
             curr_ray = curr_node.data.bisector_ray
             prev_ray = curr_node.prev.data.bisector_ray
             next_ray = curr_node.next.data.bisector_ray
-            curr_node = curr_node.next
             
+            #Get intersection
+            curr_line = rc.Geometry.Curve.CreateControlPointCurve([curr_ray[0],curr_ray[0]+curr_ray[1]*linedim],0)
+            
+            #!!!should check for parallel edge case
+            int_prev = self.extend_ray_to_line(prev_ray,curr_line)
+            int_next = self.extend_ray_to_line(next_ray,curr_line)
+            
+            #Calculate distance to edge
+            #think this is what is meant
+            
+            event_tuple = []
+            #event_tuple: listof (bisector length,bisector,Va, Vb)
+            if int_prev != None:
+                event_tuple.append((int_prev.GetLength(),int_prev,curr_node.prev,curr_node)) 
+            if int_next != None:
+                event_tuple.append((int_next.GetLength(),int_prev,curr_node,curr_node.next))
+            
+            if event_tuple:
+                min_event = min(event_tuple,key=lambda event: event[0])
+                heapq.heappush(PQ,min_event)
+                debug.append(min_event[1])
+                
+            if True:#i == 4:
+                pass
+                #debug.append(curr_ray[0])
+                #debug.append(curr_ray[0] + curr_ray[1]*20.)
+                #debug.extend([curr_line])
+            
+            
+            #if i == 0:
+            #    crv = self.bottom_crv
+            #    sharp = rc.Geometry.CurveOffsetCornerStyle.Sharp
+            #    crvlst = crv.Offset(self.cpt, self.normal, 15.8, 0.0001,sharp)
+            #    print crvlst
+            #    debug.extend(crvlst)
+            curr_node = curr_node.next
+        #print heapq.heappop(PQ)
+        
         print '--'
         
     def vector_to_transformation_matrix(self,dir_vector):
