@@ -766,6 +766,7 @@ class Shape:
         #line: control point curve
         #Output: line that is intersected
         chk_line = rc.Geometry.Curve.CreateControlPointCurve([chk_ray[0],chk_ray[0]+chk_ray[1]*2.],0)
+        chk_line.SetStartPoint(chk_ray[0])
         #Checking t parameter: 0.0 = ray_origin, 1.0 = ray_endpt
         #b,t = chk_line.ClosestPoint(chk_ray[0],0.001)
         #print t < chk_line.Domain.Mid
@@ -857,22 +858,8 @@ class Shape:
                 L.append(perppt1)
         L += [L[0]]
         return L
-    def get_inner_angle(self,v_prev,v_next,anglerad):
-        #Input: v2,v1 as direction vectors facing away from ref pt, and angle to check
-        # True if cross is positive
-        # False if negative or zero
-        #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
-        IsPositive = v_next[0] * v_prev[1] > v_prev[0] * v_next[1]
-        if not IsPositive:
-            anglerad = 2.*math.pi - anglerad
-        return anglerad
-    def compute_straight_skeleton(self):
-        debug = sc.sticky["debug"]
-        ##Initialization
-        #1a. Organize given vertices into LAV in SLAV
-        #LAV is a doubly linked list (DLL).
-        
-        #could just be cycle==?
+    def convert_shape_to_circular_double_linked_list(self):
+        #Move classes out of function, but want to keep it here for convenience of debugging
         class DoubleLinkedList(object):
             #Creates empty doubly linked list
             def __init__(self):
@@ -914,10 +901,16 @@ class Shape:
             def __str__(self):
                 return str(self.vertex)
         
-        #Create Priotity Queue from Python module
-        #https://docs.python.org/2.7/library/heapq.html#priority-queue-implementation-notes
-        PQ = []
-        #heapq.heappush(PQ,item)
+        LAV = DoubleLinkedList()
+        #Add all vertices and incident edges from polygon
+        for i in xrange(len(self.base_matrix)):
+            v = self.base_matrix[i][0]
+            i -= 1
+            #swap this for inner angle???
+            edge_prev = self.base_matrix[i]
+            edge_next = self.base_matrix[i+1]
+            vrt = Vertex(v,edge_prev,edge_next)
+            LAV.append(vrt)
         
         ##Test
         #dll = DoubleLinkedList()
@@ -933,22 +926,8 @@ class Shape:
         #print '== 3', dll.head.prev
         #print '== 1', dll.tail.next 
         #print '== 3', dll.head.next.next
-        
-        #Initialize List of Active Vertices as Double Linked List
-        
-        
-        LAV = DoubleLinkedList()
-        #Add all vertices and incident edges from polygon
-        for i in xrange(len(self.base_matrix)):
-            v = self.base_matrix[i][0]
-            i -= 1
-            #swap this for inner angle???
-            edge_prev = self.base_matrix[i]
-            edge_next = self.base_matrix[i+1]
-            vrt = Vertex(v,edge_prev,edge_next)
-            LAV.append(vrt)
-        
-        #Compute the vertex angle bisector (ray) bi
+        return LAV
+    def compute_interior_bisector_vector(self,LAV):
         curr_node = LAV.head
         for i in xrange(LAV.size):
             #print 'index:', i
@@ -981,15 +960,38 @@ class Shape:
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
             curr_node = curr_node.next
+        return LAV
+    def get_inner_angle(self,v_prev,v_next,anglerad):
+        #Input: v2,v1 as direction vectors facing away from ref pt, and angle to check
+        # True if cross is positive
+        # False if negative or zero
+        #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
+        IsPositive = v_next[0] * v_prev[1] > v_prev[0] * v_next[1]
+        if not IsPositive:
+            anglerad = 2.*math.pi - anglerad
+        return anglerad
+    def compute_edge_events_of_polygon(self,LAV):
+        #Move this out?
+        class EdgeEvent(object):
+            def __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
+                self.int_vertex = int_vertex
+                self.int_arc = int_arc
+                self.node_A = node_A
+                self.node_B = node_B
+                self.length2edge = length2edge
+            def __str__(self):
+                return str(self.int_vertex)
         
-        #Compute bisector intersections
+        #Create Priotity Queue from Python module
+        #Ref: https://docs.python.org/2.7/library/heapq.html#priority-queue-implementation-notes
+        PQ = []
         curr_node = LAV.head
         for i in xrange(LAV.size):
             #Get shortest intersection btwn neigbhor bisectors
             #Get long axis of shape 
             #Multiply by 1.5 turn into line
             #find intersection of lines
-            print 'index:', i 
+            #print 'index:', i 
             
             #hypothenuse = sqrt(a^2 + b^2) = c; to get longest line
             side1 = self.get_long_short_axis()[1]
@@ -1009,34 +1011,50 @@ class Shape:
             
             #Calculate distance to edge
             #think this is what is meant
-            
-            event_tuple = []
-            #event_tuple: listof (bisector length,bisector,Va, Vb)
+            event_tuple = []     
             if int_prev != None:
-                event_tuple.append((int_prev.GetLength(),int_prev,curr_node.prev,curr_node)) 
+                prev_edge_event = EdgeEvent(int_prev.PointAtEnd,int_prev,curr_node.prev,curr_node,int_prev.GetLength())
+                event_tuple.append(prev_edge_event) 
             if int_next != None:
-                event_tuple.append((int_next.GetLength(),int_prev,curr_node,curr_node.next))
-            
+                next_edge_event = EdgeEvent(int_next.PointAtEnd,int_next,curr_node,curr_node.next,int_next.GetLength())
+                event_tuple.append(next_edge_event)
             if event_tuple:
-                min_event = min(event_tuple,key=lambda event: event[0])
+                min_event = min(event_tuple, key=lambda e: e.length2edge)
                 heapq.heappush(PQ,min_event)
-                debug.append(min_event[1])
-                
-            if True:#i == 4:
-                pass
-                #debug.append(curr_ray[0])
-                #debug.append(curr_ray[0] + curr_ray[1]*20.)
-                #debug.extend([curr_line])
-            
-            
-            #if i == 0:
-            #    crv = self.bottom_crv
-            #    sharp = rc.Geometry.CurveOffsetCornerStyle.Sharp
-            #    crvlst = crv.Offset(self.cpt, self.normal, 15.8, 0.0001,sharp)
-            #    print crvlst
-            #    debug.extend(crvlst)
+            #debug.append(curr_ray[0])
+            #debug.append(curr_ray[0] + curr_ray[1]*20.)
+            #debug.extend([curr_line])
             curr_node = curr_node.next
-        #print heapq.heappop(PQ)
+        return PQ
+    def compute_straight_skeleton(self):
+        debug = sc.sticky["debug"]
+        ##Initialization
+        #1a. Organize given vertices into LAV in SLAV
+        #LAV: doubly linked list (DLL).
+        
+        #Initialize List of Active Vertices as Double Linked List
+        LAV = self.convert_shape_to_circular_double_linked_list()
+        #Compute the vertex angle bisector (ray) bi
+        LAV = self.compute_interior_bisector_vector(LAV)
+        #Compute bisector intersections and maintain Priority Queue of Edge Events
+        PQ = self.compute_edge_events_of_polygon(LAV)
+        
+        #Main skeleton algorithm
+        while len(PQ) > 0.1:
+            edge_event = heapq.heappop(PQ)
+            if edge_event.node_A.vertex
+            #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
+            skeleton_arc = edge_event.int_arc
+            #debug.append(edge_event.int_arc)  
+            #debug.append(edge_event.int_vertex)
+            print 'PQ length:', len(PQ)
+        """
+        #if i == 0:
+        #    crv = self.bottom_crv
+        #    sharp = rc.Geometry.CurveOffsetCornerStyle.Sharp
+        #    crvlst = crv.Offset(self.cpt, self.normal, 15.8, 0.0001,sharp)
+        #    print crvlst
+        #    debug.extend(crvlst)
         
         print '--'
         
