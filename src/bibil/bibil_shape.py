@@ -14,6 +14,103 @@ import heapq
 
 TOL = sc.doc.ModelAbsoluteTolerance
 
+class DoubleLinkedList(object):
+    #Creates empty doubly linked list
+    def __init__(self):
+        self.size = 0
+        self.head = None
+        self.tail = None
+    def __str__(self):
+        L = []
+        curr_node = self.head
+        for i in xrange(self.size):
+            L.append(curr_node.data)
+            curr_node = curr_node.next
+        return str(L)
+    def IsEmpty(self):
+        return self.size == 0
+    def __len__(self):
+        return self.size
+    def append(self,data):
+        new_node = DLLNode(data)
+        if self.head == None:
+            self.head = self.tail = new_node
+        else:
+            #Add new node to front of list
+            new_node.prev = self.tail
+            new_node.next = None
+            self.tail.next = new_node
+            self.tail = new_node
+        #Now complete circle
+        self.head.prev = self.tail
+        self.tail.next = self.head 
+        self.size += 1
+    def insert(self,anchor_node,new_node):
+        new_node.next = anchor_node.next
+        new_node.prev = anchor_node
+        anchor_node.next.prev = new_node
+        anchor_node.next = new_node
+        self.size += 1
+    def remove(self,remove_node):
+        curr_node = self.head
+        i = 0
+        while i < self.size:
+            if curr_node is remove_node:
+                prev_node = curr_node.prev
+                next_node = curr_node.next
+                if curr_node is self.head:
+                    self.head = next_node
+                    self.tail = prev_node
+                prev_node.next = next_node
+                next_node.prev = prev_node
+            curr_node = curr_node.next
+            i += 1
+        self.size -= 1     
+    def __getitem__(self, i):
+        #Worst case O(n) time. Don't use if not neccessary
+        curr_node = self.head
+        for j in xrange(self.size):
+            if i == j:
+                return curr_node
+            curr_node = curr_node.next
+        return None
+    def get_node_index(self,node_ref):
+        #Worst case O(n) time. Don't use if not neccessary
+        curr_node = self.head
+        for j in xrange(self.size):
+            if curr_node is node_ref:
+                return j
+            curr_node = curr_node.next
+        return None
+            
+class DLLNode(object):
+    def __init__(self,data):
+        self.data = data
+        self.next = None
+        self.prev = None
+    def __str__(self):
+        return str(self.data)
+
+class Vertex(object):
+    def __init__(self,vertex,edge_prev=None,edge_next=None):
+        self.vertex = vertex
+        self.edge_prev = edge_prev
+        self.edge_next = edge_next
+        self.bisector_ray = None
+        self.is_reflex = None
+        self.is_processed = False
+    def __str__(self):
+        return str(self.vertex)
+
+class EdgeEvent(object):
+    def __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
+        self.int_vertex = int_vertex
+        self.int_arc = int_arc
+        self.node_A = node_A
+        self.node_B = node_B
+        self.length2edge = length2edge
+    def __str__(self):
+        return str(self.int_vertex)
 
 
 class Shape:
@@ -858,48 +955,16 @@ class Shape:
                 L.append(perppt1)
         L += [L[0]]
         return L
+    def get_inner_angle(self,v_prev,v_next,anglerad):
+        #Input: v2,v1 as direction vectors facing away from ref pt, and angle to check
+        # True if cross is positive
+        # False if negative or zero
+        #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
+        IsPositive = v_next[0] * v_prev[1] > v_prev[0] * v_next[1]
+        if not IsPositive:
+            anglerad = 2.*math.pi - anglerad
+        return anglerad
     def convert_shape_to_circular_double_linked_list(self):
-        #Move classes out of function, but want to keep it here for convenience of debugging
-        class DoubleLinkedList(object):
-            #Creates empty doubly linked list
-            def __init__(self):
-                self.size = 0
-                self.head = None
-                self.tail = None
-            def IsEmpty(self):
-                return self.size == 0
-            def __len__(self):
-                return self.size
-            def append(self,data):
-                new_node = DLLNode(data,None,None)
-                if self.head == None:
-                    self.head = self.tail = new_node
-                else:
-                    #Add new node to front of list
-                    new_node.prev = self.tail
-                    new_node.next = None
-                    self.tail.next = new_node
-                    self.tail = new_node
-                #Now complete circle
-                self.head.prev = self.tail
-                self.tail.next = self.head 
-                self.size += 1
-        class DLLNode(object):
-            def __init__(self,data,prev,next):
-                self.data = data
-                self.next = None
-                self.prev = None
-            def __str__(self):
-                return str(self.data)
-        
-        class Vertex(object):
-            def __init__(self,vertex,edge_prev=None,edge_next=None):
-                self.vertex = vertex
-                self.edge_prev = edge_prev
-                self.edge_next = edge_next
-                self.bisector_ray = None
-            def __str__(self):
-                return str(self.vertex)
         
         LAV = DoubleLinkedList()
         #Add all vertices and incident edges from polygon
@@ -917,6 +982,8 @@ class Shape:
         #dll.append(1)
         #dll.append(2)
         #dll.append(3)
+        #dll.insert(dll[1],DLLNode(1.5))
+        #print dll
         
         #Test initialization
         #print 'head', dll.head
@@ -927,9 +994,14 @@ class Shape:
         #print '== 1', dll.tail.next 
         #print '== 3', dll.head.next.next
         return LAV
-    def compute_interior_bisector_vector(self,LAV):
-        curr_node = LAV.head
+    def compute_interior_bisector_vector(self,LAV,angle_index=False):
+        #Computes interior bisector ray for all vertices in LAV
+        #If single_angle_index == index, will only check that vertice
         for i in xrange(LAV.size):
+            curr_node = LAV[i]
+            if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
+                continue
+            
             #print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
@@ -945,6 +1017,9 @@ class Shape:
             
             inrad = self.get_inner_angle(dir_prev,dir_next,dotrad)
             
+            if inrad > math.pi:
+                curr_node.data.is_reflex = True
+                
             #Flip the cross prod if dotprod gave outer angle
             if self.is_near_zero(abs(inrad - dotrad)):
                 crossprod = rc.Geometry.Vector3d.CrossProduct(dir_prev,dir_next)
@@ -959,49 +1034,26 @@ class Shape:
             ray_dir = dir_next
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
-            curr_node = curr_node.next
         return LAV
-    def get_inner_angle(self,v_prev,v_next,anglerad):
-        #Input: v2,v1 as direction vectors facing away from ref pt, and angle to check
-        # True if cross is positive
-        # False if negative or zero
-        #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
-        IsPositive = v_next[0] * v_prev[1] > v_prev[0] * v_next[1]
-        if not IsPositive:
-            anglerad = 2.*math.pi - anglerad
-        return anglerad
-    def compute_edge_events_of_polygon(self,LAV):
-        #Move this out?
-        class EdgeEvent(object):
-            def __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
-                self.int_vertex = int_vertex
-                self.int_arc = int_arc
-                self.node_A = node_A
-                self.node_B = node_B
-                self.length2edge = length2edge
-            def __str__(self):
-                return str(self.int_vertex)
-        
+    def compute_edge_events_of_polygon(self,LAV,PQ,angle_index=False):
+        debug = sc.sticky['debug']
         #Create Priotity Queue from Python module
         #Ref: https://docs.python.org/2.7/library/heapq.html#priority-queue-implementation-notes
-        PQ = []
-        curr_node = LAV.head
+        
+        #hypothenuse = sqrt(a^2 + b^2) = c; to get longest line
+        side1 = self.get_long_short_axis()[1]
+        side2 = self.get_long_short_axis()[3]
+        linedim = math.sqrt(side1*side1 + side2*side2)
+        
         for i in xrange(LAV.size):
-            #Get shortest intersection btwn neigbhor bisectors
-            #Get long axis of shape 
-            #Multiply by 1.5 turn into line
-            #find intersection of lines
-            #print 'index:', i 
-            
-            #hypothenuse = sqrt(a^2 + b^2) = c; to get longest line
-            side1 = self.get_long_short_axis()[1]
-            side2 = self.get_long_short_axis()[3]
-            linedim = math.sqrt(side1*side1 + side2*side2)
+            curr_node = LAV[i]
+            if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
+                continue
             
             curr_ray = curr_node.data.bisector_ray
             prev_ray = curr_node.prev.data.bisector_ray
             next_ray = curr_node.next.data.bisector_ray
-            
+            #print next_ray
             #Get intersection
             curr_line = rc.Geometry.Curve.CreateControlPointCurve([curr_ray[0],curr_ray[0]+curr_ray[1]*linedim],0)
             
@@ -1009,12 +1061,17 @@ class Shape:
             int_prev = self.extend_ray_to_line(prev_ray,curr_line)
             int_next = self.extend_ray_to_line(next_ray,curr_line)
             
-            #Calculate distance to edge
-            #think this is what is meant
-            event_tuple = []     
+            
+            
+            #Calculate distance to edge 
+            A = LineSegment2(Point2(A.PointAtStart.X,A.PointAtStart.Y),Point2(A.PointAtEnd.X,A.PointAtEnd.Y))
+            B = LineSegment2(Point2(B.PointAtStart,B.PointAtEnd),Point2(B.PointAtStart,B.PointAtEnd))
+        
+            event_tuple = [] 
+            ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):    
             if int_prev != None:
                 prev_edge_event = EdgeEvent(int_prev.PointAtEnd,int_prev,curr_node.prev,curr_node,int_prev.GetLength())
-                event_tuple.append(prev_edge_event) 
+                event_tuple.append(prev_edge_event)
             if int_next != None:
                 next_edge_event = EdgeEvent(int_next.PointAtEnd,int_next,curr_node,curr_node.next,int_next.GetLength())
                 event_tuple.append(next_edge_event)
@@ -1024,10 +1081,14 @@ class Shape:
             #debug.append(curr_ray[0])
             #debug.append(curr_ray[0] + curr_ray[1]*20.)
             #debug.extend([curr_line])
-            curr_node = curr_node.next
         return PQ
+    
     def compute_straight_skeleton(self):
         debug = sc.sticky["debug"]
+        #Move this into its own repo/class
+        #call bibil for shape libraries
+        #thats how we can transition to HB
+        
         ##Initialization
         #1a. Organize given vertices into LAV in SLAV
         #LAV: doubly linked list (DLL).
@@ -1037,18 +1098,81 @@ class Shape:
         #Compute the vertex angle bisector (ray) bi
         LAV = self.compute_interior_bisector_vector(LAV)
         #Compute bisector intersections and maintain Priority Queue of Edge Events
-        PQ = self.compute_edge_events_of_polygon(LAV)
-        
+        PQ = self.compute_edge_events_of_polygon(LAV,[])
+        print 'initialization complete'
+        print ''
         #Main skeleton algorithm
-        while len(PQ) > 0.1:
+        while len(PQ) > 0:
+            print 'lenpq', len(PQ)
             edge_event = heapq.heappop(PQ)
-            if edge_event.node_A.vertex
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
-            skeleton_arc = edge_event.int_arc
-            #debug.append(edge_event.int_arc)  
-            #debug.append(edge_event.int_vertex)
-            print 'PQ length:', len(PQ)
-        """
+            
+            #If not processed this edge will shrink to zero edge
+            if edge_event.node_A.data.is_processed and edge_event.node_A.data.is_processed:
+                continue
+            
+            Vc_I_arc = None
+            #Check for peak of the roof event
+            if edge_event.node_A.prev.prev is edge_event.node_B:
+                Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_A.prev.data.vertex,edge_event.int_vertex])
+                Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_A.data.vertex,edge_event.int_vertex])
+                Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_B.data.vertex,edge_event.int_vertex])
+                debug.append(Va_I_arc)
+                debug.append(Vb_I_arc)
+                if Vc_I_arc: debug.append(Vc_I_arc)  
+                continue
+            Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_A.data.vertex,edge_event.int_vertex])
+            Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_B.data.vertex,edge_event.int_vertex])
+            debug.append(Va_I_arc)
+            debug.append(Vb_I_arc)
+                
+            #Modify the list of active vertices/nodes
+            #Mark as processed
+            edge_event.node_A.data.is_processed = True
+            edge_event.node_B.data.is_processed = True
+            
+            #Create new vertex
+            new_prev_edge = edge_event.node_A.data.edge_prev
+            new_next_edge = edge_event.node_B.data.edge_next
+            int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
+            #Create new vertex node
+            V = DLLNode(int_vertex_obj)
+            
+            #Insert the new node into appropriate LAV
+            #LAV.insert(edge_event.node_A,V)
+            #replace this motherfucker
+            print '--'
+            curr_node = LAV.head
+            for i in xrange(LAV.size):
+                print curr_node.data.vertex
+                curr_node = curr_node.next
+            print '--'
+            print 'now we delete'
+            #debug.append(edge_event.node_A.data.vertex)
+            #debug.append(edge_event.node_B.data.vertex)
+            LAV.remove(edge_event.node_A)
+            LAV.remove(edge_event.node_B)
+            LAV.insert(edge_event.node_A.prev,V)
+            #print 'ref', V.data.vertex
+            print 'del', edge_event.node_A.data.vertex
+            print 'del', edge_event.node_B.data.vertex
+            print 'ins', V.data.vertex
+            print '--'
+            curr_node = LAV.head
+            for i in xrange(LAV.size):
+                print curr_node.data.vertex
+                curr_node = curr_node.next
+            
+            #print '---'
+            #Now compute bisector and edge event for new V node
+            V_index = LAV.get_node_index(V)
+            print 'index', V_index
+            #print LAV[V_index].data.vertex 
+            
+            LAV = self.compute_interior_bisector_vector(LAV,angle_index=V_index)
+            PQ = self.compute_edge_events_of_polygon(LAV,PQ,angle_index=V_index)
+              
+            
         #if i == 0:
         #    crv = self.bottom_crv
         #    sharp = rc.Geometry.CurveOffsetCornerStyle.Sharp
