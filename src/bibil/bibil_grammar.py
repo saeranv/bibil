@@ -40,13 +40,15 @@ class Grammar:
         rule_stack = map(lambda n: n.grammar.type['grammar_key'],rule_stack)
         return rule_stack
     def dispose_geom(self,node):
+        pass
+        """
         if not node.grammar.type['dispose'] and len(node.loc)>0.5:
             node.grammar.type['dispose']=True
             del node.shape.geom
             del node.shape.bbpts
             node.shape.geom = None
             node.shape.bbpts = None
-            
+        """ 
     def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
@@ -318,10 +320,10 @@ class Grammar:
 
         #Get data if not geometry
         IsSelf = True if sb_ref[0] == -1 else False
-
         sbg_type = self.helper_get_type(sb_ref[0])
         if sbg_type != "geometry":
             sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
+            #print sb_node_ref, sb_ref[0]
             #debug.append(sb_node_ref.shape.geom)
             axis_matrix = sb_node_ref.shape.set_base_matrix()
             line_lst = []
@@ -329,21 +331,21 @@ class Grammar:
                 line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
                 line_lst.append(line)
             sb_ref = line_lst
-
-        #Add a check for street tolerance
-        if not tnode.grammar.type.has_key('street_tolerance_curve'):
-            tnode.grammar.type['street_tolerance_curve'] = []
-        for i in xrange(len(sb_ref)):
-            sbrefline = sb_ref[i]
-            perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol)
-            streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
-            tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
-            IsIntersect = tnode.shape.check_region(streetoffcrv)
-            if self.is_near_zero(IsIntersect):
-                return tnode
+        
+        #Add a check for street tolerance if geometry
+        if sbg_type == "geometry":
+            if not tnode.grammar.type.has_key('street_tolerance_curve'):
+                tnode.grammar.type['street_tolerance_curve'] = []
+            for i in xrange(len(sb_ref)):
+                sbrefline = sb_ref[i]
+                perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol)
+                streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
+                tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
+                IsIntersect = tnode.shape.check_region(streetoffcrv)
+                if self.is_near_zero(IsIntersect):
+                    return tnode
 
         ## Loop through the height,setback tuples
-        
         #rename tnode
         node2cut = tnode
         for sb_index in xrange(len(sb_data)):
@@ -391,13 +393,19 @@ class Grammar:
                     matrix = map(lambda ptlst:map(lambda pt:rc.Geometry.Point3d(pt[0],pt[1],ht),ptlst),matrix)
                     ref_edge = matrix
                     #debug.extend(reduce(lambda x,y:x+y,matrix))
-                else:##need to rethink this
+                elif sbg_type == "geometry":##need to rethink this
                     ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=sb_dist_tol,angle_tol=sb_ref_tol,to_front=not sb_dir)
-                #ref_edge = sb_ref
+                else:
+                    ref_edge = sb_ref
+                    
                 for sbg in ref_edge:
                     cut_geom = None
-                    sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
-                    #debug.append(sbref_crv)
+                    if type([])==type(sbg):
+                        sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
+                    else:
+                        sbg = rs.MoveObject(sc.doc.Objects.AddCurve(sbg),[0,0,ht])
+                        sbg = rs.coercecurve(sbg)
+                        sbref_crv = sbg
                     try:
                         cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                             split_depth=float(dist*2.),split_line_ref=sbref_crv)
