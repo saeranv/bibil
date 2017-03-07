@@ -1103,12 +1103,12 @@ class Shape:
         print ''
         #Main skeleton algorithm
         while len(PQ) > 0:
-            print 'lenpq', len(PQ)
+            print 'len_pq', len(PQ)
             edge_event = heapq.heappop(PQ)
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
             
             #If not processed this edge will shrink to zero edge
-            if edge_event.node_A.data.is_processed and edge_event.node_A.data.is_processed:
+            if edge_event.node_A.data.is_processed and edge_event.node_B.data.is_processed:
                 continue
             
             Vc_I_arc = None
