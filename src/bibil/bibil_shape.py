@@ -1103,7 +1103,6 @@ class Shape:
             int_prev = self.extend_ray_to_line(prev_ray,curr_line)
             int_next = self.extend_ray_to_line(next_ray,curr_line)
             
-            
             ##--- Debug ---##
             if cchk==-1:#cchk==None and i==3: 
                 pdt,g1 = distline2pt(curr_node.prev.data.vertex,curr_node.data.vertex,int_prev.PointAtEnd)
@@ -1158,21 +1157,22 @@ class Shape:
         PQ,minev = self.compute_edge_events_of_polygon(LAV,[])
         print 'initialization complete'
         print ''
-        #Main skeleton algorithm
         
+        #Main skeleton algorithm
         ##--- Debug ---##
-        print len(PQ)
-        count = 0
-        create_geom = False
+        print 'length: ', len(PQ)
+        count=0
+        create_geom = True
         ##--- Debug ---##
         
         while len(PQ) > 0:#count<=2:#
+            print 'count: ', count
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
             edge_event = heapq.heappop(PQ)[1]
             
             #If not processed this edge will shrink to zero edge
             if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
-                count += 1
+                count+=1
                 continue
             
             Vc_I_arc = None
@@ -1223,7 +1223,7 @@ class Shape:
             edge_event.node_B.data.is_processed = True 
             
             ##--- Debug ---##
-            if count == -2:
+            if count==-2:
                 curr_node = LAV.head
                 LLL=[]
                 for i in xrange(LAV.size):
