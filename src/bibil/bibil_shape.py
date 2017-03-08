@@ -49,28 +49,7 @@ class DoubleLinkedList(object):
         #Now complete circle
         self.head.prev = self.tail
         self.tail.next = self.head 
-        self.size += 1
-    def insert(self,anchor_node,new_node):
-        new_node.next = anchor_node.next
-        new_node.prev = anchor_node
-        anchor_node.next.prev = new_node
-        anchor_node.next = new_node
-        self.size += 1
-    def remove(self,remove_node):
-        curr_node = self.head
-        i = 0
-        while i < self.size:
-            if curr_node is remove_node:
-                prev_node = curr_node.prev
-                next_node = curr_node.next
-                if curr_node is self.head:
-                    self.head = next_node
-                    self.tail = prev_node
-                prev_node.next = next_node
-                next_node.prev = prev_node
-            curr_node = curr_node.next
-            i += 1
-        self.size -= 1     
+        self.size += 1    
     def __getitem__(self, i):
         #Worst case O(n) time. Don't use if not neccessary
         curr_node = self.head
@@ -1043,30 +1022,56 @@ class Shape:
         return LAV
     def compute_edge_events_of_polygon(self,LAV,PQ,angle_index=False,cchk=None):
         def distline2pt(v,w,p):
-            # Return minimum distance between line segment vw and point p
+            ##This algorithm returns the minimum distance between 
+            ##line segment vw and point p
+            ##Modified from http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+            ##This is the explaination from stackoverflow for ref:
+            ##Consider the line extending the segment, parameterized as v + t (w - v).
+            ##We find projection of point p onto the line. 
+            ##It falls where t = [(p-v) . (w-v)] / |w-v|^2
+            ##We clamp t from [0,1] to handle points outside the segment vw.
+            
+            ##Convert to rc geometry
             v = rc.Geometry.Vector3d(v)
             w = rc.Geometry.Vector3d(w)
             p = rc.Geometry.Vector3d(p)
+            
+            ##Create dir vectors for line and point
             wv = w-v
             pv = p-v
-             
-            lsq = wv.SquareLength  # i.e. |w-v|^2 -  avoid a sqrt
+            
+            ##Calculate |w-v|^2 w/o costly sqrt
+            lsq = wv.SquareLength     
+            # Check for zero line segment case: v == w
             if self.is_near_zero(lsq):
-                # v == w case
-                print 'zero length'
                 return pv.Length
-            # Consider the line extending the segment, parameterized as v + t (w - v).
-            # We find projection of point p onto the line. 
-            # It falls where t = [(p-v) . (w-v)] / |w-v|^2
-            # We clamp t from [0,1] to handle points outside the segment vw.
-            dotprod = pv * wv
-            t = max(0., min(1.,dotprod/lsq))
-            projection = v + (t * wv)  #Projection falls on the segment
-            perpvector = projection-p
-            perpgeom = rs.AddLine(projection,p)
+            
+            ##ProjectionPVonWV = (w-v)/|w-v| * (w-v)/|w-v| * (p-v)
+            ##simplfiied = projpv = (w-v) * ((p-v) * (w-v))/|w-v|^2
+            ##Then: projpv - p == perpendicular line
+            
+            ##clamp_to_line: ((p-v) * (w-v))/|w-v|^2
+            ##(w-v): wv
+            ##projpv = clamp_to_line * wv 
+            clamp_to_line = (pv * wv)/lsq
+            
+            ##This is to handle points outside line segment. They will have
+            ##obtuse angle so costheta < 0. in that case will clamp_to_line factor == 0.
+            ##therefore if obtuse, clamp_to_line turns projpv into a zero vector and
+            ##and will return (non perpendicular) distance from point v to p.
+            clamp_to_line = max(0., min(1.,clamp_to_line))
+            projpv = clamp_to_line * wv
+            
+            ##Instead of simply subtracting projpv-p, we first add it to v
+            ##and then subtract it from p
+            ##This is so that if p is outside of line segment, then projpv = 0 vector, so
+            ##v - p will be our minimum distance.
+            perpvector = (v + projpv) - p
+            
+            ##Return values
+            perpgeom = rs.AddLine(projpv,p)
             perpline = rs.AddLine(v,w)
             perppt = rc.Geometry.Point3d(p)
-            print 'perplen', perpvector.Length
             return perpvector.Length, (perpgeom,perpline,perppt)
         
         debug = sc.sticky['debug']
@@ -1088,7 +1093,7 @@ class Shape:
             curr_ray = curr_node.data.bisector_ray
             prev_ray = curr_node.prev.data.bisector_ray
             next_ray = curr_node.next.data.bisector_ray
-            #print next_ray
+            
             #Get intersection
             p_start = curr_ray[0] + (curr_ray[1]*-1) * linedim
             p_end = curr_ray[0]+curr_ray[1]*linedim
@@ -1098,72 +1103,42 @@ class Shape:
             int_prev = self.extend_ray_to_line(prev_ray,curr_line)
             int_next = self.extend_ray_to_line(next_ray,curr_line)
             
-            if cchk==None and i==0: 
+            
+            ##--- Debug ---##
+            if cchk==-1:#cchk==None and i==3: 
                 pdt,g1 = distline2pt(curr_node.prev.data.vertex,curr_node.data.vertex,int_prev.PointAtEnd)
                 ndt,g2 = distline2pt(curr_node.data.vertex,curr_node.next.data.vertex,int_next.PointAtEnd)
                 
                 debug.append(curr_line)
                 debug.append(curr_node.prev.data.vertex)
                 debug.append(curr_node.data.vertex)
+                #debug.append(curr_ray[0]+curr_ray[1]*5)
                 debug.append(curr_node.next.data.vertex)
-                
-                debug.append(g1[0])#proj
+                #debug.append(g1[0])#proj
                 debug.append(g1[1])#line
                 debug.append(g1[2])#pt
-                debug.append(g2[0])#proj
+                #debug.append(g2[0])#proj
                 debug.append(g2[1])#line
                 debug.append(g2[2])#pt
+            ##--- Debug ---##
                 
             event_tuple = [] 
-            ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):    
-            A,B = None,None
+            ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):        
             if int_prev != None:
                 #Calculate distance to edge 
-                pa = Point2(curr_node.prev.data.vertex.X,curr_node.prev.data.vertex.Y)
-                pb = Point2(curr_node.data.vertex.X,curr_node.data.vertex.Y)
-                #print isinstance(pa,Point2)
-                A = LineSegment2(pa,pb)
-                pi_ab = Point2(int_prev.PointAtEnd.X,int_prev.PointAtEnd.Y)
-                A = A.distance(pi_ab)
-                
-                #print 'asf', A.distance(Point2(int_prev.PointAtEnd.X,int_prev.PointAtEnd.Y))
-                #print 'asg', int_prev.GetLength()
-                #def __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
                 prevdist,g = distline2pt(curr_node.prev.data.vertex,curr_node.data.vertex,int_prev.PointAtEnd)
-                #print 'prevdist', prevdist
-                #print 'A', A
                 prev_edge_event = EdgeEvent(int_prev.PointAtEnd,int_prev,curr_node.prev,curr_node,prevdist,curr_node)#int_prev.GetLength(),curr_node)
                 event_tuple.append(prev_edge_event)
             if int_next != None:
                 #Calculate distance to edge 
-                pan = Point2(curr_node.data.vertex.X,curr_node.data.vertex.Y)
-                pbn = Point2(curr_node.next.data.vertex.X,curr_node.next.data.vertex.Y)
-                #print isinstance(pa,Point2)
-                B = LineSegment2(pan,pbn)
-                pi_ba = Point2(int_next.PointAtEnd.X,int_next.PointAtEnd.Y)
-                B = B.distance(pi_ba)
-                #def __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
                 nextdist,g = distline2pt(curr_node.data.vertex,curr_node.next.data.vertex,int_next.PointAtEnd)
-                #print 'nextdist', nextdist
-                #print 'B', B
-                
                 next_edge_event = EdgeEvent(int_next.PointAtEnd,int_next,curr_node,curr_node.next,nextdist,curr_node)#int_next.GetLength(),curr_node)
                 event_tuple.append(next_edge_event)
             if event_tuple:
                 min_event = min(event_tuple, key=lambda e: e.length2edge)
-                #if cchk==0:
-                #    min_event = max(event_tuple, key=lambda e: e.length2edge)
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
-                print 'new minedge', min_event.length2edge
                 if angle_index:
                     debug_minev = min_event
-                #if A and B:
-                #    print A,B
-                #    print event_tuple[0].length2edge
-                #    print event_tuple[1].length2edge
-            #debug.append(curr_ray[0])
-            #debug.append(curr_ray[0] + curr_ray[1]*20.)
-            #debug.extend([curr_line])
         return PQ, debug_minev
     
     def compute_straight_skeleton(self):
@@ -1173,9 +1148,8 @@ class Shape:
         #thats how we can transition to HB
         
         ##Initialization
-        #1a. Organize given vertices into LAV in SLAV
+        #Organize given vertices into LAV in SLAV
         #LAV: doubly linked list (DLL).
-        print 'start'
         #Initialize List of Active Vertices as Double Linked List
         LAV = self.convert_shape_to_circular_double_linked_list()
         #Compute the vertex angle bisector (ray) bi
@@ -1185,27 +1159,19 @@ class Shape:
         print 'initialization complete'
         print ''
         #Main skeleton algorithm
+        
+        ##--- Debug ---##
         print len(PQ)
         count = 0
         create_geom = False
+        ##--- Debug ---##
+        
         while len(PQ) > 0:#count<=2:#
-            print " Count:", count
-            edge_event = heapq.heappop(PQ)[1]
-            print 'chk dist', edge_event.length2edge
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
-            
-            print 'a or b processed?'
-            print edge_event.node_B.data.is_processed
-            print edge_event.node_A.data.is_processed
+            edge_event = heapq.heappop(PQ)[1]
             
             #If not processed this edge will shrink to zero edge
             if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
-                print 'already processed', count
-                if count==-1:
-                    pass
-                    #debug.append(edge_event.node_A.data.vertex)
-                    #debug.append(edge_event.node_B.data.vertex)
-                    #debug.append(edge_event.int_vertex)
                 count += 1
                 continue
             
@@ -1218,46 +1184,45 @@ class Shape:
                 if create_geom:
                     debug.append(Va_I_arc)
                     debug.append(Vb_I_arc)
-                #debug.append(edge_event.node_A.data.vertex)
-                #debug.append(edge_event.node_B.data.vertex)
-                #debug.append(edge_event.int_vertex)
                 if create_geom and Vc_I_arc: debug.append(Vc_I_arc)  
-                print 'peak', count
-                """
-                if count == -2:
-                    curr_node = LAV.head
-                    LLL=[]
-                    for i in xrange(LAV.size):
-                        LLL.append(curr_node.data.vertex)
-                        curr_node = curr_node.next
-                    LLL += [LLL[0]]
-                    crv__ = Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve(LLL,1)
-                    debug.append(crv__)
-                    debug.extend(LLL)
-                    #print '---'
-                """
+                
                 edge_event.node_A.data.is_processed = True
                 edge_event.node_B.data.is_processed = True
                 count += 1
                 continue
+            
             Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_A.data.vertex,edge_event.int_vertex])
             Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_B.data.vertex,edge_event.int_vertex])
             if create_geom:
                 debug.append(Va_I_arc)
                 debug.append(Vb_I_arc)
                 
-            #Modify the list of active vertices/nodes
+            #Modify the list of active vertices/nodes   
+            new_prev_edge = edge_event.node_A.data.edge_prev
+            new_next_edge = edge_event.node_B.data.edge_next
+            #Create new vertex node
+            int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
+            V = DLLNode(int_vertex_obj)
+            
+            #Swap node_A, node_B w/ V
+            #This would be better as remove/insert function in DLL class
+            edge_event.node_A.prev.next = V
+            edge_event.node_B.next.prev = V
+            V.prev = edge_event.node_A.prev
+            V.next = edge_event.node_B.next
+                
+            #change the head for node_A, node_B
+            chkhead = LAV.head in (edge_event.node_A,edge_event.node_B)
+            chktail = LAV.tail in (edge_event.node_A,edge_event.node_B)
+            if chkhead or chktail:
+                LAV.head = V
+                LAV.tail = V.prev
+            
             #Mark as processed
             edge_event.node_A.data.is_processed = True
             edge_event.node_B.data.is_processed = True 
-            #Create new vertex
-            new_prev_edge = edge_event.node_A.data.edge_prev
-            new_next_edge = edge_event.node_B.data.edge_next
-            int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
-            #Create new vertex node
-            V = DLLNode(int_vertex_obj)
             
-            """
+            ##--- Debug ---##
             if count == -2:
                 curr_node = LAV.head
                 LLL=[]
@@ -1269,42 +1234,14 @@ class Shape:
                 debug.append(crv__)
                 debug.extend(LLL)
                 #print '---'
-            """
-            #Insert the new node into appropriate LAV
-            #LAV.insert(edge_event.node_A,V)
-            #replace this motherfucker
-            #print '--'
-            #curr_node = LAV.head
-            #for i in xrange(LAV.size):
-            #    print curr_node.data.vertex
-            #    curr_node = curr_node.next
-            #print '--'
-            #print 'now we delete'
-            #debug.append(edge_event.node_A.data.vertex)
-            #debug.append(edge_event.node_B.data.vertex)
-            LAV.remove(edge_event.node_A)
-            LAV.remove(edge_event.node_B)
-            LAV.insert(edge_event.node_A.prev,V)
-            
-            #change the head for node_A, node_B
-            if LAV.head in (edge_event.node_A,edge_event.node_B):
-                LAV.head = V
-            
-            #print 'ref', V.data.vertex
-            #print 'del', edge_event.node_A.data.vertex
-            #print 'del', edge_event.node_B.data.vertex
-            #print 'ins', V.data.vertex
-            #print '--'
+            ##--- Debug ---##
             
             #Now compute bisector and edge event for new V node
             V_index = LAV.get_node_index(V)
-            #print 'index', V_index
-            #print LAV[V_index].data.vertex 
-            
             LAV = self.compute_interior_bisector_vector(LAV,angle_index=V_index)
             PQ,minev = self.compute_edge_events_of_polygon(LAV,PQ,angle_index=V_index,cchk=count)
             
-            print "curr_edge", edge_event.length2edge
+            ##--- Debug ---##
             if count==-1:
                 #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
                 #debug.append(edge_event.node_A.data.vertex)
@@ -1319,6 +1256,8 @@ class Shape:
                 #debug.append(V.node_A.data.vertex)
                 #debug.append(V.node_B.data.vertex)
                 if V: print 'length2edged', V.length2edge
+            ##--- Debug ---##
+            
             count += 1  
             print '--'
         #if i == 0:
@@ -1327,8 +1266,6 @@ class Shape:
         #    crvlst = crv.Offset(self.cpt, self.normal, 15.8, 0.0001,sharp)
         #    print crvlst
         #    debug.extend(crvlst)
-        
-        print '--'
         
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
