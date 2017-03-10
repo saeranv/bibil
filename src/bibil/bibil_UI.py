@@ -12,7 +12,6 @@ from Grasshopper import DataTree
 
 node_in = filter(lambda n:n!=None,node_in)
 if run and node_in != []:
-    node_in = filter(lambda n: n!=None,node_in)
     if rule_in.BranchCount < 0.5:
         rule_in = DataTree[object]()
         rule_ = []

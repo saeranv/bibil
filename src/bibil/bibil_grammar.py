@@ -769,11 +769,11 @@ class Grammar:
         y_keep_omit = PD_['y_keep_omit']
         #Check collision detection
         add_collision = PD_['add_collision']
-
+        
         #Parse the data
         x_keep_omit = map(lambda s: float(s), x_keep_omit.split(','))
         y_keep_omit = map(lambda s: float(s), y_keep_omit.split(','))
-
+        
         temp_node_topo = temp_node_#copy.deepcopy(sep_ref_node)
 
         ## Get normal to exterior srf
@@ -796,7 +796,7 @@ class Grammar:
             del omit
 
         temp_node_topo.loc = []
-
+        
         if shapes2keep:
             #Flatten tree
             temp_node_topo = self.flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep",empty_parent=True)
@@ -807,7 +807,11 @@ class Grammar:
                 sc.sticky['GLOBAL_COLLISION_LIST'] = []
             if add_collision != []:
                 sc.sticky['GLOBAL_COLLISION_LIST'].extend(add_collision)
-
+            
+            #This needs a rewrite.
+            sc.sticky['GLOBAL_COLLISION_LIST'] = []
+            #print 'GLOBAL_COLLISION', sc.sticky['GLOBAL_COLLISION_LIST']
+            
             offset_dist = x_keep_omit[1]
             seperate_tol = 0.5
             # Check shape separation
@@ -842,7 +846,7 @@ class Grammar:
         #temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
         if temp_node_topo.loc == []:
             temp_node_topo.grammar.type['freeze'] = True
-
+        print 'freeze?', temp_node_topo.grammar.type['freeze']
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):

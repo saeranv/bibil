@@ -12,11 +12,6 @@ import scriptcontext as sc
 from itertools import cycle
 import heapq
 
-Point2 = sc.sticky["Point2"]
-LineSegment2 = sc.sticky["LineSegment2"]
-Geometry = sc.sticky["Geometry"]
-Line2 = sc.sticky["Line2"]
-
 TOL = sc.doc.ModelAbsoluteTolerance
 
 class DoubleLinkedList(object):
@@ -1103,10 +1098,16 @@ class Shape:
             int_prev = self.extend_ray_to_line(prev_ray,curr_line)
             int_next = self.extend_ray_to_line(next_ray,curr_line)
             
+            #Get prev/next edges for distance check
+            #DO NOT USE THE POINTERS TO PREV/NEXT NODES
+            
+            pn1,pn2 = curr_node.data.edge_prev[0],curr_node.data.edge_prev[1]
+            nn1,nn2 = curr_node.data.edge_next[0],curr_node.data.edge_next[1]
+            
             ##--- Debug ---##
             if cchk==-1:#cchk==None and i==3: 
-                pdt,g1 = distline2pt(curr_node.prev.data.vertex,curr_node.data.vertex,int_prev.PointAtEnd)
-                ndt,g2 = distline2pt(curr_node.data.vertex,curr_node.next.data.vertex,int_next.PointAtEnd)
+                pdt,g1 = distline2pt(pn1,pn2,int_prev.PointAtEnd)
+                ndt,g2 = distline2pt(nn1,nn2,int_next.PointAtEnd)
                 
                 debug.append(curr_line)
                 debug.append(curr_node.prev.data.vertex)
@@ -1125,12 +1126,12 @@ class Shape:
             ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):        
             if int_prev != None:
                 #Calculate distance to edge 
-                prevdist,g = distline2pt(curr_node.prev.data.vertex,curr_node.data.vertex,int_prev.PointAtEnd)
+                prevdist,g = distline2pt(pn1,pn2,int_prev.PointAtEnd)
                 prev_edge_event = EdgeEvent(int_prev.PointAtEnd,int_prev,curr_node.prev,curr_node,prevdist,curr_node)#int_prev.GetLength(),curr_node)
                 event_tuple.append(prev_edge_event)
             if int_next != None:
                 #Calculate distance to edge 
-                nextdist,g = distline2pt(curr_node.data.vertex,curr_node.next.data.vertex,int_next.PointAtEnd)
+                nextdist,g = distline2pt(nn1,nn2,int_next.PointAtEnd)
                 next_edge_event = EdgeEvent(int_next.PointAtEnd,int_next,curr_node,curr_node.next,nextdist,curr_node)#int_next.GetLength(),curr_node)
                 event_tuple.append(next_edge_event)
             if event_tuple:
