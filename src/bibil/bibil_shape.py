@@ -313,6 +313,8 @@ class Shape:
             return split_line_, split_surf_
 
         rs.EnableRedraw(False)
+        lst_child = []
+        IsValidCut = True
         split_line,split_surf = helper_get_split_line_surf(ratio,axis,deg,split_line_ref)
         #debug.append(split_surf)
         try:#if True:
@@ -331,7 +333,9 @@ class Shape:
                 nc = split_line.ToNurbsCurve()
                 end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
                 dir_vector = end_pts[1] - end_pts[0]
-                z_vector = rs.VectorCreate([0,0,0],[0,0,1])
+                
+                z_vector = copy.copy(self.normal)
+                z_vector.Reverse()
                 # create forward and backwards vector using crossproduct
                 normal_f = rs.VectorCrossProduct(dir_vector,z_vector)
                 normal_b = rs.VectorCrossProduct(z_vector,dir_vector)
@@ -340,25 +344,53 @@ class Shape:
 
                 normal_f.Unitize()
                 normal_b.Unitize()
+                normal_b_copy = copy.copy(normal_b)
                 normal_b = map(lambda v: v*split_depth/2.,normal_b)
 
                 c = rs.AddCurve([rs.AddPoint(0,0,0),rs.AddPoint(normal_f[0],normal_f[1],normal_f[2])],0)
                 c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
                 rc_cut = rs.ExtrudeSurface(split_surf,c)
                 rc_cut = rs.MoveObject(rc_cut,normal_b)
-                #debug.append(rc_cut)
-                #debug.append(split_surf)
-                lst_child = []
-                rc_geom,rc_cut = rs.coercebrep(self.geom),rs.coercebrep(rc_cut)
-                #ghcomp.Flip(rc_cut,sc.sticky['surface_ref'])[0]
-                geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
-                lst_child.extend(geom_childs)
-                del rc_cut
-                del nc
+                
+                #Check if split and srf is coplanar
+                IsCoPlanar = self.is_near_zero(split_line.PointAtStart[2] - self.cpt[2])
+                if IsCoPlanar:
+                    rc_cut = rs.MoveObject(rc_cut,z_vector * 0.1)
+                #Check region intersection
+                split_bottom_crv = self.get_bottom(rc_cut,split_line.PointAtStart)
+                if split_bottom_crv and self.bottom_crv:
+                    chk_region = self.check_region(split_bottom_crv,self.bottom_crv,realvalue=True,tol=0.01)
+                else:
+                    chk_region = 0
+                """
+                Disjoint    0    There is no common area between the two regions.
+                Intersect   1    The two curves intersect. There is therefore no full containment relationship either way.
+                AInsideB    2    Region bounded by curveA (first curve) is inside of curveB (second curve).
+                BInsideA    3    Region bounded by curveB (second curve) is inside of curveA (first curve).
+                """
+                #if not intersect
+                if self.is_near_zero(chk_region):
+                    IsValidCut = False
+                #if rc_geom is inside rc_cut
+                if abs(chk_region - 3.0)<0.01 and IsCoPlanar:     
+                    self.geom = None #no children, but also no parent
+                    IsValidCut = False
+                
+                if IsValidCut:    
+                    rc_geom,rc_cut = rs.coercebrep(self.geom),rs.coercebrep(rc_cut)
+                    #ghcomp.Flip(rc_cut,sc.sticky['surface_ref'])[0]
+                    geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
+                    if geom_childs:
+                        lst_child.extend(geom_childs)
+                    
+                else:
+                    lst_child = []
+                #del rc_cut
+                #del nc
                 #debug.extend(geom_childs)
-        except Exception as e:
+        except Exception as e1:
             print "Error @ shape.op_split while splitting"
-            print str(e)#, sys.traceback.tb_lineno
+            print str(e1)#, sys.traceback.tb_lineno
 
         ## Clean up or rearrange or cap the split child geometries
         try:
@@ -471,7 +503,7 @@ class Shape:
         return id
     def is_near_zero(self,num,eps=1E-10):
         return abs(float(num)) < eps
-    def check_region(self,crvA,crvB=None,tol=0.1):
+    def check_region(self,crvA,crvB=None,realvalue=False,tol=0.1):
             """
             If disjoint, output 0 else returns 1.
             Disjoint    0    There is no common area between the two regions.
@@ -481,6 +513,8 @@ class Shape:
             """
             disjoint = rc.Geometry.RegionContainment.Disjoint
             intersect = rc.Geometry.RegionContainment.MutualIntersection
+            AInsideB = rc.Geometry.RegionContainment.AInsideB
+            BInsideA = rc.Geometry.RegionContainment.BInsideA
             #add the rest
             if crvB == None:
                 crvB = self.bottom_crv
@@ -489,13 +523,24 @@ class Shape:
             if self.is_guid(crvA):
                 crvA = rs.coercecurve(crvA)
             refplane = self.cplane
-            setrel = rc.Geometry.Curve.PlanarClosedCurveRelationship (crvA,crvB,refplane,tol)
-            if disjoint == setrel:
+            try:
+                setrel = rc.Geometry.Curve.PlanarClosedCurveRelationship(crvA,crvB,refplane,tol)
+            except Exception as e:
+                print "Error @ shape.check_region"
+                print str(e)#, sys.traceback.tb_lineno
                 return 0
-            elif intersect == setrel:
-                return 2
+            if realvalue==True:
+                if disjoint==setrel: return 0
+                elif intersect==setrel:return 1
+                elif AInsideB==setrel:return 2
+                else: return 3
             else:
-                return 1
+                if disjoint == setrel:
+                    return 0
+                elif intersect == setrel:
+                    return 2
+                else:
+                    return 1
     def get_normal_point_inwards(self,refline_,to_outside=False):
         ## Input a reference line or points and self.shape.polygon
         ## Returns the normal vector pointing
@@ -883,7 +928,7 @@ class Shape:
             line = self.get_endpt4line(ref_edge)
             int_pt = self.intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
             #debug.append(m)
-
+            
             if int_pt:
                 int_pt = int_pt[0]
                 ray2geom = rc.Geometry.Ray3d(int_pt,normal2steprefline*-1)
@@ -977,6 +1022,7 @@ class Shape:
     def compute_interior_bisector_vector(self,LAV,angle_index=False):
         #Computes interior bisector ray for all vertices in LAV
         #If single_angle_index == index, will only check that vertice
+        debug = sc.sticky['debug']
         for i in xrange(LAV.size):
             curr_node = LAV[i]
             if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
@@ -999,6 +1045,7 @@ class Shape:
             
             if inrad > math.pi:
                 curr_node.data.is_reflex = True
+                debug.append(curr_node.data.vertex)
                 
             #Flip the cross prod if dotprod gave outer angle
             if self.is_near_zero(abs(inrad - dotrad)):
@@ -1014,6 +1061,8 @@ class Shape:
             ray_dir = dir_next
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
+            
+            
         return LAV
     def compute_edge_events_of_polygon(self,LAV,PQ,angle_index=False,cchk=None):
         def distline2pt(v,w,p):

@@ -39,16 +39,6 @@ class Grammar:
         rule_stack = node.backtrack_tree(lambda n:n,accumulate=True)
         rule_stack = map(lambda n: n.grammar.type['grammar_key'],rule_stack)
         return rule_stack
-    def dispose_geom(self,node):
-        pass
-        """
-        if not node.grammar.type['dispose'] and len(node.loc)>0.5:
-            node.grammar.type['dispose']=True
-            del node.shape.geom
-            del node.shape.bbpts
-            node.shape.geom = None
-            node.shape.bbpts = None
-        """ 
     def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
         def helper_curve2srf(geom_):
             #check if not guid and is a curve
@@ -294,9 +284,8 @@ class Grammar:
         sb_dist_tol = PD_['stepback_tol']
         if sb_dist_tol == None: sb_dist_tol = 10.0
         sb_ref_tol = 15.0
-
         S = Shape()
-
+        
         #Clean/Define the Inputs
 
         ##sb_data: [(height,distance),(height,distance)...]     :
@@ -341,19 +330,22 @@ class Grammar:
                 perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol)
                 streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
                 tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
-                IsIntersect = tnode.shape.check_region(streetoffcrv)
-                if self.is_near_zero(IsIntersect):
-                    return tnode
+                #IsIntersect = tnode.shape.check_region(streetoffcrv)
+                #print IsIntersect
+                #if self.is_near_zero(IsIntersect):
+                #    return tnode
 
         ## Loop through the height,setback tuples
         #rename tnode
         node2cut = tnode
+        
+        #Loop through the stepback dimensions
         for sb_index in xrange(len(sb_data)):
             sbd = sb_data[sb_index]
             ht, dist = sbd[0], sbd[1]
 
             IsHighEnough = ht < node2cut.shape.ht
-
+            
             if IsHighEnough and sb_random:
                 if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
                     ht += random.randrange(randht_lo,randht_hi)
@@ -397,26 +389,42 @@ class Grammar:
                     ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=sb_dist_tol,angle_tol=sb_ref_tol,to_front=not sb_dir)
                 else:
                     ref_edge = sb_ref
-                    
+                
+                #loop through steback-data-applied ref edges and cut the input geometry
                 for sbg in ref_edge:
                     cut_geom = None
+                    #if self.is_near_zero(ht):
+                        
                     if type([])==type(sbg):
                         sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
                     else:
                         sbg = rs.MoveObject(sc.doc.Objects.AddCurve(sbg),[0,0,ht])
                         sbg = rs.coercecurve(sbg)
                         sbref_crv = sbg
+                    
+                    #Doesn't work for some reason!!S
+                    #ptend,ptstart = copy.copy(sbref_crv.PointAtEnd),copy.copy(sbref_crv.PointAtStart)
+                    #ptend.Z,ptstart.Z = 0.,0.
+                    #chkcrv = rc.Geometry.Curve.CreateControlPointCurve([ptend,ptstart],0)
+                    #Check if refedge interesects the input geometry
+                    #intcrv = rc.Geometry.Intersect.Intersection.CurveCurve(sh_top_node.shape.bottom_crv,chkcrv,0.01,0.01)
+                    #if self.is_near_zero(intcrv.Count):
                     try:
                         cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                             split_depth=float(dist*2.),split_line_ref=sbref_crv)
                     except:
                         pass
+                    #print len(cut_geom)
+                    #print '--'
                     if cut_geom:
+                        IsCut = True
                         sh_top_node.shape.geom = cut_geom[0]
                         sh_top_node.shape.reset(xy_change=True)
                 node2cut = sh_top_node
+                    
             else:
                 break
+        
         return tnode
     def transform(self,temp_node_,PD_):
         debug = sc.sticky['debug']
@@ -568,7 +576,7 @@ class Grammar:
                     #print child_node.shape.y_dist
                     if child_node: node_.loc.append(child_node)
                 
-                node_.grammar.dispose_geom(node_)
+                #node_.grammar.dispose_geom(node_)
                 
                 #print loc
                 #print '----'
@@ -850,20 +858,27 @@ class Grammar:
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
-            pt = n_.shape.cpt
-            if pt==None:
-                debug.append(n_.shape.geom)
-
-            refpt = rs.AddPoint(pt[0],pt[1],ht_)
-            topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
-            childn = self.helper_geom2node(topcrv,n_,'extracted_slice')
-            #debug.append(topcrv)
-            ##this should be an automatic check in helpergeom2node or clonenodes
-            #childn.grammar.type['top'] = True
-            #lst_top_nodes = n_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
-            ##
-            #for tn in lst_top_nodes: tn.grammar.type['top'] = None
-            n_.loc.append(childn)
+            childn = None
+            try:
+                refpt = copy.copy(n_.shape.cpt)
+                refpt.Z = ht_
+                #refpt = rs.AddPoint(pt[0],pt[1],ht_)
+                topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
+                #print 'topcrv', topcrv
+                if not topcrv:
+                    refpt.Z = ht_ - 0.1
+                    topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
+                #debug.append(topcrv)
+                childn = self.helper_geom2node(topcrv,n_,'extracted_slice')
+                #debug.append(topcrv)
+                ##this should be an automatic check in helpergeom2node or clonenodes
+                #childn.grammar.type['top'] = True
+                #lst_top_nodes = n_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
+                ##
+                #for tn in lst_top_nodes: tn.grammar.type['top'] = None
+                n_.loc.append(childn)
+            except:
+                pass
             return childn
         temp_node_.grammar.type['grammar'] = 'extract_slice'
         debug = sc.sticky['debug']
@@ -977,12 +992,13 @@ class Grammar:
             ht_type = self.helper_get_type(ht_ref)
             if ht_type != "geometry":
                 ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
-
+            
             #Check to make sure ref is not the same
             if abs(ht_ref.shape.ht-temp_node_.shape.ht)>1.0:
                 ht_w_ref = ht_ref.shape.ht - temp_node_.shape.ht
             else:
                 ht_w_ref = temp_node_.shape.ht
+            
             #Check if maxht is defined
             ht_copy = copy.copy(ht_)
             if ht_==True:
@@ -1182,6 +1198,16 @@ class Grammar:
                             midpt = curr_node_.shape.get_midpoint(line)
                             sc_ = 5,5,0
                             split_crv = rs.ScaleObject(split_crv,midpt,sc_)
+                            
+                            #Check if refedge interesects the input geometry
+                            #This is a huge time saver
+                            if self.is_near_zero(cut_width__):
+                                intcrv = rc.Geometry.Intersect.Intersection.CurveCurve(curr_node_.shape.bottom_crv,rs.coercecurve(split_crv),0.001,0.001)
+                                if self.is_near_zero(intcrv.Count):
+                                    #debug.append(rs.coercecurve(split_crv))
+                                    #debug.append(curr_node_.shape.bottom_crv)
+                                    continue
+                            
                             if True:#try:
                                 split_node_lst = []
                                 split_geoms = curr_node_.shape.op_split("NS",0.5,split_depth=cut_width__,split_line_ref=split_crv)
@@ -1194,8 +1220,8 @@ class Grammar:
                                     else:
                                         split_node_lst.append(split_node)
                                         split_crv = split_node.shape.bottom_crv
-                                        set_rel = curr_node_.shape.check_region(chk_offset,split_crv,tol=0.1)
-                                        if abs(set_rel-0.)<0.1:
+                                        set_rel = curr_node_.shape.check_region(chk_offset,split_crv,realvalue=True,tol=0.1)
+                                        if self.is_near_zero(set_rel):
                                             valid_node = split_node
                                         else:
                                             invalid_node = split_node
@@ -1206,7 +1232,7 @@ class Grammar:
                             valid_node_lst.append(valid_node)
                             matrice.pop(i)
                             break
-                    if matrice_max == True and abs(set_rel-2.)<0.1:
+                    if matrice_max == True and abs(set_rel-1.)<0.1:
                         #debug.append(curr_node_.shape.geom)
                         chk_offset_out = rootshape.op_offset_crv(width_-1.)
                         for sn in split_node_lst:
@@ -1237,7 +1263,10 @@ class Grammar:
                 #debug.append(curr_node.shape.geom)
                 L,diff = recurse_slice(curr_node,shape_matrix,[],None,0,0,cut_width_)
                 #debug.extend(map(lambda n:n.shape.geom,L))
-                #debug.append(diff.shape.geom)
+                offset = rs.coercecurve(offset)
+                IsInside = offset.Contains(diff.shape.cpt,diff.shape.cplane) == rc.Geometry.PointContainment.Inside
+                if IsInside:
+                    debug.append(diff.shape.geom)
                 #print diff
                 curr_node = self.flatten_node_tree_single_child(L,curr_node,grammar="courtslice")
 
@@ -1645,9 +1674,10 @@ class Grammar:
             ## Every rule mutates the node, or creates child nodes.
             ## If node create 'clone', new tree, new Grammar, link to same Shape
             child_node_ = helper_clone_node(node_)
-            ## Apply type to node that we will apply rule to
-            child_node_ = helper_type2node(child_node_,rule_in_)
-            child_node_lst_.append(child_node_)
+            if child_node_:
+                ## Apply type to node that we will apply rule to
+                child_node_ = helper_type2node(child_node_,rule_in_)
+                child_node_lst_.append(child_node_)
 
         ##Check how we apply the rules
         IsApply2Full = rule_in_.has_key('apply2list') and  rule_in_['apply2list'] == True
@@ -1722,13 +1752,11 @@ class Grammar:
         
         internal_nodes = temp_node.traverse_tree(lambda n:n,internal=True)
         #.backtrack_tree(lambda n:len(n.loc)>0.5,accumulate=True)
-        for in_node in internal_nodes:
-            in_node.grammar.dispose_geom(in_node)
+        #for in_node in internal_nodes:
+        #    in_node.grammar.dispose_geom(in_node)
         
         ## Finish
         return lst_childs
-    
-
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
             #Purpose: Extract rules from tree insert nest list of rule dictionaries
