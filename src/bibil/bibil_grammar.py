@@ -334,7 +334,7 @@ class Grammar:
                 #print IsIntersect
                 #if self.is_near_zero(IsIntersect):
                 #    return tnode
-
+        
         ## Loop through the height,setback tuples
         #rename tnode
         node2cut = tnode
@@ -402,13 +402,14 @@ class Grammar:
                         sbg = rs.coercecurve(sbg)
                         sbref_crv = sbg
                     
-                    #Doesn't work for some reason!!S
+                    #Doesn't work for some reason!!
                     #ptend,ptstart = copy.copy(sbref_crv.PointAtEnd),copy.copy(sbref_crv.PointAtStart)
                     #ptend.Z,ptstart.Z = 0.,0.
                     #chkcrv = rc.Geometry.Curve.CreateControlPointCurve([ptend,ptstart],0)
                     #Check if refedge interesects the input geometry
                     #intcrv = rc.Geometry.Intersect.Intersection.CurveCurve(sh_top_node.shape.bottom_crv,chkcrv,0.01,0.01)
                     #if self.is_near_zero(intcrv.Count):
+                    
                     try:
                         cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                             split_depth=float(dist*2.),split_line_ref=sbref_crv)
@@ -860,23 +861,16 @@ class Grammar:
         def extract_topo(n_,ht_):
             childn = None
             try:
+                #print 'test'
                 refpt = copy.copy(n_.shape.cpt)
-                refpt.Z = ht_
+                refpt.Z = ht_ - 1.0
                 #refpt = rs.AddPoint(pt[0],pt[1],ht_)
                 topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
-                #print 'topcrv', topcrv
-                if not topcrv:
-                    refpt.Z = ht_ - 0.1
-                    topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
-                #debug.append(topcrv)
-                childn = self.helper_geom2node(topcrv,n_,'extracted_slice')
-                #debug.append(topcrv)
-                ##this should be an automatic check in helpergeom2node or clonenodes
-                #childn.grammar.type['top'] = True
-                #lst_top_nodes = n_.backtrack_tree(lambda n:n.grammar.type['top'],accumulate=True)
-                ##
-                #for tn in lst_top_nodes: tn.grammar.type['top'] = None
+                topcrv=sc.doc.Objects.AddCurve(topcrv)
+                movetopcrv = n_.shape.move_geom(topcrv,rc.Geometry.Vector3d(0,0,1.))
+                childn = self.helper_geom2node(movetopcrv,n_,'extracted_slice')
                 n_.loc.append(childn)
+                #print '--'
             except:
                 pass
             return childn

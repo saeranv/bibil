@@ -935,7 +935,8 @@ class Shape:
                 #debug.append(int_pt)
                 #debug.append(int_pt + normal2steprefline*-10)
                 pt4front = rc.Geometry.Intersect.Intersection.RayShoot(ray2geom,[self.geom],1)
-                if pt4front:
+                ChkDistTol = dis_tol >= rs.Distance(pt4front[0],int_pt)
+                if pt4front and ChkDistTol:    
                     m_ht = rs.AddPoint(m[0],m[1],ht_ref)
                     dist2front = rs.Distance(pt4front[0],m_ht)
                     if front==True and self.is_near_zero(dist2front):
