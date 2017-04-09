@@ -129,11 +129,36 @@ class Shape:
             #     s_wt = x_dist
             """    self.s_wt,self.e_ht,self.n_wt,self.w_ht """
             return b[:2],b[1:3],b[2:4],[b[3],b[0]]
-
+        def helper_curve2srf(geom_):
+            #check if not guid and is a curve
+            curve_guid = None
+            #Check and convert to curve_guid if IS CURVE
+            if type(geom_) != type(rs.AddPoint(0,0,0)):
+                #Check if rc curve
+                #If so, convert to guid curve
+                points = [rc.Geometry.Point3d(0,0,0),rc.Geometry.Point3d(0,1,0),rc.Geometry.Point3d(1,0,0)]
+                curve = rc.Geometry.Curve.CreateControlPointCurve(points,1)
+                if geom_.ObjectType == curve.ObjectType:
+                    curve_guid = sc.doc.Objects.AddCurve(geom_)
+            else:
+                if rs.IsCurve(geom_):
+                    curve_guid = geom_
+            
+            if curve_guid:
+                srf_guid = rs.AddPlanarSrf(curve_guid)[0]
+                rc_brep = rs.coercebrep(srf_guid)
+                return rc_brep,rs.coercecurve(curve_guid)
+            else:
+                return rs.coercebrep(geom_),False
+            
         # primary edges
         if xy_change == True:
+            self.geom,InputIsCurve = helper_curve2srf(self.geom)
             try:
-                self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
+                if InputIsCurve!=False:
+                    self.bottom_crv = InputIsCurve
+                else: 
+                    self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
             except Exception as e:
                 #print str(e)##sys.exc_traceback.tb_lineno
                 self.bottom_crv = None

@@ -40,31 +40,12 @@ class Grammar:
         rule_stack = map(lambda n: n.grammar.type['grammar_key'],rule_stack)
         return rule_stack
     def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
-        def helper_curve2srf(geom_):
-            #check if not guid and is a curve
-            curve_guid = None
-            if type(geom_) != type(rs.AddPoint(0,0,0)):
-                points = [rc.Geometry.Point3d(0,0,0),rc.Geometry.Point3d(0,1,0),rc.Geometry.Point3d(1,0,0)]
-                curve = rc.Geometry.Curve.CreateControlPointCurve(points,1)
-                if geom_.ObjectType == curve.ObjectType:
-                    curve_guid = sc.doc.Objects.AddCurve(geom_)
-            else:
-                if rs.IsCurve(geom_):
-                    curve_guid = geom_
-            if curve_guid:
-                srf_guid = rs.AddPlanarSrf(curve_guid)[0]
-                rc_brep = rs.coercebrep(srf_guid)
-                return rc_brep
-            else:
-                return rs.coercebrep(geom_)
-
         debug = sc.sticky['debug']
         child_node,child_shape = None, None
         IsDegenerate = False
         tree_depth = 0
         if True:#try:
             if geom:
-                geom = helper_curve2srf(geom)
                 cplane_ref = None
                 if parent_node:
                     cplane_ref = parent_node.shape.cplane
@@ -860,19 +841,30 @@ class Grammar:
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
             childn = None
-            try:
-                #print 'test'
+            if True:#try:
+                print '---'
                 refpt = copy.copy(n_.shape.cpt)
                 refpt.Z = ht_ - 1.0
                 #refpt = rs.AddPoint(pt[0],pt[1],ht_)
                 topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
                 topcrv=sc.doc.Objects.AddCurve(topcrv)
-                movetopcrv = n_.shape.move_geom(topcrv,rc.Geometry.Vector3d(0,0,1.))
+                movetopcrv = n_.shape.move_geom(topcrv,rc.Geometry.Vector3d(0,0,10.))
+                print rs.IsCurveClosed(movetopcrv)
+                movetopcrv = rs.coercecurve(movetopcrv)
+                #debug.append(movetopcrv)
                 childn = self.helper_geom2node(movetopcrv,n_,'extracted_slice')
+                
+                print childn
+                print movetopcrv
+                #if childn:
+                #debug.append(childn.shape.geom)
+                
                 n_.loc.append(childn)
+                
+                
                 #print '--'
-            except:
-                pass
+            #except:
+            #    pass
             return childn
         temp_node_.grammar.type['grammar'] = 'extract_slice'
         debug = sc.sticky['debug']
