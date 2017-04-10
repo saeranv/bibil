@@ -953,25 +953,29 @@ class Shape:
             line = self.get_endpt4line(ref_edge)
             int_pt = self.intersect_ray_with_line(ray_m,ray_norm,line[0],line[1],ht_ref)
             #debug.append(m)
-            
+            #debug.append(m + normal2steprefline*10)
+            #debug.append(rs.AddCurve([m,m+normal2steprefline*10],3))
+            #debug.append(ref_edge)
             if int_pt:
                 int_pt = int_pt[0]
                 ray2geom = rc.Geometry.Ray3d(int_pt,normal2steprefline*-1)
                 #debug.append(int_pt)
-                #debug.append(int_pt + normal2steprefline*-10)
+                #debug.append(rs.AddCurve([int_pt,int_pt+normal2steprefline*-5],3))
                 pt4front = rc.Geometry.Intersect.Intersection.RayShoot(ray2geom,[self.geom],1)
-                ChkDistTol = dis_tol >= rs.Distance(pt4front[0],int_pt)
-                if pt4front and ChkDistTol:    
-                    m_ht = rs.AddPoint(m[0],m[1],ht_ref)
-                    dist2front = rs.Distance(pt4front[0],m_ht)
-                    if front==True and self.is_near_zero(dist2front):
+                if pt4front:    
+                    ChkDistTol = dis_tol >= rs.Distance(pt4front[0],int_pt)
+                    if ChkDistTol:
                         front_edges.append(edge)
-                    elif front==False and not self.is_near_zero(dist2front):
-                        front_edges.append(edge)
+                        #m_ht = rs.AddPoint(m[0],m[1],ht_ref)
+                        #dist2front = rs.Distance(pt4front[0],m_ht)
+                        #if front==True: and self.is_near_zero(dist2front):
+                        #    front_edges.append(edge)
+                        #elif front==False: and not self.is_near_zero(dist2front):
+                        #    front_edges.append(edge)
         return front_edges
     def match_edges_with_refs(self,lst_edge,lst_refedge,norm_ht=0.0,dist_tol=1.0,angle_tol=15.0,to_front=True):
         #Purpose: Identifying edges from list of edges and ref edge by angle
-        #Input: list of edges (list of pts) and list of ref_edge, tolerance
+        #Input: list of edges (list of pts) and list of ref_edge crvs, tolerance
         #Output: list of edges that match angle to ref_edge, given by distance
         #debug = sc.sticky['debug']
         parallel_and_front_edges = []

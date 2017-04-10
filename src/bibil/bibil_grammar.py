@@ -664,15 +664,16 @@ class Grammar:
             def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis):
                 #Now cut the valid shapes
                 VL = []
-                for validshape in lstvalidshape_:
-                    
+                for validshape_index in xrange(len(lstvalidshape_)):
+                    validshape = lstvalidshape_[validshape_index]
                     #Check if we are cutting in dirn of primary axis
                     #B/c will use shape-fitting optimization here
-                    valid_vec = validshape.shape.primary_axis_vector
-                    valid_axis = validshape.shape.vector2axis(valid_vec)
+                    vs = validshape.shape
+                    vsht = vs.cpt[2]
+                    valid_vec = vs.primary_axis_vector
+                    valid_axis = vs.vector2axis(valid_vec)
+                    OUT_LST = []
                     if dimaxis == valid_axis:
-                        vs = validshape.shape
-                        print '---'
                         #Get validshape matrix
                         valid_matrix = vs.base_matrix
                         if not valid_matrix: valid_matrix = vs.set_base_matrix()
@@ -681,30 +682,42 @@ class Grammar:
                         outer_matrix = outer_ref.shape.base_matrix
                         if not outer_matrix: outer_matrix = outer_ref.shape.set_base_matrix()
                         
-                        #Match outer_ref edges to valid edgges by angle
-                        valid_parallel = vs.get_parallel_segments(valid_matrix,valid_vec,5.)
-                        outer_parallel = vs.get_parallel_segments(outer_matrix,valid_vec,5.)
-                        
-                        min_dist,min_edge = 1E+10,None
-                        #Compare dist of parallel edges w/ outer edge
-                        for i in xrange(len(outer_parallel)):
-                            outer_edge = outer_parallel[i]
-                            normal2validout = vs.get_normal_point_inwards(outer_edge,to_outside=True)
+                        for i in xrange(len(outer_matrix)):
+                            outer_edge = outer_matrix[i]
+                            for j in xrange(len(outer_edge)): outer_edge[j].Z = vsht
                             outer_crv = rc.Geometry.Curve.CreateControlPointCurve(outer_edge)
-                            for j in xrange(len(valid_parallel)):
-                                valid_pt = valid_parallel[j][0]
-                                copy_valid = copy.copy(valid_pt)
-                                copy_valid.Z = 0
-                                ray_out = (copy_valid,normal2validout)
-                                intersect_line = vs.extend_ray_to_line(ray_out,outer_crv)
-                                dist = rs.Distance(intersect_line.PointAtStart,intersect_line.PointAtEnd)
-                                if dist < min_dist:
-                                    min_dist = dist
-                                    min_edge = valid_parallel[j]
-                        min_edge = rc.Geometry.Curve.CreateControlPointCurve(min_edge)
-                        debug.append(min_edge)
+                            #debug.append(outer_crv)
+                            outer_crv_lst = [outer_crv]
+                            
+                            edge_pts = vs.match_edges_with_refs(valid_matrix,outer_crv_lst,norm_ht=vsht,dist_tol=10.0,angle_tol=5.0,to_front=True)
+                            if edge_pts:
+                                out_vec = edge_pts[0][1] - edge_pts[0][0]
+                                edge_crv = rc.Geometry.Line(edge_pts[0][0],edge_pts[0][1])
+                                #debug.append(edge_crv)
+                                OUT_LST.append((out_vec,edge_crv))
+                    dir_cut = 1           
+                    print '----'
+                    for out in OUT_LST:
+                        out_axis = vs.vector2axis(out[0])
+                        if out_axis == dimaxis:
+                            if dimaxis=="NS":
+                                p1,p2 = vs.e_ht[0],vs.e_ht[1]
+                            else:
+                                p1,p2 = vs.s_wt[0],vs.s_wt[1]
+                            closept = rc.Geometry.Line.ClosestPoint(out[1],p1,0.0)
+                            if not self.is_near_zero(rs.Distance(closept,p1),1):
+                                dir_cut = 0
+                            if True:#if validshape_index==1:
+                                debug.append(out[1])
+                                debug.append(p1)
+                                debug.append(p2)
+                                print dir_cut
+                    print dir_cut
+                    #dir_cut = 1
+                    simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=dir_cut)
+                    print simple_ratio
+                    print '---'
                     
-                    simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=0.)
                     validshape_param_lst = [1.,dummy_deg,0.,simple_ratio,"simple_divide",dimaxis]
                     try:
                         self.divide(validshape,validshape_param_lst)
@@ -1457,103 +1470,6 @@ class Grammar:
         debug.extend(bucket)
         """
         return Bucket
-    def building_analysis(self,node_in,height,GFA,groundFloor_ht,restFloor_ht):
-        def get_label(n):
-            label_ = []
-            root = n[0].get_root()
-            L = root.traverse_tree(lambda n:n,internal=True)
-            for nl in L:
-                #print nl
-                label_.append(nl)
-            return label_
-        def make_analysis(nodelen,pd):
-            ## Input: dictionary of parameter key, list of data value
-            ## Output: Filtered list of str: with keys and value
-            L = [""] * nodelen
-            if pd.has_key('height'):
-                for i,ht in enumerate(pd['height']):
-                    valstr = 'height: %s' % (ht)
-                    L[i] += valstr
-            if pd.has_key('GFA'):
-                for i,gfa in enumerate(pd['GFA']):
-                    valstr = '\nGFA: %s' % (gfa)
-                    L[i] += valstr
-            return L
-        def get_ht(node_):
-            L = []
-            for n_ in node_:
-                storey = str(round(n_.shape.ht,1))
-                L.append(storey)
-            return L
-        def get_GFA(node_,ght,rht):
-            def helper_by_floor_div(n__,groundht):
-                ratio = groundht/n__.shape.ht
-                PD = {}
-                PD['div_num'] = 1
-                PD['div_deg'] = 0.
-                PD['div_cut'] = 0.
-                PD['div_ratio'] = ratio
-                PD['div_type'] = 'simple_divide'
-                PD['axis'] = "Z"
-                divnode = n__.grammar.divide(n_,PD)
-
-                if abs(divnode.loc[0].shape.ht - groundht) < 0.01:
-                    groundfloor = divnode.loc[0]
-                    restfloor = divnode.loc[1]
-                else:
-                    groundfloor = divnode.loc[1]
-                    restfloor = divnode.loc[0]
-                return groundfloor,restfloor
-            def helper_by_floor_calc(n__,htdiv):
-                n__.shape.geom = ghcomp.CapHolesEx(n__.shape.geom)[0]
-                shapevol = rc.Geometry.VolumeMassProperties.Compute(n__.shape.geom).Volume
-                shapegfa = shapevol/htdiv
-                return shapegfa
-            debug = sc.sticky['debug']
-            ReadMe_ = ""
-            L = []
-            for n_ in node_:
-                if abs(ght-rht)<0.1:
-                    gfacalc = helper_by_floor_calc(n_,rht)
-                else:
-                    try:
-                        grndshape,rstshape = helper_by_floor_div(n_,ght)
-                        grndgfa = grndshape.shape.get_area()
-                        rstgfa = helper_by_floor_calc(rstshape,rht)
-                        gfacalc = grndgfa + rstgfa
-                    except:
-                        ReadMe_ = "Calculating by specific floor heights has failed, probably because the geometry was too complicated. GFA is now based on restfloorht."
-                        gfacalc = helper_by_floor_calc(rstshape,3.)
-                #debug.extend(map(lambda n:n.shape.geom,divnode.loc))
-                L.append(str(round(abs(gfacalc),1)))
-            return L,ReadMe_
-
-        node = filter(lambda n: n!=None,node_in)
-        if node and node != []:
-            node = map(lambda n: copy.deepcopy(n),node)
-            debug = sc.sticky['debug']
-            ReadMe = ""
-
-            #These always appear by default
-            label_out = get_label(node)
-            geom_out = map(lambda n:n.shape.geom,node)
-            pt_out = map(lambda n:n.shape.cpt,node)
-            #Analysis paramaters
-            param_dict = {}
-            if height==True:
-                ht_out = get_ht(node)
-                param_dict['height'] = ht_out
-            if GFA == True:
-                if not groundFloor_ht:
-                    groundFloor_ht = 3.0
-                if not restFloor_ht:
-                    restFloor_ht = 3.0
-                gfa_out,readmegfa = get_GFA(node,groundFloor_ht,restFloor_ht)
-                param_dict['GFA'] = gfa_out
-                ReadMe += readmegfa
-            analysis_out = make_analysis(len(node),param_dict)
-            if not ReadMe:
-                ReadMe = "Successfully calculated"
     def shape2height(self,temp_node_,PD_):
         #TBD
         temp_node_.grammar.type['grammar'] = 'shape2height'
