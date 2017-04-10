@@ -665,6 +665,45 @@ class Grammar:
                 #Now cut the valid shapes
                 VL = []
                 for validshape in lstvalidshape_:
+                    
+                    #Check if we are cutting in dirn of primary axis
+                    #B/c will use shape-fitting optimization here
+                    valid_vec = validshape.shape.primary_axis_vector
+                    valid_axis = validshape.shape.vector2axis(valid_vec)
+                    if dimaxis == valid_axis:
+                        vs = validshape.shape
+                        print '---'
+                        #Get validshape matrix
+                        valid_matrix = vs.base_matrix
+                        if not valid_matrix: valid_matrix = vs.set_base_matrix()
+                        #Get outerref matrix
+                        outer_ref = self.helper_get_ref_node(0,validshape)
+                        outer_matrix = outer_ref.shape.base_matrix
+                        if not outer_matrix: outer_matrix = outer_ref.shape.set_base_matrix()
+                        
+                        #Match outer_ref edges to valid edgges by angle
+                        valid_parallel = vs.get_parallel_segments(valid_matrix,valid_vec,5.)
+                        outer_parallel = vs.get_parallel_segments(outer_matrix,valid_vec,5.)
+                        
+                        min_dist,min_edge = 1E+10,None
+                        #Compare dist of parallel edges w/ outer edge
+                        for i in xrange(len(outer_parallel)):
+                            outer_edge = outer_parallel[i]
+                            normal2validout = vs.get_normal_point_inwards(outer_edge,to_outside=True)
+                            outer_crv = rc.Geometry.Curve.CreateControlPointCurve(outer_edge)
+                            for j in xrange(len(valid_parallel)):
+                                valid_pt = valid_parallel[j][0]
+                                copy_valid = copy.copy(valid_pt)
+                                copy_valid.Z = 0
+                                ray_out = (copy_valid,normal2validout)
+                                intersect_line = vs.extend_ray_to_line(ray_out,outer_crv)
+                                dist = rs.Distance(intersect_line.PointAtStart,intersect_line.PointAtEnd)
+                                if dist < min_dist:
+                                    min_dist = dist
+                                    min_edge = valid_parallel[j]
+                        min_edge = rc.Geometry.Curve.CreateControlPointCurve(min_edge)
+                        debug.append(min_edge)
+                    
                     simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=0.)
                     validshape_param_lst = [1.,dummy_deg,0.,simple_ratio,"simple_divide",dimaxis]
                     try:
@@ -748,7 +787,7 @@ class Grammar:
                 print str(e)
                 print 'Error at set_separation_record'
             #debug.append(check_base_separation_.shape.bottom_crv)
-            debug.append(sep_crv)
+            #debug.append(sep_crv)
             ## Append crv
             sc.sticky['GLOBAL_COLLISION_LIST'].append(sep_crv)
 
@@ -836,35 +875,24 @@ class Grammar:
         #temp_node_topo.loc = filter(lambda n:n!=None,temp_node_topo.loc)
         if temp_node_topo.loc == []:
             temp_node_topo.grammar.type['freeze'] = True
-        print 'freeze?', temp_node_topo.grammar.type['freeze']
+        #print 'freeze?', temp_node_topo.grammar.type['freeze']
         return temp_node_topo
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
             childn = None
-            if True:#try:
-                print '---'
+            try:
                 refpt = copy.copy(n_.shape.cpt)
                 refpt.Z = ht_ - 1.0
                 #refpt = rs.AddPoint(pt[0],pt[1],ht_)
                 topcrv = n_.shape.get_bottom(n_.shape.geom,refpt)
                 topcrv=sc.doc.Objects.AddCurve(topcrv)
-                movetopcrv = n_.shape.move_geom(topcrv,rc.Geometry.Vector3d(0,0,10.))
-                print rs.IsCurveClosed(movetopcrv)
+                movetopcrv = n_.shape.move_geom(topcrv,rc.Geometry.Vector3d(0,0,1.))
                 movetopcrv = rs.coercecurve(movetopcrv)
                 #debug.append(movetopcrv)
                 childn = self.helper_geom2node(movetopcrv,n_,'extracted_slice')
-                
-                print childn
-                print movetopcrv
-                #if childn:
-                #debug.append(childn.shape.geom)
-                
                 n_.loc.append(childn)
-                
-                
-                #print '--'
-            #except:
-            #    pass
+            except:
+                pass
             return childn
         temp_node_.grammar.type['grammar'] = 'extract_slice'
         debug = sc.sticky['debug']
