@@ -470,6 +470,21 @@ class Shape:
             IsWidth = abs(shapedim-dim_) <= tol
             #print shapedim, dim_
         return IsWidth
+    def check_shape_validity(self,dim2chk_tuple,minarea,min_or_max_=False,tol_=None):
+        ## Move this to shape class
+        ## Flip cut axis to check the resulting dim
+        ## EW akways checks x axis, NS always checks y axis
+        if not tol_: tol_ = 1.0
+        IsEWDim,IsNSDim,IsMinArea = False, False, False
+        x_dim = dim2chk_tuple[0]
+        y_dim = dim2chk_tuple[1]
+        IsEWDim = self.check_shape_dim("EW",x_dim,min_or_max=min_or_max_,tol=tol_)
+        IsNSDim = self.check_shape_dim("NS",y_dim,min_or_max=min_or_max_,tol=tol_)
+        try:
+            IsMinArea = math.abs(self.get_area() - minarea) <= minarea * 0.15
+        except:
+            IsMinArea = True
+        return IsEWDim and IsNSDim# and IsMinArea
     def is_guid(self,geom):
         return type(rs.AddPoint(0,0,0)) == type(geom)
     def convert_rc(self,dim=None):

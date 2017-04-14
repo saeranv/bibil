@@ -643,64 +643,66 @@ class Grammar:
         normal2srf = get_normal_to_exterior_vector(parallel2refext)
         return normal2srf
     def separate_by_dist(self,temp_node_,PD_):
-        def check_shape_validity(t_,dim2chk_tuple,minarea,tol_=2.):
-            ## Move this to shape class
-            ## Flip cut axis to check the resulting dim
-            ## EW akways checks x axis, NS always checks y axis
-            IsEWDim,IsNSDim,IsMinArea = False, False, False
-            x_dim = dim2chk_tuple[0]
-            y_dim = dim2chk_tuple[1]
-            #print tol_
-            if True:#try:
-                IsEWDim = t_.shape.check_shape_dim("EW",x_dim,tol=tol_)
-                IsNSDim = t_.shape.check_shape_dim("NS",y_dim,tol=tol_)
-                #IsMinArea = math.abs(t_.shape.get_area() - minarea) <= tol_
-            #except:
-            #    pass
-            #print IsNSDim, IsEWDim, IsMinArea
-            ## IsMinArea is too tight...
-            return IsEWDim and IsNSDim# and IsMinArea
-        def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis):
+        def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis,xkeep,ykeep):
             #Now cut the valid shapes
             #lstvalidshape_ : list of valid shapes
             #dimkeep: dimension we are initially cutting
             #dimaxis: axis we are cutting along (EW or NW)
-            
+            #print '---'
             VL = []
             for validshape_index in xrange(len(lstvalidshape_)):
                 validshape = lstvalidshape_[validshape_index]
+                
+                #Check shape dim validity and break if not valid
+                min_area = xkeep * ykeep
+                dim2chk_xy = (xkeep,ykeep)
+                if validshape.shape.x_dist > validshape.shape.y_dist:
+                    dim2chk_xy = (ykeep,xkeep)
+                
+                IsDimValid = validshape.shape.check_shape_validity(dim2chk_xy,min_area,min_or_max_="min",tol_=1.)
+                print '---'
+                #print dimkeep
+                #print xkeep,ykeep
+                #print round(validshape.shape.x_dist,1),round(validshape.shape.y_dist,1)
+                #print IsDimValid
+                
+                if IsDimValid == False:
+                    continue
+                
                 #Check if we are cutting in dirn of primary axis
                 #B/c will use shape-fitting optimization here
+                dir_cut = 1           
                 vs = validshape.shape
                 vsht = vs.cpt[2]
                 valid_vec = vs.primary_axis_vector
                 valid_axis = vs.vector2axis(valid_vec)
                 OUT_LST = []
-                if dimaxis == valid_axis:
-                    #Get validshape matrix
-                    valid_matrix = vs.base_matrix
-                    if not valid_matrix: valid_matrix = vs.set_base_matrix()
-                    #Get outerref matrix
-                    outer_ref = self.helper_get_ref_node(0,validshape)
-                    outer_matrix = outer_ref.shape.base_matrix
-                    if not outer_matrix: outer_matrix = outer_ref.shape.set_base_matrix()
-                    
-                    for i in xrange(len(outer_matrix)):
-                        outer_edge = outer_matrix[i]
-                        for j in xrange(len(outer_edge)): outer_edge[j].Z = vsht
-                        outer_crv = rc.Geometry.Curve.CreateControlPointCurve(outer_edge)
-                        #debug.append(outer_crv)
-                        outer_crv_lst = [outer_crv]
-                        
-                        edge_pts = vs.match_edges_with_refs(valid_matrix,outer_crv_lst,norm_ht=vsht,dist_tol=10.0,angle_tol=5.0,to_front=True)
-                        if edge_pts:
-                            out_vec = edge_pts[0][1] - edge_pts[0][0]
-                            edge_crv = rc.Geometry.Line(edge_pts[0][0],edge_pts[0][1])
-                            #debug.append(edge_crv)
-                            OUT_LST.append((out_vec,edge_crv))
-                dir_cut = 1           
                 
-                print '---'
+                #Get validshape matrix
+                valid_matrix = vs.base_matrix
+                if not valid_matrix: valid_matrix = vs.set_base_matrix()
+                #Get outerref matrix
+                outer_ref = self.helper_get_ref_node(0,validshape)
+                outer_matrix = outer_ref.shape.base_matrix
+                if not outer_matrix: outer_matrix = outer_ref.shape.set_base_matrix()
+                #valid_matrix = n sides
+                #outer_matrix = m sides
+                outer_crv_lst = []
+                for i in xrange(len(outer_matrix)):
+                    outer_edge = outer_matrix[i]
+                    for j in xrange(len(outer_edge)): outer_edge[j].Z = vsht
+                    outer_crv = rc.Geometry.Curve.CreateControlPointCurve(outer_edge)
+                    #debug.append(outer_crv)
+                    outer_crv_lst.append(outer_crv)
+                    
+                edge_pts = vs.match_edges_with_refs(valid_matrix,outer_crv_lst,norm_ht=vsht,dist_tol=10.0,angle_tol=5.0,to_front=True)
+                if edge_pts:
+                    out_vec = edge_pts[0][1] - edge_pts[0][0]
+                    edge_crv = rc.Geometry.Line(edge_pts[0][0],edge_pts[0][1])
+                    #debug.append(edge_crv)
+                    OUT_LST.append((out_vec,edge_crv))
+                
+                
                 for out in OUT_LST:
                     out_axis = vs.vector2axis(out[0])
                     if out_axis == dimaxis:
@@ -711,15 +713,10 @@ class Grammar:
                         closept = rc.Geometry.Line.ClosestPoint(out[1],p1,0.0)
                         if not self.is_near_zero(rs.Distance(closept,p1),1):
                             dir_cut = 0
-                        if True:#if validshape_index==1:
-                            #debug.append(out[1])
-                            #debug.append(p1)
-                            #debug.append(p2)
-                            print dir_cut
-                print dir_cut
+                
                 simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=dir_cut)
-                print simple_ratio
-                print '---'
+                #print simple_ratio
+                #print '---'
                 
                 
                 validshape_param_lst = [1.,0.0,0.,simple_ratio,"simple_divide",dimaxis]
@@ -727,7 +724,8 @@ class Grammar:
                     self.divide(validshape,validshape_param_lst)
                 except:
                     pass
-                VL.extend(validshape.traverse_tree(lambda n:n, internal=False))
+                validchilds = validshape.traverse_tree(lambda n:n, internal=False)
+                VL.extend(validchilds)
             return VL
         def separate_dim(temp_node_topo_,x_keep_omit_,y_keep_omit_,cut_axis,cut_axis_alt):
             #Axis issue:
@@ -737,9 +735,10 @@ class Grammar:
             #In bibil - y_axis (cutting EW) is always set as the primary axis.
 
             #Prep inputs
+            #xkeep is always < ykeep
             x_keep_,x_omit_ = x_keep_omit_[0],x_keep_omit_[1]
             y_keep_,y_omit_ = y_keep_omit_[0],y_keep_omit_[1]
-
+            
             #Make first division
             divbydim = (x_keep_+x_omit_,y_keep_+y_omit_)
             dummy_ratio, dummy_axis, dummy_deg = 0.5, "NS", 0.
@@ -759,16 +758,19 @@ class Grammar:
             if "EW" in cut_axis:##then the we are cutting y axis, give y dims
                 dimprimekeep = y_keep_
                 dimsecondkeep = x_keep_
+                
             else:
                 dimprimekeep = x_keep_
                 dimsecondkeep = y_keep_
-            lstfirkeepnodes = helper_simple_divide(topo_child_lst,dimprimekeep,cut_axis)
-            lstseckeepnodes = helper_simple_divide(lstfirkeepnodes,dimsecondkeep,cut_axis_alt)
+            
+            lstfirkeepnodes = helper_simple_divide(topo_child_lst,dimprimekeep,cut_axis,x_keep_,y_keep_)
+            lstseckeepnodes = helper_simple_divide(lstfirkeepnodes,dimsecondkeep,cut_axis_alt,x_keep_,y_keep_)
             #debug.extend(map(lambda n:n.shape.geom,lstseckeepnodes))
-            for final_node in lstseckeepnodes:
+            for i in xrange(len(lstseckeepnodes)):
+                final_node = lstseckeepnodes[i]
                 min_area = x_keep_ * y_keep_
                 div2keep = (x_keep_,y_keep_)
-                IsValidDimKeepOmit = check_shape_validity(final_node,div2keep,min_area,tol_=5.)
+                IsValidDimKeepOmit = final_node.shape.check_shape_validity(div2keep,min_area,tol_=1.)
                 chkMin = False
                 if final_node.shape.x_dist >= (x_keep_-2.) and final_node.shape.y_dist >= (y_keep_-2.):
                     chkMin = True

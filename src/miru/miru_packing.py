@@ -34,8 +34,8 @@ if run:
     rule_ = [\
     ['separate', True],\
     ['grammar_key','separate'],\
-    ['x_keep_omit',x_keep_omit],\
-    ['y_keep_omit',y_keep_omit],\
+    ['x_keep_omit',short_keep_omit],\
+    ['y_keep_omit',long_keep_omit],\
     ['add_collision',add_collision],\
     ['end_rule']]   
     for i, r in enumerate(rule_):
