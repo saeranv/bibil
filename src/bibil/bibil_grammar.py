@@ -727,8 +727,8 @@ class Grammar:
                     self.divide(validshape,validshape_param_lst)
                 except:
                     pass
-                #VL.extend(validshape.traverse_tree(lambda n:n, internal=False))
-                yield validshape.traverse_tree(lambda n:n, internal=False)#return VL
+                VL.extend(validshape.traverse_tree(lambda n:n, internal=False))
+            return VL
         def separate_dim(temp_node_topo_,x_keep_omit_,y_keep_omit_,cut_axis,cut_axis_alt):
             #Axis issue:
             #cut_axis: axis that cuts perpendicular to primary axis of shape
@@ -764,7 +764,6 @@ class Grammar:
                 dimsecondkeep = y_keep_
             lstfirkeepnodes = helper_simple_divide(topo_child_lst,dimprimekeep,cut_axis)
             lstseckeepnodes = helper_simple_divide(lstfirkeepnodes,dimsecondkeep,cut_axis_alt)
-            print lstseckeepnodes
             #debug.extend(map(lambda n:n.shape.geom,lstseckeepnodes))
             for final_node in lstseckeepnodes:
                 min_area = x_keep_ * y_keep_
