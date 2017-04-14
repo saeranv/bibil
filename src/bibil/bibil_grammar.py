@@ -660,71 +660,76 @@ class Grammar:
             #print IsNSDim, IsEWDim, IsMinArea
             ## IsMinArea is too tight...
             return IsEWDim and IsNSDim# and IsMinArea
-        def separate_dim(temp_node_topo_,x_keep_omit_,y_keep_omit_,cut_axis,cut_axis_alt):
-            def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis):
-                #Now cut the valid shapes
-                VL = []
-                for validshape_index in xrange(len(lstvalidshape_)):
-                    validshape = lstvalidshape_[validshape_index]
-                    #Check if we are cutting in dirn of primary axis
-                    #B/c will use shape-fitting optimization here
-                    vs = validshape.shape
-                    vsht = vs.cpt[2]
-                    valid_vec = vs.primary_axis_vector
-                    valid_axis = vs.vector2axis(valid_vec)
-                    OUT_LST = []
-                    if dimaxis == valid_axis:
-                        #Get validshape matrix
-                        valid_matrix = vs.base_matrix
-                        if not valid_matrix: valid_matrix = vs.set_base_matrix()
-                        #Get outerref matrix
-                        outer_ref = self.helper_get_ref_node(0,validshape)
-                        outer_matrix = outer_ref.shape.base_matrix
-                        if not outer_matrix: outer_matrix = outer_ref.shape.set_base_matrix()
-                        
-                        for i in xrange(len(outer_matrix)):
-                            outer_edge = outer_matrix[i]
-                            for j in xrange(len(outer_edge)): outer_edge[j].Z = vsht
-                            outer_crv = rc.Geometry.Curve.CreateControlPointCurve(outer_edge)
-                            #debug.append(outer_crv)
-                            outer_crv_lst = [outer_crv]
-                            
-                            edge_pts = vs.match_edges_with_refs(valid_matrix,outer_crv_lst,norm_ht=vsht,dist_tol=10.0,angle_tol=5.0,to_front=True)
-                            if edge_pts:
-                                out_vec = edge_pts[0][1] - edge_pts[0][0]
-                                edge_crv = rc.Geometry.Line(edge_pts[0][0],edge_pts[0][1])
-                                #debug.append(edge_crv)
-                                OUT_LST.append((out_vec,edge_crv))
-                    dir_cut = 1           
-                    print '----'
-                    for out in OUT_LST:
-                        out_axis = vs.vector2axis(out[0])
-                        if out_axis == dimaxis:
-                            if dimaxis=="NS":
-                                p1,p2 = vs.e_ht[0],vs.e_ht[1]
-                            else:
-                                p1,p2 = vs.s_wt[0],vs.s_wt[1]
-                            closept = rc.Geometry.Line.ClosestPoint(out[1],p1,0.0)
-                            if not self.is_near_zero(rs.Distance(closept,p1),1):
-                                dir_cut = 0
-                            if True:#if validshape_index==1:
-                                debug.append(out[1])
-                                debug.append(p1)
-                                debug.append(p2)
-                                print dir_cut
-                    print dir_cut
-                    #dir_cut = 1
-                    simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=dir_cut)
-                    print simple_ratio
-                    print '---'
+        def helper_simple_divide(lstvalidshape_,dimkeep,dimaxis):
+            #Now cut the valid shapes
+            #lstvalidshape_ : list of valid shapes
+            #dimkeep: dimension we are initially cutting
+            #dimaxis: axis we are cutting along (EW or NW)
+            
+            VL = []
+            for validshape_index in xrange(len(lstvalidshape_)):
+                validshape = lstvalidshape_[validshape_index]
+                #Check if we are cutting in dirn of primary axis
+                #B/c will use shape-fitting optimization here
+                vs = validshape.shape
+                vsht = vs.cpt[2]
+                valid_vec = vs.primary_axis_vector
+                valid_axis = vs.vector2axis(valid_vec)
+                OUT_LST = []
+                if dimaxis == valid_axis:
+                    #Get validshape matrix
+                    valid_matrix = vs.base_matrix
+                    if not valid_matrix: valid_matrix = vs.set_base_matrix()
+                    #Get outerref matrix
+                    outer_ref = self.helper_get_ref_node(0,validshape)
+                    outer_matrix = outer_ref.shape.base_matrix
+                    if not outer_matrix: outer_matrix = outer_ref.shape.set_base_matrix()
                     
-                    validshape_param_lst = [1.,dummy_deg,0.,simple_ratio,"simple_divide",dimaxis]
-                    try:
-                        self.divide(validshape,validshape_param_lst)
-                    except:
-                        pass
-                    VL.extend(validshape.traverse_tree(lambda n:n, internal=False))
-                return VL
+                    for i in xrange(len(outer_matrix)):
+                        outer_edge = outer_matrix[i]
+                        for j in xrange(len(outer_edge)): outer_edge[j].Z = vsht
+                        outer_crv = rc.Geometry.Curve.CreateControlPointCurve(outer_edge)
+                        #debug.append(outer_crv)
+                        outer_crv_lst = [outer_crv]
+                        
+                        edge_pts = vs.match_edges_with_refs(valid_matrix,outer_crv_lst,norm_ht=vsht,dist_tol=10.0,angle_tol=5.0,to_front=True)
+                        if edge_pts:
+                            out_vec = edge_pts[0][1] - edge_pts[0][0]
+                            edge_crv = rc.Geometry.Line(edge_pts[0][0],edge_pts[0][1])
+                            #debug.append(edge_crv)
+                            OUT_LST.append((out_vec,edge_crv))
+                dir_cut = 1           
+                
+                print '---'
+                for out in OUT_LST:
+                    out_axis = vs.vector2axis(out[0])
+                    if out_axis == dimaxis:
+                        if dimaxis=="NS":
+                            p1,p2 = vs.e_ht[0],vs.e_ht[1]
+                        else:
+                            p1,p2 = vs.s_wt[0],vs.s_wt[1]
+                        closept = rc.Geometry.Line.ClosestPoint(out[1],p1,0.0)
+                        if not self.is_near_zero(rs.Distance(closept,p1),1):
+                            dir_cut = 0
+                        if True:#if validshape_index==1:
+                            #debug.append(out[1])
+                            #debug.append(p1)
+                            #debug.append(p2)
+                            print dir_cut
+                print dir_cut
+                simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=dir_cut)
+                print simple_ratio
+                print '---'
+                
+                
+                validshape_param_lst = [1.,0.0,0.,simple_ratio,"simple_divide",dimaxis]
+                try:
+                    self.divide(validshape,validshape_param_lst)
+                except:
+                    pass
+                #VL.extend(validshape.traverse_tree(lambda n:n, internal=False))
+                yield validshape.traverse_tree(lambda n:n, internal=False)#return VL
+        def separate_dim(temp_node_topo_,x_keep_omit_,y_keep_omit_,cut_axis,cut_axis_alt):
             #Axis issue:
             #cut_axis: axis that cuts perpendicular to primary axis of shape
             #EW will cut y_dist
@@ -759,6 +764,7 @@ class Grammar:
                 dimsecondkeep = y_keep_
             lstfirkeepnodes = helper_simple_divide(topo_child_lst,dimprimekeep,cut_axis)
             lstseckeepnodes = helper_simple_divide(lstfirkeepnodes,dimsecondkeep,cut_axis_alt)
+            print lstseckeepnodes
             #debug.extend(map(lambda n:n.shape.geom,lstseckeepnodes))
             for final_node in lstseckeepnodes:
                 min_area = x_keep_ * y_keep_
