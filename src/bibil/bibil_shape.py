@@ -152,13 +152,15 @@ class Shape:
                 return rs.coercebrep(geom_),False
             
         # primary edges
+        debug = sc.sticky['debug']
         if xy_change == True:
             self.geom,InputIsCurve = helper_curve2srf(self.geom)
             try:
                 if InputIsCurve!=False:
                     self.bottom_crv = InputIsCurve
-                else: 
-                    self.bottom_crv = self.get_bottom(self.geom,self.get_boundingbox(self.geom,None)[0])
+                else:
+                    bbrefpt = self.get_boundingbox(self.geom,None)[0] 
+                    self.bottom_crv = self.get_bottom(self.geom,bbrefpt)
             except Exception as e:
                 #print str(e)##sys.exc_traceback.tb_lineno
                 self.bottom_crv = None
@@ -522,6 +524,10 @@ class Shape:
             print str(e)#sys.exc_traceback.tb_lineno
     def get_bottom(self,g,refpt,tol=0.1):
         ## Extract curves from brep according to input cpt lvl
+        debug = sc.sticky['debug']
+        if abs(refpt[2]-0.0) < 0.1:
+            print 'check if geoms are at 0 ground plane'
+            print 'refpt:', refpt[2]
         try:
             if g == None: g = self.geom
             #print g

@@ -39,25 +39,25 @@ class Grammar:
         rule_stack = node.backtrack_tree(lambda n:n,accumulate=True)
         rule_stack = map(lambda n: n.grammar.type['grammar_key'],rule_stack)
         return rule_stack
-    def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null"):
+    def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null",cplane_ref=None):
         debug = sc.sticky['debug']
         child_node,child_shape = None, None
         IsDegenerate = False
         tree_depth = 0
         if True:#try:
             if geom:
-                cplane_ref = None
                 if parent_node:
                     cplane_ref = parent_node.shape.cplane
-                try:
-                    child_shape = Shape(geom,cplane=cplane_ref)
-                except Exception as e:
-                    print 'Bibil has detected a degenerate shape', str(e)
-                    child_shape = Shape(geom,parent_node.shape.cplane)
+                #try:
+                child_shape = Shape(geom,cplane=cplane_ref)
+                #except Exception as e:
+                #    print 'Bibil has detected a degenerate shape', str(e)
+                #    child_shape = Shape(geom,parent_node.shape.cplane)
                 IsDegenerate = child_shape.cpt==None or abs(child_shape.x_dist-0.) <= 0.1 or abs(child_shape.y_dist-0.) <= 0.1
             elif parent_node:
                 #cloned nodes get link to parent_node.shape
                 child_shape = parent_node.shape
+            
             if parent_node:
                 tree_depth = parent_node.depth+1
             if IsDegenerate == False:
@@ -656,11 +656,16 @@ class Grammar:
                 #Check shape dim validity and break if not valid
                 min_area = xkeep * ykeep
                 dim2chk_xy = (xkeep,ykeep)
+                #print round(validshape.shape.x_dist,2), round(validshape.shape.y_dist,2)
+                #pv = validshape.shape.primary_axis_vector
+                #print validshape.shape.vector2axis(pv)
+                #print '--'
+                #Remember, xkeep=shortdim, ykeep=longdim
                 if validshape.shape.x_dist > validshape.shape.y_dist:
                     dim2chk_xy = (ykeep,xkeep)
                 
                 IsDimValid = validshape.shape.check_shape_validity(dim2chk_xy,min_area,min_or_max_="min",tol_=1.)
-                print '---'
+                #print '---'
                 #print dimkeep
                 #print xkeep,ykeep
                 #print round(validshape.shape.x_dist,1),round(validshape.shape.y_dist,1)
@@ -701,7 +706,6 @@ class Grammar:
                     edge_crv = rc.Geometry.Line(edge_pts[0][0],edge_pts[0][1])
                     #debug.append(edge_crv)
                     OUT_LST.append((out_vec,edge_crv))
-                
                 
                 for out in OUT_LST:
                     out_axis = vs.vector2axis(out[0])
@@ -770,7 +774,7 @@ class Grammar:
                 final_node = lstseckeepnodes[i]
                 min_area = x_keep_ * y_keep_
                 div2keep = (x_keep_,y_keep_)
-                IsValidDimKeepOmit = final_node.shape.check_shape_validity(div2keep,min_area,tol_=1.)
+                IsValidDimKeepOmit = final_node.shape.check_shape_validity(div2keep,min_area,tol_=2.)
                 chkMin = False
                 if final_node.shape.x_dist >= (x_keep_-2.) and final_node.shape.y_dist >= (y_keep_-2.):
                     chkMin = True
@@ -807,7 +811,7 @@ class Grammar:
                 print str(e)
                 print 'Error at set_separation_record'
             #debug.append(check_base_separation_.shape.bottom_crv)
-            #debug.append(sep_crv)
+            debug.append(sep_crv)
             ## Append crv
             sc.sticky['GLOBAL_COLLISION_LIST'].append(sep_crv)
 
@@ -1209,7 +1213,7 @@ class Grammar:
         def court_slice(curr_node,rootshape,width_,cut_width_):
             def recurse_slice(curr_node_,matrice,valid_node_lst,diff,count,count_subdiv,cut_width__):
                 #print count, curr_node_
-                cmax = 20.
+                cmax = 40.
                 tol = 2.
                 invalid_node = None
                 valid_node = None
@@ -1222,19 +1226,22 @@ class Grammar:
                     matrice_max = False
                     #print 'start---'
                     set_rel = -100
+                    #debug.append(curr_node_.shape.geom)
                     for i,line in enumerate(matrice):
                         #print i
                         dirvec = line[1]-line[0]
                         # get magnitude of line
                         dist = math.sqrt(sum(map(lambda p: p*p,dirvec)))
+                        if dist <= tol:
+                            print 'too small to court slice'
                         if dist > tol:
                             split_crv = rs.AddCurve(line,1)
                             midpt = curr_node_.shape.get_midpoint(line)
                             sc_ = 5,5,0
                             split_crv = rs.ScaleObject(split_crv,midpt,sc_)
-                            
                             #Check if refedge interesects the input geometry
                             #This is a huge time saver
+                            
                             if self.is_near_zero(cut_width__):
                                 intcrv = rc.Geometry.Intersect.Intersection.CurveCurve(curr_node_.shape.bottom_crv,rs.coercecurve(split_crv),0.001,0.001)
                                 if self.is_near_zero(intcrv.Count):
@@ -1255,6 +1262,7 @@ class Grammar:
                                         split_node_lst.append(split_node)
                                         split_crv = split_node.shape.bottom_crv
                                         set_rel = curr_node_.shape.check_region(chk_offset,split_crv,realvalue=True,tol=0.1)
+                                        
                                         if self.is_near_zero(set_rel):
                                             valid_node = split_node
                                         else:
@@ -1295,6 +1303,7 @@ class Grammar:
                 off_node = self.helper_geom2node(offset,curr_node)
                 shape_matrix = off_node.shape.set_base_matrix()
                 #debug.append(curr_node.shape.geom)
+                #debug.append(off_node.shape.geom)
                 L,diff = recurse_slice(curr_node,shape_matrix,[],None,0,0,cut_width_)
                 #debug.extend(map(lambda n:n.shape.geom,L))
                 offset = rs.coercecurve(offset)
