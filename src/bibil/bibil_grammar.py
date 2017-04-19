@@ -39,7 +39,7 @@ class Grammar:
         rule_stack = node.backtrack_tree(lambda n:n,accumulate=True)
         rule_stack = map(lambda n: n.grammar.type['grammar_key'],rule_stack)
         return rule_stack
-    def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null",cplane_ref=None):
+    def helper_geom2node(self,geom,parent_node=None,label="x",grammar="null",cplane_ref=None,UINode=False):
         debug = sc.sticky['debug']
         child_node,child_shape = None, None
         IsDegenerate = False
@@ -49,6 +49,7 @@ class Grammar:
                 if parent_node:
                     cplane_ref = parent_node.shape.cplane
                 #try:
+                #geom = copy.copy(geom)
                 child_shape = Shape(geom,cplane=cplane_ref)
                 #except Exception as e:
                 #    print 'Bibil has detected a degenerate shape', str(e)
@@ -57,6 +58,9 @@ class Grammar:
             elif parent_node:
                 #cloned nodes get link to parent_node.shape
                 child_shape = parent_node.shape
+            
+            if UINode:
+                    child_shape.UIgeom = copy.copy(rs.coercebrep(geom))
             
             if parent_node:
                 tree_depth = parent_node.depth+1
@@ -1031,9 +1035,11 @@ class Grammar:
             if ht_type != "geometry":
                 ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
             
+            ht_ref_shape = Shape(ht_ref.shape.UIgeom,ht_ref.shape.cplane)
+            
             #Check to make sure ref is not the same
-            if abs(ht_ref.shape.ht-temp_node_.shape.ht)>1.0:
-                ht_w_ref = ht_ref.shape.ht - temp_node_.shape.ht
+            if abs(ht_ref_shape.ht-temp_node_.shape.ht)>1.0:
+                ht_w_ref = ht_ref_shape.ht - temp_node_.shape.ht
             else:
                 ht_w_ref = temp_node_.shape.ht
             
@@ -1055,7 +1061,8 @@ class Grammar:
         if type(ht_)==type('') and 'bula' in ht_:
             setht_ = height_from_bula(n_)
         else:
-            setht_ = ht_
+            print ht_
+            setht_ = ht_#- n_.shape.cpt[2] 
         n_.shape.op_extrude(setht_)
         #print '---'
         return temp_node_
@@ -1589,13 +1596,13 @@ class Grammar:
     def straight_skeleton(self,temp_node_,PD_):
         temp_node_.shape.compute_straight_skeleton()
         return temp_node_
-    def node2grammar(self,lst_node_,rule_in_):
+    def node2grammar(self,lst_node_,rule_in_,firstUINode=False):
         def helper_type2node(copy_node_,type_):
             #type: list of (dictionary of typology parameters)
             copytype = copy.deepcopy(type_)
             copy_node_.grammar.type.update(copytype)
             return copy_node_
-        def helper_clone_node(node_geom):
+        def helper_clone_node(node_geom,IsUINode=False):
             #Purpose: Create a node from geometry/parent node
             #if geometry, turned into node w/ blank label
             #if node, clone a child node w/ blank label
@@ -1605,7 +1612,7 @@ class Grammar:
                 node_geom.loc.append(childn)
                 n_ = childn
             else:
-                n_ = self.helper_geom2node(node_geom)
+                n_ = self.helper_geom2node(node_geom,UINode=IsUINode)
             return n_
         ## Purpose: Input list of nodes, applies type
         ## Applies pattern based on types
@@ -1619,7 +1626,7 @@ class Grammar:
             ## Everytime we add a rule, we clone a node.
             ## Every rule mutates the node, or creates child nodes.
             ## If node create 'clone', new tree, new Grammar, link to same Shape
-            child_node_ = helper_clone_node(node_)
+            child_node_ = helper_clone_node(node_,IsUINode=firstUINode)
             if child_node_:
                 ## Apply type to node that we will apply rule to
                 child_node_ = helper_type2node(child_node_,rule_in_)
@@ -1638,8 +1645,7 @@ class Grammar:
         else:
             for i,child_node_ in enumerate(child_node_lst_):
                 ## Apply pattern
-                #try:
-                if True:
+                if True:#try:
                     ParamDict = child_node_.grammar.type
                     node_out_ = self.main_grammar(child_node_,ParamDict)
                     RhinoApp.Wait()
@@ -1742,10 +1748,13 @@ class Grammar:
             return rule_
         def helper_main_recurse(lst_node_,rule_lst):
             #if no rules/label_rules node is just passed through
+            IsFirst = True
             while len(rule_lst) > 0:
                 rule_ = rule_lst.pop(0)
                 #apply rule to current list of nodes, get child lists flat
-                lst_node_leaves = self.node2grammar(lst_node_,rule_)
+                lst_node_leaves = self.node2grammar(lst_node_,rule_,firstUINode=IsFirst)
+                if IsFirst==True:
+                    IsFirst = False
                 if len(lst_node_leaves) > 0.001:
                     lst_node_ = lst_node_leaves
                 else:

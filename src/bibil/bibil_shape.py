@@ -109,6 +109,7 @@ class Shape:
         self.primary_axis_vector = None
         self.base_matrix = None
         self.normal = rc.Geometry.Vector3d(0,0,1)
+        self.UIgeom = None
         if geom == None:
             self.geom = rs.coercebrep(rs.AddBox([[0,0,0],[0,10,0],[-10,10,0],[-10,0,0],\
                                         [0,0,10],[0,10,10],[-10,10,10],[-10,0,10]]))
@@ -528,6 +529,8 @@ class Shape:
         if abs(refpt[2]-0.0) < 0.1:
             print 'check if geoms are at 0 ground plane'
             print 'refpt:', refpt[2]
+            if g == None: g = self.geom
+            #debug.append(g)
         try:
             if g == None: g = self.geom
             #print g
