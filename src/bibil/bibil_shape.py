@@ -527,8 +527,7 @@ class Shape:
         ## Extract curves from brep according to input cpt lvl
         debug = sc.sticky['debug']
         if abs(refpt[2]-0.0) < 0.1:
-            print 'check if geoms are at 0 ground plane'
-            print 'refpt:', refpt[2]
+            print 'ground ref at:', refpt[2]
             if g == None: g = self.geom
             #debug.append(g)
         try:

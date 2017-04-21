@@ -78,6 +78,10 @@ class Grammar:
     def helper_clone_node(self,node_,parent_node=None,label="x"):
         #Purpose: Input node, and output new node with same Shape, new Grammar
         return self.helper_geom2node(None,parent_node,label)
+    def helper_UI_geom(self,tnode):
+        if tnode.shape.UIgeom != None:
+            tnode.shape = Shape(tnode.shape.UIgeom,tnode.shape.cplane)
+        return tnode
     def is_near_zero(self,num,eps=1E-10):
         return abs(float(num)) < eps
     def solar_envelope_uni(self,node_0,time,seht,stype):
@@ -322,7 +326,7 @@ class Grammar:
         
         ## Loop through the height,setback tuples
         #rename tnode
-        node2cut = tnode
+        node2cut = self.helper_UI_geom(tnode)
         
         #Loop through the stepback dimensions
         for sb_index in xrange(len(sb_data)):
@@ -1035,7 +1039,8 @@ class Grammar:
             if ht_type != "geometry":
                 ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
             
-            ht_ref_shape = Shape(ht_ref.shape.UIgeom,ht_ref.shape.cplane)
+            ht_ref = self.helper_UI_geom(ht_ref)
+            ht_ref_shape = ht_ref.shape
             
             #Check to make sure ref is not the same
             if abs(ht_ref_shape.ht-temp_node_.shape.ht)>1.0:
@@ -1055,13 +1060,14 @@ class Grammar:
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
             ht_ += random.randrange(randht_lo,randht_hi)
-
-        n_ = temp_node_
+        
+        n_ = self.helper_UI_geom(temp_node_)
+        #n_ = temp_node_
         #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
+        print ht_
         if type(ht_)==type('') and 'bula' in ht_:
             setht_ = height_from_bula(n_)
         else:
-            print ht_
             setht_ = ht_#- n_.shape.cpt[2] 
         n_.shape.op_extrude(setht_)
         #print '---'
