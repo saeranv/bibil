@@ -912,6 +912,10 @@ class Grammar:
     def extract_slice(self,temp_node_,PD_):
         def extract_topo(n_,ht_):
             childn = None
+            if ht_ < 0.2:
+                n_ = self.helper_UI_geom(n_)
+                childn = self.helper_geom2node(n_.shape.bottom_crv,n_,'extracted_slice')
+                n_.loc.append(childn)
             try:
                 refpt = copy.copy(n_.shape.cpt)
                 refpt.Z = ht_ - 1.0
@@ -943,6 +947,7 @@ class Grammar:
                     slice_ht = [temp_node_.shape.ht]
                 else:
                     slice_ht = map(lambda s: float(s),slice_ht)
+                
             #Extract topo
             for slht in slice_ht:
                 chld = extract_topo(temp_node_,slht)
@@ -1033,7 +1038,7 @@ class Grammar:
         ht_ref = PD_['height_ref']
 
         ### If ht_ and ht_ref have values: then ht_ is taken as a maximum!!
-
+        
         if ht_ref:
             ht_type = self.helper_get_type(ht_ref)
             if ht_type != "geometry":
@@ -1061,10 +1066,10 @@ class Grammar:
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
             ht_ += random.randrange(randht_lo,randht_hi)
         
+        
         n_ = self.helper_UI_geom(temp_node_)
         #n_ = temp_node_
         #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
-        print ht_
         if type(ht_)==type('') and 'bula' in ht_:
             setht_ = height_from_bula(n_)
         else:
@@ -1194,6 +1199,7 @@ class Grammar:
         #check if nothing matches
         if refshape_ == None:
             refshape_ = node_
+        refshape_ = self.helper_UI_geom(refshape_)
         return refshape_
     def flatten_node_tree_single_child(self,lstofchild,parent_ref_node,grammar="null",empty_parent=True):
         #Input list of nodes at different depths, a parent, grammar
@@ -1267,29 +1273,41 @@ class Grammar:
                                 split_geoms = curr_node_.shape.op_split("NS",0.5,split_depth=cut_width__,split_line_ref=split_crv)
                                 for geom in split_geoms:
                                     #if type(geom)!= type(rootshape.shape.geom):
-                                    #    ##debug.append(geom)
                                     split_node = self.helper_geom2node(geom,None)
                                     if split_node==None:
                                         pass
                                     else:
                                         split_node_lst.append(split_node)
                                         split_crv = split_node.shape.bottom_crv
+                                        #Check if this geom intersects with larger offset.
+                                        #if so keep cutting
                                         set_rel = curr_node_.shape.check_region(chk_offset,split_crv,realvalue=True,tol=0.1)
-                                        
-                                        if self.is_near_zero(set_rel):
+                                        #if disjoint==setrel: return 0
+                                        #elif intersect==setrel:return 1
+                                        #elif AInsideB==setrel:return 2
+                                        #else: return 3
+                                        #debug.append(chk_offset)
+                                        if self.is_near_zero(set_rel):#if disjoint stop splitting
                                             valid_node = split_node
-                                        else:
+                                            valid_node_lst.append(valid_node)
+                                        else:#keep splitting
+                                            #print set_rel
                                             invalid_node = split_node
-                            #except:
-                                #pass## Split fail, so test the next line split
+                                            #debug.append(chk_offset)
+                                            #debug.append(split_crv)
+                                            #debug.append(split_node.shape.geom)
+                            #except:        
+                            #    pass## Split fail, so test the next line split
+                        #Check if reach max of matrice len
                         matrice_max = len(matrice)==i+1
-                        if invalid_node != None and valid_node != None:
-                            valid_node_lst.append(valid_node)
+                        #if invalid_node != None and valid_node != None:
+                        if valid_node!=None:
+                            #valid_node_lst.append(valid_node)
                             matrice.pop(i)
                             break
                     if matrice_max == True and abs(set_rel-1.)<0.1:
                         #debug.append(curr_node_.shape.geom)
-                        chk_offset_out = rootshape.op_offset_crv(width_-1.)
+                        chk_offset_out = rootshape.op_offset_crv(width_-1.5)
                         for sn in split_node_lst:
                             split_crv = sn.shape.bottom_crv
                             set_rel = curr_node_.shape.check_region(chk_offset_out,split_crv,tol=0.1)
@@ -1321,8 +1339,8 @@ class Grammar:
                 #debug.extend(map(lambda n:n.shape.geom,L))
                 offset = rs.coercecurve(offset)
                 IsInside = offset.Contains(diff.shape.cpt,diff.shape.cplane) == rc.Geometry.PointContainment.Inside
-                if IsInside:
-                    debug.append(diff.shape.geom)
+                #if IsInside:
+                    #debug.append(diff.shape.geom)
                 #print diff
                 curr_node = self.flatten_node_tree_single_child(L,curr_node,grammar="courtslice")
 
@@ -1350,6 +1368,7 @@ class Grammar:
         lon = temp_node_.traverse_tree(lambda n: n,internal=False)
 
         for subdiv in lon:
+            subdiv = self.helper_UI_geom(subdiv)
             subdiv.shape.convert_rc('3d')
             refshape_node = self.helper_get_ref_node(court_ref,subdiv)
             refshape = refshape_node.shape

@@ -523,12 +523,13 @@ class Shape:
         except Exception as e:
             print "Error @ shape.convert_guid"
             print str(e)#sys.exc_traceback.tb_lineno
-    def get_bottom(self,g,refpt,tol=0.1):
+    def get_bottom(self,g,refpt,tol=1.0):
         ## Extract curves from brep according to input cpt lvl
         debug = sc.sticky['debug']
         if abs(refpt[2]-0.0) < 0.1:
-            print 'ground ref at:', refpt[2]
-            if g == None: g = self.geom
+            #print 'ground ref at:', refpt[2]
+            refpt.Z = 0.0
+        if g == None: g = self.geom
             #debug.append(g)
         try:
             if g == None: g = self.geom
