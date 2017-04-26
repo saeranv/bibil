@@ -526,9 +526,11 @@ class Shape:
     def get_bottom(self,g,refpt,tol=1.0):
         ## Extract curves from brep according to input cpt lvl
         debug = sc.sticky['debug']
+        IsAtGroundPlane = False
         if abs(refpt[2]-0.0) < 0.1:
             #print 'ground ref at:', refpt[2]
-            refpt.Z = 0.0
+            refpt.Z = 1.0
+            IsAtGroundPlane = True
         if g == None: g = self.geom
             #debug.append(g)
         try:
@@ -537,8 +539,12 @@ class Shape:
             if self.is_guid(refpt): refpt = rs.coerce3dpoint(refpt)
             if self.is_guid(g): g = rs.coercebrep(g)
             plane = rc.Geometry.Plane(refpt,rc.Geometry.Vector3d(0,0,1))
-            crvs = g.CreateContourCurves(g,plane)
-            return crvs[0]
+            crv = g.CreateContourCurves(g,plane)[0]
+            if IsAtGroundPlane==True:
+                crv = sc.doc.Objects.AddCurve(crv)
+                move_crv = self.move_geom(crv,rc.Geometry.Vector3d(0,0,-1.))
+                crv = rs.coercecurve(move_crv)
+            return crv
         except Exception as e:
             print "Error @ shape.get_bottom"
             print str(e)#sys.exc_traceback.tb_lineno
