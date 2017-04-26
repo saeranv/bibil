@@ -191,76 +191,55 @@ class Grammar:
         except Exception as e:
             print "Error at pattern solar envelope multi"
             print e
-    def old_stepback(self,tnode,PD_):
-        #For profile testing
+    def extract_canyon(self,tnode,PD_):
         debug = sc.sticky['debug']
-        ## Ref: TT['stepback'] = [(ht3,sb3),(ht2,sb2),(ht1,sb1)]
-        tnode.grammar.type['grammar'] = 'stepback'
-        sb_ref = PD_['stepback_ref']
-        sb_data = PD_['stepback_data'] #height:stepback
-        sb_random = PD_['stepback_randomize']
-        ##sb_data: [(height,distance),(height,distance)...]
-        if True:#try:
-            #Parse setback data
-            for i,sbd in enumerate(sb_data):
-                sb_data[i] = map(lambda s: float(s), sbd.split(':'))
-            #Parse setback_randomize
-            if sb_random:
-                random_bounds = sb_random.split(':')
-                for i,rb in enumerate(random_bounds):
-                    random_bounds[i] = map(lambda r: int(float(r)),rb.split('>'))
-                randht_lo,randht_hi = random_bounds[0][0],random_bounds[0][1]
-                randsb_lo,randsb_hi = random_bounds[1][0],random_bounds[1][1]
-
-            #Get data if not geometry
-            sbg_type = self.helper_get_type(sb_ref[0])
-            if sbg_type != "geometry":
-                sb_node_ref = self.helper_get_ref_node(sb_ref[0],tnode)
-                axis_matrix = sb_node_ref.shape.set_base_matrix()
-                line_lst = []
-                for vectors in axis_matrix:
-                    line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
-                    line_lst.append(line)
-                sb_ref = line_lst
-            ## Loop through the height,setback tuples
-            for sbd in sb_data:
-                ht, dist = sbd[0], sbd[1]
-                if sb_random:
-                    if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
-                        ht += random.randrange(randht_lo,randht_hi)
-                    if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
-                        dist += random.randrange(randsb_lo,randsb_hi)
-
-                #Dissect floor
-                #if False:
-                #    sh_top_node = None
-                #    if ht < tnode.shape.ht:
-                #        sh_bot_node,sh_top_node = self.helper_divide_through_normal(tnode,ht)
-                #        sh_top_node.grammar.type['label'] = 'stepbacktop'
-                #        sh_bot_node.grammar.type['label'] = 'stepbackbot'
-                #else:
-                sh_top_node = tnode
-                ##Loop through all sb_geoms
-                if sh_top_node:
-                    for sbg in sb_ref:
-                        # move sbref
-                        move_vector= sh_top_node.shape.normal*float(ht)
-                        sbref_crv = sc.doc.Objects.AddCurve(sbg)
-                        sbref_crv = rs.coercecurve(rs.CopyObject(sbref_crv,move_vector))
-                        cut_geom = None
-                        #cut at ht
-                        #then take top node and split that
-                        try:
-                            cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
-                                                split_depth=float(dist*2.),split_line_ref=sbref_crv)
-                        except:
-                            pass
-                        if cut_geom:
-                            sh_top_node.shape.geom = cut_geom[0]
-                            sh_top_node.shape.reset(xy_change=True)
-        #except Exception as e:
-        #    print str(e)#,sys.exc_traceback.tb_lineno
-        #    print "Error at Pattern.stepback"
+        canyon_dist_tol = PD_['canyon_tol']
+        tnode.grammar.type['grammar'] = 'canyon_tol'
+        if canyon_dist_tol == None: canyon_dist_tol = 10.0
+        canyon_angle_tol = 15.0
+        S = Shape()
+        
+        
+        #Need to eliminate geoms not in dist_tol
+        #if not tnode.grammar.type.has_key('street_tolerance_curve'):
+        #        tnode.grammar.type['street_tolerance_curve'] = []
+        #    for i in xrange(len(sb_ref)):
+        #        sbrefline = sb_ref[i]
+        #        perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol)
+        #        streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
+        #        tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
+        #        IsIntersect = tnode.shape.check_region(streetoffcrv,realvalue=True)
+                #if disjoint==setrel: return 0
+                #elif intersect==setrel:return 1
+                #elif AInsideB==setrel:return 2
+                #else: return 3
+        #        if not self.is_near_zero(IsIntersect):
+        #            IsInsideTol = False
+        #            break
+                
+        #Get tnode matrix
+        matrix = tnode.shape.base_matrix
+        if not matrix:
+            matrix = tnode.shape.set_base_matrix()
+        
+        #Get reference matrix
+        ht = 0.0
+        #sb_ref = ???
+        ref_edge = tnode.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=canyon_dist_tol,angle_tol=sb_angle_tol)            
+        
+        
+        #Loop through ref edges
+        #for sbg in ref_edge:
+        #    cut_geom = None
+        #    #if self.is_near_zero(ht):
+        #        
+        #    if type([])==type(sbg):
+        #        sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
+        #    else:
+        #        sbg = rs.MoveObject(sc.doc.Objects.AddCurve(sbg),[0,0,ht])
+        #        sbg = rs.coercecurve(sbg)
+        #        sbref_crv = sbg
+        
         return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
@@ -273,6 +252,7 @@ class Grammar:
         sb_dist_tol = PD_['stepback_tol']
         if sb_dist_tol == None: sb_dist_tol = 10.0
         sb_ref_tol = 15.0
+        IsInsideTol = True
         S = Shape()
         
         #Clean/Define the Inputs
@@ -319,17 +299,22 @@ class Grammar:
                 perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol)
                 streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
                 tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
-                #IsIntersect = tnode.shape.check_region(streetoffcrv)
-                #print IsIntersect
-                #if self.is_near_zero(IsIntersect):
-                #    return tnode
-        
+                IsIntersect = tnode.shape.check_region(streetoffcrv,realvalue=True)
+                #if disjoint==setrel: return 0
+                #elif intersect==setrel:return 1
+                #elif AInsideB==setrel:return 2
+                #else: return 3
+                if not self.is_near_zero(IsIntersect):
+                    IsInsideTol = False
+                    break
         ## Loop through the height,setback tuples
         #rename tnode
         node2cut = self.helper_UI_geom(tnode)
         
         #Loop through the stepback dimensions
         for sb_index in xrange(len(sb_data)):
+            if IsInsideTol:
+                break
             sbd = sb_data[sb_index]
             ht, dist = sbd[0], sbd[1]
 
@@ -341,18 +326,8 @@ class Grammar:
                 if not self.is_near_zero(randsb_lo) and not self.is_near_zero(randsb_hi):
                     dist += random.randrange(randsb_lo,randsb_hi)
 
-            #Dissect floor
-            if False:
-                sh_bot_node,sh_top_node = self.helper_divide_through_normal(node2cut,ht)
-                if sh_bot_node and sh_top_node:
-                    sh_top_node.grammar.type['label'] = 'stepbacktop'
-                    sh_bot_node.grammar.type['label'] = 'stepbackbot'
-                    #debug.append(sh_bot_node.shape.geom)
-                else:
-                    break
-            else:
-                sh_top_node = node2cut
             ##Now actually implement setback
+            sh_top_node = node2cut
             if IsHighEnough:
                 #Get self matrix to match
                 matrix = sh_top_node.shape.base_matrix
@@ -951,58 +926,6 @@ class Grammar:
             #Extract topo
             for slht in slice_ht:
                 chld = extract_topo(temp_node_,slht)
-        return temp_node_
-    def old_set_height(self,temp_node_,PD_):
-        def height_from_bula(n_):
-            setht = 6. #default ht = midrise
-            bula_node_lst = temp_node_.backtrack_tree(lambda n: n.grammar.type['bula'],accumulate=True)
-            #temp
-            min_bula_node_sum = None
-            min_bula_node_index = None
-
-            for bula_ref_index,bula_node in enumerate(bula_node_lst):
-                bula_node_sum = 0
-                buladata = bula_node.grammar.type['bula_data']
-                lpl_,lvl_, lvl_actual = buladata.set_node_bula_pt_ref(temp_node_,bula_node)
-
-                #for vl_ in lvl_:
-                bula_node_min = min(reduce(lambda x,y: x+y,lvl_))
-
-                if min_bula_node_sum == None or min_bula_node_sum > bula_node_min:
-                    min_bula_node_sum = bula_node_min
-                    min_bula_node_index = bula_ref_index
-            buladata = bula_node_lst[min_bula_node_index].grammar.type['bula_data']
-            lpl_,lvl_,actual_lvl_ = buladata.set_node_bula_pt_ref(temp_node_,bula_node_lst[min_bula_node_index])
-            if lpl_ != [[]]:
-                n_ = buladata.generate_bula_point([n_],lpl_,lvl_,actual_lvl_)[0]
-                val_lst = n_.grammar.type['bula_data'].value_lst
-                setht = min(val_lst)#sum(val_lst)/float(len(val_lst))
-            return setht
-        #print 'We are setting height!'
-        temp_node_.grammar.type['grammar'] = 'height'
-        debug = sc.sticky['debug']
-        ht_ = PD_['height']
-        randomize_ht = PD_['height_randomize']
-        #ht_ref = PD_['height_ref']
-        ht_ref = None
-        if ht_ref:
-            ht_type = self.helper_get_type(ht_ref)
-            if ht_type != "geometry":
-                ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
-            ht_ = ht_ref.shape.ht - temp_node_.shape.ht
-        if randomize_ht:
-            random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
-            randht_lo,randht_hi = random_bounds[0],random_bounds[1]
-            ht_ += random.randrange(randht_lo,randht_hi)
-
-        n_ = temp_node_
-        #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
-        if type(ht_)==type('') and 'bula' in ht_:
-            setht_ = height_from_bula(n_)
-        else:
-            setht_ = ht_
-        n_.shape.op_extrude(setht_)
-        #print '---'
         return temp_node_
     def set_height(self,temp_node_,PD_):
         def height_from_bula(n_):
@@ -1712,8 +1635,8 @@ class Grammar:
             temp_node = self.shape2height(temp_node,PD)
         elif PD.has_key('extract_slice') and PD['extract_slice'] == True:
             temp_node = self.extract_slice(temp_node,PD)
-        elif PD.has_key('bucket4shape') and PD['bucket4shape'] == True:
-            temp_node = self.bucket_shape(temp_node,PD)
+        elif PD.has_key('extract_canyon') and PD['extract_canyon'] == True:
+            temp_node = self.extract_canyon(temp_node,PD)
         elif PD.has_key('transform') and PD['transform'] == True:
             temp_node = self.transform(temp_node,PD)
         elif PD.has_key('straight_skeleton') and PD['straight_skeleton'] == True:
