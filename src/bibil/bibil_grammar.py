@@ -191,55 +191,94 @@ class Grammar:
         except Exception as e:
             print "Error at pattern solar envelope multi"
             print e
+    def abstract_BEM(self,tnode,PD_):
+        debug = sc.sticky['debug']
+        tnode.grammar.type['grammar'] = 'abstract_bem'
+        dist_tol = PD_['bem_tol']
+        center = PD_['bem_center']
+        #Need to eliminate geoms not in dist_tol
+        if not tnode.grammar.type.has_key('tolerance_curve'):
+                tnode.grammar.type['tolerance_curve'] = []
+        perppts = tnode.shape.offset_perpendicular_from_line(center,dist_tol)
+        canoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
+        tnode.grammar.type['tolerance_curve'].append(canoffcrv)
+        IsIntersect = tnode.shape.check_region(canoffcrv,realvalue=True)
+        #if disjoint==setrel: return 0
+        #elif intersect==setrel:return 1
+        #elif AInsideB==setrel:return 2
+        #else: return 3
+        if self.is_near_zero(IsIntersect):
+            tnode.grammar.type['context_geometry'] = tnode.shape.geom
+            tnode.grammar.type['freeze']=True
+            #debug.append(tnode.shape.geom)
+            return tnode
+        #debug.append(tnode.shape.geom)
+        
+        botht = copy.copy(tnode.shape.cpt)
+        botht.Z += 1.0
+        topht = copy.copy(botht)
+        topht.Z = (tnode.shape.ht - tnode.shape.cpt.Z)/2 + botht.Z
+        htlst = [botht,topht]
+        
+        for i in xrange(len(htlst)): 
+            refpt = htlst[i]
+            crv = tnode.shape.get_bottom(tnode.shape.geom,refpt,tol=1.0)
+            zone = self.helper_geom2node(crv,tnode,'thermalzone',tnode.shape.cplane)
+            zone.shape.op_extrude(3.0)
+            htlst[i] = zone
+        tnode.loc = htlst
+        return tnode
     def extract_canyon(self,tnode,PD_):
         debug = sc.sticky['debug']
-        canyon_dist_tol = PD_['canyon_tol']
         tnode.grammar.type['grammar'] = 'canyon_tol'
-        if canyon_dist_tol == None: canyon_dist_tol = 10.0
-        canyon_angle_tol = 15.0
-        S = Shape()
-        
+        dist_tol = PD_['canyon_tol']
+        center = PD_['canyon_center']
+        if dist_tol == None: dist_tol = 10.0
+        angle_tol = 15.0
         
         #Need to eliminate geoms not in dist_tol
-        #if not tnode.grammar.type.has_key('street_tolerance_curve'):
-        #        tnode.grammar.type['street_tolerance_curve'] = []
-        #    for i in xrange(len(sb_ref)):
-        #        sbrefline = sb_ref[i]
-        #        perppts = tnode.shape.offset_perpendicular_from_line(sbrefline,sb_dist_tol)
-        #        streetoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
-        #        tnode.grammar.type['street_tolerance_curve'].append(streetoffcrv)
-        #        IsIntersect = tnode.shape.check_region(streetoffcrv,realvalue=True)
-                #if disjoint==setrel: return 0
-                #elif intersect==setrel:return 1
-                #elif AInsideB==setrel:return 2
-                #else: return 3
-        #        if not self.is_near_zero(IsIntersect):
-        #            IsInsideTol = False
-        #            break
-                
+        if not tnode.grammar.type.has_key('tolerance_curve'):
+                tnode.grammar.type['tolerance_curve'] = []
+        perppts = tnode.shape.offset_perpendicular_from_line(center,dist_tol)
+        canoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
+        tnode.grammar.type['tolerance_curve'].append(canoffcrv)
+        IsIntersect = tnode.shape.check_region(canoffcrv,realvalue=True)
+        #if disjoint==setrel: return 0
+        #elif intersect==setrel:return 1
+        #elif AInsideB==setrel:return 2
+        #else: return 3
+        if self.is_near_zero(IsIntersect):
+            tnode.grammar.type['context_geometry'] = tnode.shape.geom
+            #debug.append(tnode.shape.geom)
+            return tnode
+        
+        ###do the energy thing from here
+        ###then take an resulting srfdata + zone information processed
+        ###extract srf and pull up to height of building ht
+        ##(backtrack to parent to find this)
+        
         #Get tnode matrix
         matrix = tnode.shape.base_matrix
         if not matrix:
             matrix = tnode.shape.set_base_matrix()
-        
+        #debug.append(tnode.shape.geom)
         #Get reference matrix
-        ht = 0.0
-        #sb_ref = ???
-        ref_edge = tnode.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=canyon_dist_tol,angle_tol=sb_angle_tol)            
-        
-        
+        ht = tnode.shape.cpt[2]
+        ref_edge = tnode.shape.match_edges_with_refs(matrix,[center],ht,dist_tol=dist_tol,angle_tol=angle_tol)            
+        #loop through these and you can extrude these to wall heights
+        #but this will not take into account setback
+        #use edge dirn to strip all stepbacks from all sides???
+        print len(ref_edge)
         #Loop through ref edges
-        #for sbg in ref_edge:
-        #    cut_geom = None
-        #    #if self.is_near_zero(ht):
-        #        
-        #    if type([])==type(sbg):
-        #        sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
-        #    else:
-        #        sbg = rs.MoveObject(sc.doc.Objects.AddCurve(sbg),[0,0,ht])
-        #        sbg = rs.coercecurve(sbg)
-        #        sbref_crv = sbg
-        
+        edge = ref_edge[0]
+        if type([])==type(edge):
+            bld_crv = rc.Geometry.Curve.CreateControlPointCurve(edge,0)
+        else:
+            bld_crv = rs.MoveObject(sc.doc.Objects.AddCurve(edge),[0,0,ht])
+            bld_crv = rs.coercecurve(bld_crv)
+        exht = tnode.shape.ht - ht
+        srf = tnode.shape.extrude_curve_along_normal(exht+10.0,tnode.shape.cpt,bld_crv)
+        debug.append(srf)
         return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
@@ -1635,6 +1674,8 @@ class Grammar:
             temp_node = self.shape2height(temp_node,PD)
         elif PD.has_key('extract_slice') and PD['extract_slice'] == True:
             temp_node = self.extract_slice(temp_node,PD)
+        elif PD.has_key('abstract_bem') and PD['abstract_bem'] == True:
+            temp_node = self.abstract_BEM(temp_node,PD)
         elif PD.has_key('extract_canyon') and PD['extract_canyon'] == True:
             temp_node = self.extract_canyon(temp_node,PD)
         elif PD.has_key('transform') and PD['transform'] == True:

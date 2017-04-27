@@ -1019,9 +1019,9 @@ class Shape:
             parallel_edges = self.get_parallel_segments(lst_edge,dir_ref,angle_tol)
             #print 'pe', len(parallel_edges)
             parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,dist_tol,front=to_front,ht_ref=norm_ht)
-            #print 'ph', len(parallel_and_front_edges)
+            #print 'p&f', len(parallel_and_front_edges)
             #print norm_ht
-            #print '---'
+            print '---'
         return parallel_and_front_edges
     def offset_perpendicular_from_line(self,ref_line,dist2offset):
         #debug = sc.sticky['debug']
@@ -1437,6 +1437,10 @@ class Shape:
             long_dist,short_dist = self.y_dist,self.x_dist
             long_axis,short_axis = 'NS','EW'
         return long_axis,long_dist,short_axis,short_dist
+    def extrude_curve_along_normal(self,z_dist,cpt,crv2extrude):
+        pathcrv = rc.Geometry.Curve.CreateControlPointCurve([cpt,cpt+self.normal*z_dist],0)
+        srf = rc.Geometry.SumSurface.Create(crv2extrude, pathcrv)
+        return srf
     def op_extrude(self,z_dist,curve=None):
         debug = sc.sticky['debug']
         try:
