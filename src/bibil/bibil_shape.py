@@ -1021,7 +1021,7 @@ class Shape:
             parallel_and_front_edges += self.identify_front_or_back_to_ref_edge(sbrefedge,parallel_edges,dist_tol,front=to_front,ht_ref=norm_ht)
             #print 'p&f', len(parallel_and_front_edges)
             #print norm_ht
-            print '---'
+            #print '---'
         return parallel_and_front_edges
     def offset_perpendicular_from_line(self,ref_line,dist2offset):
         #debug = sc.sticky['debug']

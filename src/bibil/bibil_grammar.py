@@ -233,9 +233,44 @@ class Grammar:
         tnode.grammar.type['grammar'] = 'canyon_tol'
         dist_tol = PD_['canyon_tol']
         center = PD_['canyon_center']
+        srf_data = PD_['srf_data']
+        hb_hive = sc.sticky["honeybee_Hive"]()
+        
         if dist_tol == None: dist_tol = 10.0
         angle_tol = 15.0
         
+        #Get HBZone from hive (?)
+        HZone = tnode.shape.geom
+        zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
+        zone_num = int(zone.name.split('_')[-1])
+        #print zone_num
+        
+        #Identify srf_index from input srf data
+        srf_data_index = None
+        for i in xrange(0,len(srf_data),10):
+            srfzone_num = int(srf_data[i][2].split('_')[1])
+            if srfzone_num == zone_num:
+                srf_data_index = i
+                break
+        
+        #Check zone_num and srf_data_index
+        #print zone.name
+        #print srf_data[srf_data_index][2]
+        
+        #Sort srf in zone.surface
+        for srf in zone.surfaces:
+            surfaceNames.append(srf.name)
+            if srf.hasChild:
+                srfBreps.append(srf.punchedGeometry)
+                for childSrf in srf.childSrfs:
+                    surfaceNames.append(childSrf.name)
+                    srfBreps.append(childSrf.geometry)
+            else:
+                srfBreps.append(srf.geometry)
+        
+        print '---'
+        """
+        #print hb_zone
         #Need to eliminate geoms not in dist_tol
         if not tnode.grammar.type.has_key('tolerance_curve'):
                 tnode.grammar.type['tolerance_curve'] = []
@@ -279,6 +314,7 @@ class Grammar:
         exht = tnode.shape.ht - ht
         srf = tnode.shape.extrude_curve_along_normal(exht+10.0,tnode.shape.cpt,bld_crv)
         debug.append(srf)
+        """
         return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']

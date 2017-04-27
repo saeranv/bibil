@@ -11,9 +11,15 @@ clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
+Bula = sc.sticky['Bula']
+
 if run:
     rule = DataTree[object]()
     canyon_center = rs.coercecurve(canyon_center)
+    
+    B = Bula()
+    srf_data = B.ghtree2nestlist(srf_data)
+    
     rule_ = [\
     ['extract_canyon', True],\
     ['grammar_key','extract_canyon'],\
