@@ -240,37 +240,15 @@ class Grammar:
         angle_tol = 15.0
         
         #Get HBZone from hive (?)
-        HZone = tnode.shape.geom
+        HZone = tnode.parent.grammar.type['HBZone']
         zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
         zone_num = int(zone.name.split('_')[-1])
         #print zone_num
-        
-        #Identify srf_index from input srf data
-        srf_data_index = None
-        for i in xrange(0,len(srf_data),10):
-            srfzone_num = int(srf_data[i][2].split('_')[1])
-            if srfzone_num == zone_num:
-                srf_data_index = i
-                break
         
         #Check zone_num and srf_data_index
         #print zone.name
         #print srf_data[srf_data_index][2]
         
-        #Sort srf in zone.surface
-        for srf in zone.surfaces:
-            surfaceNames.append(srf.name)
-            if srf.hasChild:
-                srfBreps.append(srf.punchedGeometry)
-                for childSrf in srf.childSrfs:
-                    surfaceNames.append(childSrf.name)
-                    srfBreps.append(childSrf.geometry)
-            else:
-                srfBreps.append(srf.geometry)
-        
-        print '---'
-        """
-        #print hb_zone
         #Need to eliminate geoms not in dist_tol
         if not tnode.grammar.type.has_key('tolerance_curve'):
                 tnode.grammar.type['tolerance_curve'] = []
@@ -287,11 +265,6 @@ class Grammar:
             #debug.append(tnode.shape.geom)
             return tnode
         
-        ###do the energy thing from here
-        ###then take an resulting srfdata + zone information processed
-        ###extract srf and pull up to height of building ht
-        ##(backtrack to parent to find this)
-        
         #Get tnode matrix
         matrix = tnode.shape.base_matrix
         if not matrix:
@@ -300,10 +273,53 @@ class Grammar:
         #Get reference matrix
         ht = tnode.shape.cpt[2]
         ref_edge = tnode.shape.match_edges_with_refs(matrix,[center],ht,dist_tol=dist_tol,angle_tol=angle_tol)            
-        #loop through these and you can extrude these to wall heights
-        #but this will not take into account setback
-        #use edge dirn to strip all stepbacks from all sides???
-        print len(ref_edge)
+        
+        #Match srf normals
+        srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
+        #srf_normal.Unitize()
+        srf_opaque = None
+        srf_glass = None
+        #Sort srf in zone.surface
+        for srf in zone.surfaces:
+            #srf.normalVector
+            #print srf.normalVector
+            #print srf_normal
+            IsEqual = srf.normalVector.IsParallelTo(srf_normal,0.1)
+            if IsEqual==1:
+                if srf.hasChild:
+                    #srf_opaque = srf.punchedGeometry
+                    for childSrf in srf.childSrfs:
+                        srf_glass = childSrf
+                srf_opaque = srf
+                break
+        
+        srfopaquenum = srf_opaque.name.split('_')[-1]
+        print srf_opaque.name
+        #print srf_glass.name
+        debug.append(srf_opaque.punchedGeometry)
+        
+        #Identify srf_index from input srf data
+        srfdataindex = None
+        for i in xrange(0,len(srf_data),10):
+            srfdatalst = srf_data[i][2].split('_')
+            srfzone_num = int(srfdatalst[1])
+            if srfzone_num==zone_num:
+                for j in xrange(10):
+                    srftempstr = srf_data[i+j][2]
+                    if "Wall" in srftempstr:
+                        opaque_num_chk = srf_data[i+j][2].split('_')[-1].split(':')[0] 
+                        if opaque_num_chk == srfopaquenum:
+                            srfdataindex = i+j
+                            break
+        zonesrfname = srf_data[srfdataindex][2]
+        #print zonesrfname
+        srf_temp_lst = srf_data[srfdataindex][7:]
+        srf_temp_avg = reduce(lambda x,y:x+y,srf_temp_lst)/float(len(srf_temp_lst))
+        tnode.grammar.type['processed_srf_data'] = srf_temp_avg
+        tnode.grammar.type['processed_srf_pt'] = srf_opaque.cenPt
+        print srf_temp_avg
+        print '----'
+        
         #Loop through ref edges
         edge = ref_edge[0]
         if type([])==type(edge):
@@ -314,7 +330,7 @@ class Grammar:
         exht = tnode.shape.ht - ht
         srf = tnode.shape.extrude_curve_along_normal(exht+10.0,tnode.shape.cpt,bld_crv)
         debug.append(srf)
-        """
+        
         return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
