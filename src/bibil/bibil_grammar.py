@@ -209,8 +209,8 @@ class Grammar:
         #else: return 3
         if self.is_near_zero(IsIntersect):
             tnode.grammar.type['context_geometry'] = tnode.shape.geom
-            tnode.grammar.type['freeze']=True
-            #debug.append(tnode.shape.geom)
+            tnode.grammar.type['freeze'] = True
+            debug.append(tnode)
             return tnode
         #debug.append(tnode.shape.geom)
         
@@ -223,7 +223,7 @@ class Grammar:
         for i in xrange(len(htlst)): 
             refpt = htlst[i]
             crv = tnode.shape.get_bottom(tnode.shape.geom,refpt,tol=1.0)
-            zone = self.helper_geom2node(crv,tnode,'thermalzone',tnode.shape.cplane)
+            zone = self.helper_geom2node(crv,tnode,grammar='thermalzone',cplane_ref=tnode.shape.cplane)
             zone.shape.op_extrude(3.0)
             htlst[i] = zone
         tnode.loc = htlst
@@ -262,7 +262,7 @@ class Grammar:
         #else: return 3
         if self.is_near_zero(IsIntersect):
             tnode.grammar.type['context_geometry'] = tnode.shape.geom
-            #debug.append(tnode.shape.geom)
+            tnode.grammar.type['freeze'] = True
             return tnode
         
         #Get tnode matrix
@@ -297,40 +297,42 @@ class Grammar:
         print srf_opaque.name
         #print srf_glass.name
         debug.append(srf_opaque.punchedGeometry)
-        
-        #Identify srf_index from input srf data
-        srfdataindex = None
-        for i in xrange(0,len(srf_data),10):
-            srfdatalst = srf_data[i][2].split('_')
-            srfzone_num = int(srfdatalst[1])
-            if srfzone_num==zone_num:
-                for j in xrange(10):
-                    srftempstr = srf_data[i+j][2]
-                    if "Wall" in srftempstr:
-                        opaque_num_chk = srf_data[i+j][2].split('_')[-1].split(':')[0] 
-                        if opaque_num_chk == srfopaquenum:
-                            srfdataindex = i+j
-                            break
-        zonesrfname = srf_data[srfdataindex][2]
-        #print zonesrfname
-        srf_temp_lst = srf_data[srfdataindex][7:]
-        srf_temp_avg = reduce(lambda x,y:x+y,srf_temp_lst)/float(len(srf_temp_lst))
-        tnode.grammar.type['processed_srf_data'] = srf_temp_avg
-        tnode.grammar.type['processed_srf_pt'] = srf_opaque.cenPt
-        print srf_temp_avg
-        print '----'
-        
-        #Loop through ref edges
-        edge = ref_edge[0]
-        if type([])==type(edge):
-            bld_crv = rc.Geometry.Curve.CreateControlPointCurve(edge,0)
-        else:
-            bld_crv = rs.MoveObject(sc.doc.Objects.AddCurve(edge),[0,0,ht])
-            bld_crv = rs.coercecurve(bld_crv)
-        exht = tnode.shape.ht - ht
-        srf = tnode.shape.extrude_curve_along_normal(exht+10.0,tnode.shape.cpt,bld_crv)
-        debug.append(srf)
-        
+        try:
+            #Identify srf_index from input srf data
+            srfdataindex = None
+            for i in xrange(0,len(srf_data),10):
+                srfdatalst = srf_data[i][2].split('_')
+                srfzone_num = int(srfdatalst[1])
+                if srfzone_num==zone_num:
+                    for j in xrange(10):
+                        srftempstr = srf_data[i+j][2]
+                        if "Wall" in srftempstr:
+                            opaque_num_chk = srf_data[i+j][2].split('_')[-1].split(':')[0] 
+                            if opaque_num_chk == srfopaquenum:
+                                srfdataindex = i+j
+                                break
+            
+            zonesrfname = srf_data[srfdataindex][2]
+            #print zonesrfname
+            srf_temp_lst = srf_data[srfdataindex][7:]
+            srf_temp_avg = reduce(lambda x,y:x+y,srf_temp_lst)/float(len(srf_temp_lst))
+            tnode.grammar.type['processed_srf_data'] = srf_temp_avg
+            tnode.grammar.type['processed_srf_pt'] = srf_opaque.cenPt
+            print srf_temp_avg
+            print '----'
+            
+            #Loop through ref edges
+            edge = ref_edge[0]
+            if type([])==type(edge):
+                bld_crv = rc.Geometry.Curve.CreateControlPointCurve(edge,0)
+            else:
+                bld_crv = rs.MoveObject(sc.doc.Objects.AddCurve(edge),[0,0,ht])
+                bld_crv = rs.coercecurve(bld_crv)
+            exht = tnode.shape.ht - ht
+            srf = tnode.shape.extrude_curve_along_normal(exht,tnode.shape.cpt,bld_crv)
+            debug.append(srf)
+        except:
+            pass
         return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
@@ -1658,7 +1660,7 @@ class Grammar:
         ## outputs node
         T = Tree()
         L = []
-
+        DL = []
         #Apply rule to each node
         child_node_lst_ = []
         for i,node_ in enumerate(lst_node_):
@@ -1678,22 +1680,24 @@ class Grammar:
         if IsApply2Full:
             #When we apply full list, we assume we are applying same rule to all nodes
             ParamDict = child_node_lst_[0].grammar.type
-            node_out_ = self.main_grammar(child_node_lst_,ParamDict)
+            node_out_,dead_node_out_ = self.main_grammar(child_node_lst_,ParamDict)
             RhinoApp.Wait()
             L.extend(node_out_)
+            DL.extend(dead_node_out_)
         else:
             for i,child_node_ in enumerate(child_node_lst_):
                 ## Apply pattern
                 if True:#try:
                     ParamDict = child_node_.grammar.type
-                    node_out_ = self.main_grammar(child_node_,ParamDict)
+                    node_out_,dead_node_out_ = self.main_grammar(child_node_,ParamDict)
                     RhinoApp.Wait()
                     L.extend(node_out_)
+                    DL.extend(dead_node_out_)
                 #except Exception as e:
                 #    print "Error @ Pattern.main_pattern"
 
 
-        return L
+        return L,DL
     def main_grammar(self,temp_node,PD):
         isList = type(temp_node) == type([])
 
@@ -1741,15 +1745,11 @@ class Grammar:
             lst_childs = temp_node.traverse_tree(lambda n:n,internal=False) #change this to based on inoput type
 
         ## Check freezing
+        dead_lst_childs = filter(lambda n: n.grammar.type['freeze']==True,lst_childs)
         lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
         
-        internal_nodes = temp_node.traverse_tree(lambda n:n,internal=True)
-        #.backtrack_tree(lambda n:len(n.loc)>0.5,accumulate=True)
-        #for in_node in internal_nodes:
-        #    in_node.grammar.dispose_geom(in_node)
-        
         ## Finish
-        return lst_childs
+        return lst_childs, dead_lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
         def helper_nest_rules(label_lst_,rule_tree_):
             #Purpose: Extract rules from tree insert nest list of rule dictionaries
@@ -1790,12 +1790,15 @@ class Grammar:
         def helper_main_recurse(lst_node_,rule_lst):
             #if no rules/label_rules node is just passed through
             IsFirst = True
+            dead_lst_node_ = []
             while len(rule_lst) > 0:
                 rule_ = rule_lst.pop(0)
                 #apply rule to current list of nodes, get child lists flat
-                lst_node_leaves = self.node2grammar(lst_node_,rule_,firstUINode=IsFirst)
+                lst_node_leaves, dead_leaves = self.node2grammar(lst_node_,rule_,firstUINode=IsFirst)
                 if IsFirst==True:
                     IsFirst = False
+                if len(dead_leaves) > 0.001:
+                    dead_lst_node_.extend(dead_leaves)
                 if len(lst_node_leaves) > 0.001:
                     lst_node_ = lst_node_leaves
                 else:
@@ -1805,9 +1808,10 @@ class Grammar:
                 if type(T) != type(ng):
                     ng = self.helper_geom2node(ng)
                     lst_node_[i] = ng
-            return lst_node_
+            return lst_node_, dead_lst_node_
         T = Tree()
         lst_node_out = []
+        dead_node_out = []
         #Check inputs
         chk_input_len = False
         #if node and label are ==
@@ -1837,8 +1841,7 @@ class Grammar:
                 nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
                 #make label a rule
                 #recursively create a child node derived from parent and apply a grammar rule
-                lst_node_out_ = helper_main_recurse(node_in_,nested_rule_dict)   
-                lst_node_out.extend(lst_node_out_)
+                lst_node_out_,dead_node_ = helper_main_recurse(node_in_,nested_rule_dict)   
             else:
                 #print 'multiple labels'
                 #Map label num to label num if multiple labels
@@ -1849,13 +1852,15 @@ class Grammar:
                     nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
                     #make label a rule
                     #recursively create a child node derived from parent and apply a grammar rule
-                    lst_node_out_ = helper_main_recurse([node_],nested_rule_dict)
-                    lst_node_out.extend(lst_node_out_)
+                    lst_node_out_,dead_node_ = helper_main_recurse([node_],nested_rule_dict)
+            lst_node_out.extend(lst_node_out_)
+            dead_node_out.extend(dead_node_)
+            
         else:
             print 'Check the length of your inputs'
          
         
-        return lst_node_out
+        return lst_node_out, dead_node_
 
 if True:
     sc.sticky["Grammar"] = Grammar
