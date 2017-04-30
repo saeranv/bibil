@@ -161,7 +161,7 @@ class Shape:
                     self.bottom_crv = InputIsCurve
                 else:
                     bbrefpt = self.get_boundingbox(self.geom,None)[0] 
-                    self.bottom_crv = self.get_bottom(self.geom,bbrefpt)
+                    self.bottom_crv = self.get_bottom(self.geom,bbrefpt,bottomref=bbrefpt[2])
             except Exception as e:
                 #print str(e)##sys.exc_traceback.tb_lineno
                 self.bottom_crv = None
@@ -523,13 +523,13 @@ class Shape:
         except Exception as e:
             print "Error @ shape.convert_guid"
             print str(e)#sys.exc_traceback.tb_lineno
-    def get_bottom(self,g,refpt,tol=1.0):
+    def get_bottom(self,g,refpt,tol=1.0,bottomref=0.0):
         ## Extract curves from brep according to input cpt lvl
         debug = sc.sticky['debug']
         IsAtGroundPlane = False
-        if abs(refpt[2]-0.0) < 0.1:
+        if abs(refpt[2]-bottomref) < 0.1:
             #print 'ground ref at:', refpt[2]
-            refpt.Z = 1.0
+            refpt.Z += 1.0
             IsAtGroundPlane = True
         if g == None: g = self.geom
             #debug.append(g)
@@ -539,6 +539,7 @@ class Shape:
             if self.is_guid(refpt): refpt = rs.coerce3dpoint(refpt)
             if self.is_guid(g): g = rs.coercebrep(g)
             plane = rc.Geometry.Plane(refpt,rc.Geometry.Vector3d(0,0,1))
+            
             crv = g.CreateContourCurves(g,plane)[0]
             if IsAtGroundPlane==True:
                 crv = sc.doc.Objects.AddCurve(crv)
@@ -546,6 +547,8 @@ class Shape:
                 crv = rs.coercecurve(move_crv)
             return crv
         except Exception as e:
+            #print 'chk', refpt.Z
+            #debug.append(refpt)
             print "Error @ shape.get_bottom"
             print str(e)#sys.exc_traceback.tb_lineno
     def move_geom(self,obj,dir_vector,copy=False):

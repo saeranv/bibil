@@ -210,20 +210,31 @@ class Grammar:
         if self.is_near_zero(IsIntersect):
             tnode.grammar.type['context_geometry'] = tnode.shape.geom
             tnode.grammar.type['freeze'] = True
-            debug.append(tnode)
             return tnode
         #debug.append(tnode.shape.geom)
         
-        botht = copy.copy(tnode.shape.cpt)
-        botht.Z += 1.0
-        topht = copy.copy(botht)
-        topht.Z = (tnode.shape.ht - tnode.shape.cpt.Z)/2 + botht.Z
-        htlst = [botht,topht]
+        maxht = tnode.shape.ht
+        minht = tnode.shape.cpt[2]
+        if self.is_near_zero(minht):
+            minht = 0.0
+        dimz = maxht - minht
+        
+        bothtpt = copy.copy(tnode.shape.cpt)
+        midhtpt = copy.copy(tnode.shape.cpt)
+        tophtpt = copy.copy(tnode.shape.cpt)
+        midhtpt.Z = (dimz/2.)-(dimz/2.)%3 + minht
+        tophtpt.Z = maxht - 3.
+        htlst = [bothtpt,midhtpt,tophtpt]
         
         for i in xrange(len(htlst)): 
             refpt = htlst[i]
-            crv = tnode.shape.get_bottom(tnode.shape.geom,refpt,tol=1.0)
+            crv = tnode.shape.get_bottom(tnode.shape.geom,refpt,tol=1.0,bottomref=minht)
             zone = self.helper_geom2node(crv,tnode,grammar='thermalzone',cplane_ref=tnode.shape.cplane)
+            zone.grammar.type['flr_ht'] = zone.shape.cpt.Z
+            if i==0 or i==len(htlst)-1:
+                zone.grammar.type['is_interzone'] = False
+            else:
+                zone.grammar.type['is_interzone'] = True
             zone.shape.op_extrude(3.0)
             htlst[i] = zone
         tnode.loc = htlst
@@ -274,65 +285,99 @@ class Grammar:
         ht = tnode.shape.cpt[2]
         ref_edge = tnode.shape.match_edges_with_refs(matrix,[center],ht,dist_tol=dist_tol,angle_tol=angle_tol)            
         
-        #Match srf normals
+        #Match srf normals 
         srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
         #srf_normal.Unitize()
         srf_opaque = None
-        srf_glass = None
+        srf_glass_lst = []
+        srf_num = None
         #Sort srf in zone.surface
-        for srf in zone.surfaces:
-            #srf.normalVector
+        for i in xrange(len(zone.surfaces)):
+            srf = zone.surfaces[i]
+            srf_opaque = srf
             #print srf.normalVector
             #print srf_normal
             IsEqual = srf.normalVector.IsParallelTo(srf_normal,0.1)
             if IsEqual==1:
+                if srf_num == None:
+                    srf_num = int(srf.name.split('_')[3])
                 if srf.hasChild:
-                    #srf_opaque = srf.punchedGeometry
-                    for childSrf in srf.childSrfs:
-                        srf_glass = childSrf
-                srf_opaque = srf
+                    for j in xrange(len(srf.childSrfs)):
+                        childSrf = srf.childSrfs[j]
+                        srf_glass_lst.append(childSrf)
+                        #print srf_glass
                 break
-        
-        srfopaquenum = srf_opaque.name.split('_')[-1]
-        print srf_opaque.name
+        #srfopaquenum = srf_opaque.name.split('_')[-1]
+        #print srf_opaque.name
         #print srf_glass.name
-        debug.append(srf_opaque.punchedGeometry)
-        try:
-            #Identify srf_index from input srf data
-            srfdataindex = None
-            for i in xrange(0,len(srf_data),10):
-                srfdatalst = srf_data[i][2].split('_')
-                srfzone_num = int(srfdatalst[1])
-                if srfzone_num==zone_num:
-                    for j in xrange(10):
-                        srftempstr = srf_data[i+j][2]
-                        if "Wall" in srftempstr:
-                            opaque_num_chk = srf_data[i+j][2].split('_')[-1].split(':')[0] 
-                            if opaque_num_chk == srfopaquenum:
-                                srfdataindex = i+j
-                                break
+        glz_num_lst = []
+        for i in xrange(len(srf_glass_lst)):
+            #print srf_glass_lst[i].name
+            glz_num_lst.append(srf_glass_lst[i].name.split('_')[-1])
+        
+        #Identify srf_index from input srf data
+        srfdataindex = []
+        #for i in xrange(0,len(srf_data),10):
+        for i in xrange(len(srf_data)):
+            info4srf = srf_data[i][2]
+            if 'Wall' in info4srf:
+                continue
             
-            zonesrfname = srf_data[srfdataindex][2]
+            srfdatalst = info4srf.split('_')
+            zone_num_chk = int(srfdatalst[1])    
+            if zone_num_chk != zone_num:
+                continue
+
+            srf_num_chk = int(srfdatalst[3].split(':')[0])
+            if srf_num_chk != srf_num:
+                continue
+            
+            #print i, info4srf
+            glz_num_chk = srfdatalst[-1].split(':')[0] 
+            if glz_num_chk in glz_num_lst:
+                srfdataindex.append(i)
+    
+        #Add data to Bibil node
+        tnode.grammar.type['processed_srf_data'] = []
+        tnode.grammar.type['processed_srf_pt'] = []
+        tnode.grammar.type['processed_srf_geom'] = []
+        #print len(srfdataindex)
+        #print len(srf_glass_lst)
+        #print '-'
+        for i in xrange(len(srfdataindex)):
+            srf_glass = srf_glass_lst[i]
+            srfindex = srfdataindex[i]
+            #zonesrfname = srf_data[srfindex][2]
             #print zonesrfname
-            srf_temp_lst = srf_data[srfdataindex][7:]
+            srf_temp_lst = srf_data[srfindex][7:]
             srf_temp_avg = reduce(lambda x,y:x+y,srf_temp_lst)/float(len(srf_temp_lst))
-            tnode.grammar.type['processed_srf_data'] = srf_temp_avg
-            tnode.grammar.type['processed_srf_pt'] = srf_opaque.cenPt
-            print srf_temp_avg
-            print '----'
-            
-            #Loop through ref edges
-            edge = ref_edge[0]
-            if type([])==type(edge):
-                bld_crv = rc.Geometry.Curve.CreateControlPointCurve(edge,0)
-            else:
-                bld_crv = rs.MoveObject(sc.doc.Objects.AddCurve(edge),[0,0,ht])
-                bld_crv = rs.coercecurve(bld_crv)
-            exht = tnode.shape.ht - ht
-            srf = tnode.shape.extrude_curve_along_normal(exht,tnode.shape.cpt,bld_crv)
-            debug.append(srf)
-        except:
-            pass
+            tnode.grammar.type['processed_srf_data'].append(srf_temp_avg)
+            tnode.grammar.type['processed_srf_pt'].append(srf_glass.cenPt)
+            tnode.grammar.type['processed_srf_geom'].append(srf_glass.geometry)
+            #print srf_temp_avg
+            #print '----'
+        
+        #Use window geom
+        if srf_opaque.hasChild:
+            tnode.shape.geom = srf_opaque.punchedGeometry
+        else:
+            tnode.shape.geom = srf_opaque.geometry
+        
+        #Loop through ref edges
+        #edge = ref_edge[0]
+        #if type([])==type(edge):
+        #    bld_crv = rc.Geometry.Curve.CreateControlPointCurve(edge,0)
+        #else:
+        #    bld_crv = rs.MoveObject(sc.doc.Objects.AddCurve(edge),[0,0,ht])
+        #    bld_crv = rs.coercecurve(bld_crv)
+        #exht = tnode.shape.ht - ht
+        #srf = tnode.shape.extrude_curve_along_normal(exht,tnode.shape.cpt,bld_crv)
+        #debug.append(srf)
+        
+        ##INTERPOLATION
+        if tnode.parent.grammar.type['is_interzone']:
+            debug.append(tnode.shape.geom)
+        
         return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
