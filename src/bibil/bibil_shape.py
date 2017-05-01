@@ -551,14 +551,14 @@ class Shape:
             #debug.append(refpt)
             print "Error @ shape.get_bottom"
             print str(e)#sys.exc_traceback.tb_lineno
-    def move_geom(self,obj,dir_vector,copy=False):
+    def move_geom(self,guidobj,dir_vector,copy=False):
         #Moves a geometry
-        #Note, you will likely have to convert to guid and convert back to rc geom
+        #Note, you MUST convert to guid and convert back to rc geom    
         xf = rc.Geometry.Transform.Translation(dir_vector)
         xform = rs.coercexform(xf, True)
-        id = rs.coerceguid(obj, False)
-        id = sc.doc.Objects.Transform(id, xform, not copy)
-        return id
+        guidid = rs.coerceguid(guidobj, False)
+        guidid = sc.doc.Objects.Transform(guidid, xform, not copy)
+        return guidid
     def is_near_zero(self,num,eps=1E-10):
         return abs(float(num)) < eps
     def check_region(self,crvA,crvB=None,realvalue=False,tol=0.1):
@@ -710,7 +710,7 @@ class Shape:
         else:
             linept_ = [rotated_linept,refvec4axis]
         return linept_
-    def get_pt_of_intersection(self,lines2intersect):
+    def get_pt_of_intersection(self,line2intersect):
         #Input: list of list of pts for TWO lines
         #Output: pt of intersection and bool of if intersection exist
         linelst4int = map(lambda lpt: rc.Geometry.Curve.CreateControlPointCurve(lpt,0),line2intersect)
