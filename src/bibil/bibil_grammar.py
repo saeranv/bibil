@@ -199,7 +199,11 @@ class Grammar:
         #Need to eliminate geoms not in dist_tol
         if not tnode.grammar.type.has_key('tolerance_curve'):
                 tnode.grammar.type['tolerance_curve'] = []
-        perppts = tnode.shape.offset_perpendicular_from_line(center,dist_tol)
+        try:
+            perppts = tnode.shape.offset_perpendicular_from_line(center,dist_tol)
+        except:
+            debug.append(tnode.shape.geom)
+            return tnode
         canoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
         tnode.grammar.type['tolerance_curve'].append(canoffcrv)
         IsIntersect = tnode.shape.check_region(canoffcrv,realvalue=True)
@@ -220,27 +224,52 @@ class Grammar:
         dimz = maxht - minht
         
         bothtpt = copy.copy(tnode.shape.cpt)
-        midhtpt = copy.copy(tnode.shape.cpt)
-        tophtpt = copy.copy(tnode.shape.cpt)
-        midhtpt.Z = (dimz/2.)-(dimz/2.)%3 + minht
-        tophtpt.Z = maxht - 3.
-        htlst = [bothtpt,midhtpt,tophtpt]
+        htlst = [bothtpt]
+                 
+        if dimz > 4.5:
+            midhtpt = copy.copy(tnode.shape.cpt)
+            tophtpt = copy.copy(tnode.shape.cpt)
+            midhtpt.Z = (dimz/2.)-(dimz/2.)%3 + minht
+            tophtpt.Z = maxht - 3.
+            
+            #ugly but short term works
+            htlst = [bothtpt,midhtpt,tophtpt]
         
+            if (tophtpt.Z - midhtpt.Z)/2. > 9.:
+                topmidpt = copy.copy(tnode.shape.cpt)
+                topmidpt.Z = ((tophtpt.Z - midhtpt.Z)/2.) - ((tophtpt.Z - midhtpt.Z)/2.)%3 + midhtpt.Z
+                htlst = [bothtpt,midhtpt,topmidpt,tophtpt]
+            if (midhtpt.Z - bothtpt.Z)/2. > 9.:
+                botmidpt = copy.copy(tnode.shape.cpt)
+                botmidpt.Z = ((midhtpt.Z - bothtpt.Z)/2.) - ((midhtpt.Z - bothtpt.Z)/2.)%3 + bothtpt.Z
+                htlst = [bothtpt,botmidpt,midhtpt,topmidpt,tophtpt]
+            
+            
+        tnode.loc = []
         for i in xrange(len(htlst)): 
             refpt = htlst[i]
             crv = tnode.shape.get_bottom(tnode.shape.geom,refpt,tol=1.0,bottomref=minht)
             zone = self.helper_geom2node(crv,parent_node=tnode,grammar='thermalzone',cplane_ref=tnode.shape.cplane)
-            zone.grammar.type['flr_ht'] = zone.shape.cpt.Z
+            if zone==None:
+                refpt.Z += 0.5
+                crv = tnode.shape.get_bottom(tnode.shape.geom,refpt,tol=1.0,bottomref=minht)
+                zone = self.helper_geom2node(crv,parent_node=tnode,grammar='thermalzone',cplane_ref=tnode.shape.cplane)
+            if zone==None:
+                return tnode
+            flr_ht = 0.0 if self.is_near_zero(zone.shape.cpt.Z,eps=0.1) else zone.shape.cpt.Z
+            zone.grammar.type['flr_ht'] = flr_ht
+            
             if i==0 or i==len(htlst)-1:
                 zone.grammar.type['is_interzone'] = False
             else:
                 zone.grammar.type['is_interzone'] = True
             zone.shape.op_extrude(3.0)
             tnode.loc.append(zone)
+            
         return tnode
     def extract_canyon(self,tnode,PD_):
         debug = sc.sticky['debug']
-        tnode.grammar.type['grammar'] = 'canyon_tol'
+        tnode.grammar.type['grammar'] = 'extract_canyon'
         dist_tol = PD_['canyon_tol']
         center = PD_['canyon_center']
         srf_data = PD_['srf_data']
@@ -248,12 +277,11 @@ class Grammar:
         
         if dist_tol == None: dist_tol = 10.0
         angle_tol = 15.0
-        
+
         #Get HBZone from hive (?)
         HZone = tnode.parent.grammar.type['HBZone']
         zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
         zone_num = int(zone.name.split('_')[-1])
-        #print zone_num
         
         #Check zone_num and srf_data_index
         #print zone.name
@@ -262,7 +290,11 @@ class Grammar:
         #Need to eliminate geoms not in dist_tol
         if not tnode.grammar.type.has_key('tolerance_curve'):
                 tnode.grammar.type['tolerance_curve'] = []
-        perppts = tnode.shape.offset_perpendicular_from_line(center,dist_tol)
+        try:
+            perppts = tnode.shape.offset_perpendicular_from_line(center,dist_tol)
+        except:
+            tnode.grammar.type['freeze'] = True
+            return tnode
         canoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
         tnode.grammar.type['tolerance_curve'].append(canoffcrv)
         IsIntersect = tnode.shape.check_region(canoffcrv,realvalue=True)
@@ -274,8 +306,9 @@ class Grammar:
             tnode.grammar.type['context_geometry'] = tnode.shape.geom
             tnode.grammar.type['freeze'] = True
             return tnode
-        
+
         #Get tnode matrix
+        
         matrix = tnode.shape.base_matrix
         if not matrix:
             matrix = tnode.shape.set_base_matrix()
@@ -286,6 +319,8 @@ class Grammar:
         
         #Match srf normals 
         srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
+        tnode.grammar.type['normal'] = srf_normal
+        
         #srf_normal.Unitize()
         srf_opaque = None
         srf_glass_lst = []
@@ -300,26 +335,30 @@ class Grammar:
             if IsEqual==1:
                 if srf_num == None:
                     srf_num = int(srf.name.split('_')[3])
-                if srf.hasChild:
-                    for j in xrange(len(srf.childSrfs)):
-                        childSrf = srf.childSrfs[j]
-                        srf_glass_lst.append(childSrf)
-                        #print srf_glass
+                srf_glass_lst.append(srf_opaque)
+                #if srf.hasChild:
+                #    for j in xrange(len(srf.childSrfs)):
+                #        childSrf = srf.childSrfs[j]
+                #        srf_glass_lst.append(childSrf)
+                #        #print srf_glass
                 break
         #srfopaquenum = srf_opaque.name.split('_')[-1]
         #print srf_opaque.name
         #print srf_glass.name
         glz_num_lst = []
-        for i in xrange(len(srf_glass_lst)):
-            #print srf_glass_lst[i].name
-            glz_num_lst.append(srf_glass_lst[i].name.split('_')[-1])
+        #for i in xrange(len(srf_glass_lst)):
+        #    #print srf_glass_lst[i].name
+        #    glz_num_lst.append(srf_glass_lst[i].name.split('_')[-1])
+        
+        #%%for opaque wall
+        glz_num_lst.append(srf_opaque.name.split('_')[-1])
         
         #Identify srf_index from input srf data
         srfdataindex = []
         #for i in xrange(0,len(srf_data),10):
         for i in xrange(len(srf_data)):
             info4srf = srf_data[i][2]
-            if 'Wall' in info4srf:
+            if not 'Wall' in info4srf:
                 continue
             
             srfdatalst = info4srf.split('_')
@@ -331,16 +370,16 @@ class Grammar:
             if srf_num_chk != srf_num:
                 continue
             
-            #print i, info4srf
-            glz_num_chk = srfdatalst[-1].split(':')[0] 
-            if glz_num_chk in glz_num_lst:
-                srfdataindex.append(i)
-    
+            #glz_num_chk = srfdatalst[-1].split(':')[0] 
+            #if glz_num_chk in glz_num_lst:
+            srfdataindex.append(i)
+               
         #Add data to Bibil node
         tnode.grammar.type['processed_srf_data'] = []
         tnode.grammar.type['processed_srf'] = []
         tnode.grammar.type['processed_srf_pt'] = []
         tnode.grammar.type['processed_srf_geom'] = []
+        tnode.grammar.type['processed_srf_normal'] = [srf_normal]*len(srfdataindex)
         #print len(srfdataindex)
         #print len(srf_glass_lst)
         #print '-'
@@ -363,7 +402,7 @@ class Grammar:
             tnode.shape.geom = srf_opaque.punchedGeometry
         else:
             tnode.shape.geom = srf_opaque.geometry
-        
+
         #Loop through ref edges
         #edge = ref_edge[0]
         #if type([])==type(edge):
@@ -375,36 +414,141 @@ class Grammar:
         #srf = tnode.shape.extrude_curve_along_normal(exht,tnode.shape.cpt,bld_crv)
         #debug.append(srf)
         
+        return tnode
+    def interpolate_vertical(self,tnode_,PD_):
+        debug = sc.sticky['debug']
+        tnode_.grammar.type['grammar'] = 'interpolate_vertical'
         
-        def interpolate_data(tnode_):
-            ##INTERPOLATION
-            foosrf = lambda n: n.grammar.type['grammar']=='thermalzone'
-            foobem = lambda n: n.grammar.type['grammar']=='abstract_bem'
-            srfnode = tnode.backtrack_tree(foosrf,accumulate=False)
-            bemnode = tnode.backtrack_tree(foobem,accumulate=False)
+        #Assume thermzones in bem >= 3.
+        
+        foobem = lambda n: n.grammar.type['grammar']=='abstract_bem'
+        bemnode = tnode_.backtrack_tree(foobem,accumulate=False)
+        thermnode = tnode_.parent.parent
+        
+        #Sort the therm nodes by height
+        therm_node_lst = bemnode.loc
+        therm_node_lst = sorted(therm_node_lst,key=lambda n:n.grammar.type['flr_ht'])
+        
+        #Point of separating this from prior function is that
+        # every extract_canyon node is processed yet. So null will exist.
+        #for t in therm_node_lst:
+        #    print t.loc[0]
+        #print '--'
+        
+        #Locate index of current node
+        therm_index = therm_node_lst.index(thermnode)
+        
+        #Isolate floors from current node to next floor
+        #This is your interpolation range
+        if therm_index+1 >= len(therm_node_lst):
+            return tnode_
+        
+        node_min = therm_node_lst[therm_index]
+        node_max = therm_node_lst[therm_index + 1]
+        
+        if node_min.loc[0].grammar.type.has_key('IsProcessed'):
+            if node_min.loc[0].grammar.type['IsProcessed']==True:
+                return tnode_
+        
+        #Starting at next floor, calculate interpolation values
+        xlvl = node_min.grammar.type['flr_ht']
+        ylvl = node_max.grammar.type['flr_ht']
+        xtemplst = node_min.loc[0].grammar.type['processed_srf_data']
+        ytemplst = node_max.loc[0].grammar.type['processed_srf_data']
+              
+        tnode_.grammar.type['interpolate_temperature']=[]
+        tnode_.grammar.type['interpolate_srf_geom']=[]
+        tnode_.grammar.type['interpolate_cpt']=[]
+        tnode_.grammar.type['interpolate_srf_normal']=[]
+        #loop through floors, avoiding top, bottom floors
+        floor_quantity = (ylvl - xlvl)-(ylvl - xlvl)%3 / 3.0
+        for i in xrange(floor_quantity):
+            newflrfromht = 3.*i
+            newflrht = 3.*i + xlvl
+            IsMax = self.is_near_zero(newflrht - node_max.grammar.type['flr_ht'],1.5)
+            IsMin = self.is_near_zero(newflrht - node_min.grammar.type['flr_ht'],1.5)
+            if IsMin:
+                continue
+            if IsMax:
+                break
+            cptlst = node_min.loc[0].grammar.type['processed_srf_pt']
+            srfgeomlst = node_min.loc[0].grammar.type['processed_srf_geom']
+            srflst = node_min.loc[0].grammar.type['processed_srf']
             
-            print 'chkbem', bemnode.loc
-            if bemnode.grammar.type.has_key('Interpolated'):
-                #Sort the therm nodes by height
-                therm_node_lst = bemnode.loc
-                #print therm_node_lst
-                #sort_therm = []
-                #sorted(therm_node_lst,key=lambda n:n.grammar.type.)
-                #for i in xrange(len(therm_node_lst)):
-                #    zone = therm_node_lst[i]
-                #    print zone.grammar.type['is_interzone']
-            """
-                if bemnode.grammar.type['is_interzone']:
-                    #Find ref nodes    
-                    srflst = srfnode.grammar.type['processed_srf']
-                    templst = srfnode.grammar.type['processed_srf_data']
-                    srfcptlst = map(lambda srf: srf.cenPt,srflst)
-                    debug.extend(srfcptlst)
-                    
-                    print bemnode.grammar.type['flr_ht']
-            """
-        interpolate_data(tnode)
+            for j in xrange(len(cptlst)):
+                cpt = cptlst[j]
+                srfgeom = srfgeomlst[j]
+                int_cpt = copy.copy(cpt)
+                int_cpt.Z = int_cpt.Z + newflrfromht #to get center of srf
+                
+                move_vector_up = int_cpt - cpt
+                srfguid = sc.doc.Objects.AddBrep(srfgeom)
+                movesrfguid = tnode_.shape.move_geom(srfguid,move_vector_up,True)
+                srfgeom = rs.coercegeometry(movesrfguid)
+                
+                #Make new temp 
+                if j < len(ytemplst):
+                    ytemp = ytemplst[j]
+                else:
+                    ytemp = ytemplst[-1]
+                xtemp = xtemplst[j]
+                
+                xtemp = xtemplst[j]
+                itemp = ((newflrht - xlvl) / (ylvl-xlvl)) * (ytemp-xtemp) + xtemp
+                
+                tnode_.grammar.type['interpolate_temperature'].append(itemp)
+                tnode_.grammar.type['interpolate_srf_geom'].append(srfgeom)
+                tnode_.grammar.type['interpolate_cpt'].append(int_cpt)
+                srf_normal = node_min.loc[0].grammar.type['processed_srf_normal'][0]
+                tnode_.grammar.type['interpolate_srf_normal'].append(srf_normal)
+                #srf = srflst[j]
+                
+        """    
+        #for i in xrange(len(therm_node_lst)):
+        #    zone = therm_node_lst[i]
+        #    print zone.grammar.type['flr_ht']#['is_interzone']
+        print '--'
+        """
+        """
+            if bemnode.grammar.type['is_interzone']:
+                #Find ref nodes    
+                srflst = srfnode.grammar.type['processed_srf']
+                templst = srfnode.grammar.type['processed_srf_data']
+                srfcptlst = map(lambda srf: srf.cenPt,srflst)
+                debug.extend(srfcptlst)
+                
+                print bemnode.grammar.type['flr_ht']
+        """
+        return tnode_
+    def filter_nodes(self,tnode,PD_):
+        debug = sc.sticky['debug']
+        tnode.grammar.type['grammar'] = 'filter_nodes'
+        ref_long = PD_['dim_long']
+        ref_short = PD_['dim_short']
+        flip = PD_['flip']
+        tol = PD_['tol']
         
+        if ref_long==None: ref_long=False
+        if ref_short==None: ref_short=False
+        
+        longshort = tnode.shape.get_long_short_axis()
+        shp_short = longshort[3]
+        shp_long = longshort[1]
+        
+         
+        if ref_long: ref_long += tol
+        if ref_short: ref_short += tol
+        
+        ref_short += tol
+        if shp_short < ref_short and shp_long < ref_long:
+            tnode.grammar.type['freeze'] = True
+        elif ref_long and shp_long < ref_long:
+            tnode.grammar.type['freeze'] = True
+        elif ref_short and shp_short < ref_short:
+            tnode.grammar.type['freeze'] = True
+        
+        if flip==True:
+            tnode.grammar.type['freeze'] = not tnode.grammar.type['freeze']
         return tnode
     def stepback(self,tnode,PD_):
         debug = sc.sticky['debug']
@@ -1762,14 +1906,14 @@ class Grammar:
         else:
             for i,child_node_ in enumerate(child_node_lst_):
                 ## Apply pattern
-                if True:#try:
+                try:
                     ParamDict = child_node_.grammar.type
                     node_out_,dead_node_out_ = self.main_grammar(child_node_,ParamDict)
                     RhinoApp.Wait()
                     L.extend(node_out_)
                     DL.extend(dead_node_out_)
-                #except Exception as e:
-                #    print "Error @ Pattern.main_pattern"
+                except Exception as e:
+                    print "Error @ node2grammar"
 
 
         return L,DL
@@ -1813,6 +1957,10 @@ class Grammar:
             temp_node = self.transform(temp_node,PD)
         elif PD.has_key('straight_skeleton') and PD['straight_skeleton'] == True:
             temp_node = self.straight_skeleton(temp_node,PD)
+        elif PD.has_key('interpolate_vertical') and PD['interpolate_vertical'] == True:
+            temp_node = self.interpolate_vertical(temp_node,PD)
+        elif PD.has_key('filter_nodes') and PD['filter_nodes'] == True:
+            temp_node = self.filter_nodes(temp_node,PD)
         #Sort out the outputs
         if isList:
             lst_childs = temp_node
@@ -1867,25 +2015,25 @@ class Grammar:
             #if no rules/label_rules node is just passed through
             IsFirst = True
             dead_lst_node_ = []
-
+            
             while len(rule_lst) > 0:
                 rule_ = rule_lst.pop(0)
                 #apply rule to current list of nodes, get child lists flat
                 lst_node_leaves, dead_leaves = self.node2grammar(lst_node_,rule_,firstUINode=IsFirst)
                 if IsFirst==True:
                     IsFirst = False
-                if len(dead_leaves) > 0.001:
-                    dead_lst_node_.extend(dead_leaves)
-                if len(lst_node_leaves) > 0.001:
-                    lst_node_ = lst_node_leaves
-                else:
+                #if len(dead_leaves) > 0.001:
+                dead_lst_node_.extend(dead_leaves)
+                #if len(lst_node_leaves) > 0.001:
+                lst_node_ = lst_node_leaves
+                if len(lst_node_leaves) < 0.001:
                     break
-                
+            
             for i,ng in enumerate(lst_node_):
                 if type(T) != type(ng):
                     ng = self.helper_geom2node(ng)
                     lst_node_[i] = ng
-
+            
             return lst_node_, dead_lst_node_
         T = Tree()
         lst_node_out = []
@@ -1923,6 +2071,7 @@ class Grammar:
                 #make label a rule
                 #recursively create a child node derived from parent and apply a grammar rule
                 lst_node_out_,dead_node_ = helper_main_recurse(node_in_,nested_rule_dict)   
+            
             else:
                 #print 'multiple labels'
                 #Map label num to label num if multiple labels

@@ -11,6 +11,10 @@ clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
+G = Grammar()
+if G.is_near_zero(stepback_dim,0.1):
+    run = False
+
 if run:
     
     #coerce geom if set as reference

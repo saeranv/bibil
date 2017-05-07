@@ -12,7 +12,6 @@ from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
 if run:
-    
     #coerce geom if set as reference
     if stepback_ref:
         G = Grammar()
