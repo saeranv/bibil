@@ -277,12 +277,63 @@ class Grammar:
         
         if dist_tol == None: dist_tol = 10.0
         angle_tol = 15.0
-
+        
+        #Add data to Bibil node
+        tnode.grammar.type['processed_srf_data'] = []
+        tnode.grammar.type['processed_srf'] = []
+        tnode.grammar.type['processed_srf_pt'] = []
+        tnode.grammar.type['processed_srf_geom'] = []
+        tnode.grammar.type['processed_srf_normal'] = []
+        
         #Get HBZone from hive (?)
-        HZone = tnode.parent.grammar.type['HBZone']
+        hnode = tnode.backtrack_tree(lambda n:n.grammar.type.has_key('HBZone'))
+        HZone = hnode.grammar.type['HBZone']
         zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
         zone_num = int(zone.name.split('_')[-1])
         
+        if 'ground' in hnode.grammar.type['label']:
+            def process_ground_data(tnode_,ground_zone,ground_zone_num):
+                tnode_.grammar.type['ground_srf_data'] = []
+                tnode_.grammar.type['ground_srf'] = []
+                tnode_.grammar.type['ground_srf_pt'] = []
+                tnode_.grammar.type['ground_srf_geom'] = []
+                
+                #Find the srf data for ground zone
+                valid_srf_index_dict = {}
+                for i in xrange(len(srf_data)):
+                    info4srf = srf_data[i][2]
+                    
+                    if not 'Roof' in info4srf:
+                        continue
+                    srfdatalst = info4srf.split('_')
+                    zone_num_chk = int(srfdatalst[1])    
+                    if zone_num_chk != ground_zone_num:
+                        continue
+                    srf_num_chk = srfdatalst[3].split(':')[0]
+                    
+                    valid_srf_index_dict[srf_num_chk] = i
+                    
+                valid_srf_obj = []
+                #Sort srf in zone.surface
+                for i in xrange(len(ground_zone.surfaces)):
+                    srf = ground_zone.surfaces[i]
+                    srfnumchk = srf.name.split('_')[-1]
+                    if not valid_srf_index_dict.has_key(srfnumchk):
+                        continue
+                    
+                    srfindex = valid_srf_index_dict[srfnumchk]    
+                    
+                    srf_temp_lst = srf_data[srfindex][7:]
+                    srf_temp_avg = reduce(lambda x,y:x+y,srf_temp_lst)/float(len(srf_temp_lst))
+                    tnode_.grammar.type['ground_srf_data'].append(srf_temp_avg)
+                    tnode_.grammar.type['ground_srf'].append(srf)
+                    tnode_.grammar.type['ground_srf_pt'].append(srf.cenPt)
+                    tnode_.grammar.type['ground_srf_geom'].append(srf.geometry)
+                    #zerovec = rc.Geometry.Vector3d(0,0,0)
+                    #tnode.grammar.type['ground_srf_normal'].append(zerovec)
+                    #print '--'
+            process_ground_data(tnode,zone,zone_num)
+            return tnode
         #Check zone_num and srf_data_index
         #print zone.name
         #print srf_data[srf_data_index][2]
@@ -319,7 +370,6 @@ class Grammar:
         
         #Match srf normals 
         srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
-        tnode.grammar.type['normal'] = srf_normal
         
         #srf_normal.Unitize()
         srf_opaque = None
@@ -373,13 +423,7 @@ class Grammar:
             #glz_num_chk = srfdatalst[-1].split(':')[0] 
             #if glz_num_chk in glz_num_lst:
             srfdataindex.append(i)
-               
-        #Add data to Bibil node
-        tnode.grammar.type['processed_srf_data'] = []
-        tnode.grammar.type['processed_srf'] = []
-        tnode.grammar.type['processed_srf_pt'] = []
-        tnode.grammar.type['processed_srf_geom'] = []
-        tnode.grammar.type['processed_srf_normal'] = [srf_normal]*len(srfdataindex)
+        
         #print len(srfdataindex)
         #print len(srf_glass_lst)
         #print '-'
@@ -394,6 +438,8 @@ class Grammar:
             tnode.grammar.type['processed_srf'].append(srf_glass)
             tnode.grammar.type['processed_srf_pt'].append(srf_glass.cenPt)
             tnode.grammar.type['processed_srf_geom'].append(srf_glass.geometry)
+            tnode.grammar.type['processed_srf_normal'].append(srf_normal)
+        
             #print srf_temp_avg
             #print '----'
         
@@ -420,6 +466,9 @@ class Grammar:
         tnode_.grammar.type['grammar'] = 'interpolate_vertical'
         
         #Assume thermzones in bem >= 3.
+        hnode = tnode_.backtrack_tree(lambda n:n.grammar.type.has_key('HBZone'))
+        if 'ground' in hnode.grammar.type['label']:
+            return tnode_
         
         foobem = lambda n: n.grammar.type['grammar']=='abstract_bem'
         bemnode = tnode_.backtrack_tree(foobem,accumulate=False)
@@ -1906,14 +1955,14 @@ class Grammar:
         else:
             for i,child_node_ in enumerate(child_node_lst_):
                 ## Apply pattern
-                try:
+                if True:#try:
                     ParamDict = child_node_.grammar.type
                     node_out_,dead_node_out_ = self.main_grammar(child_node_,ParamDict)
                     RhinoApp.Wait()
                     L.extend(node_out_)
                     DL.extend(dead_node_out_)
-                except Exception as e:
-                    print "Error @ node2grammar"
+                #except Exception as e:
+                #    print "Error @ node2grammar"
 
 
         return L,DL
