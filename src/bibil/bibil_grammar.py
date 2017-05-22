@@ -285,80 +285,11 @@ class Grammar:
         tnode.grammar.type['processed_srf_geom'] = []
         tnode.grammar.type['processed_srf_normal'] = []
         
-        #Get HBZone from hive (?)
+        #Get HBZone from hive
         hnode = tnode.backtrack_tree(lambda n:n.grammar.type.has_key('HBZone'))
         HZone = hnode.grammar.type['HBZone']
         zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
         zone_num = int(zone.name.split('_')[-1])
-        
-        if 'ground' in hnode.grammar.type['label']:
-            def process_ground_data(tnode_,ground_zone,ground_zone_num):
-                tnode_.grammar.type['ground_srf_data'] = []
-                tnode_.grammar.type['ground_srf'] = []
-                tnode_.grammar.type['ground_srf_pt'] = []
-                tnode_.grammar.type['ground_srf_geom'] = []
-                
-                #Find the srf data for ground zone
-                valid_srf_index_dict = {}
-                for i in xrange(len(srf_data)):
-                    info4srf = srf_data[i][2]
-                    
-                    if not 'Roof' in info4srf:
-                        continue
-                    srfdatalst = info4srf.split('_')
-                    zone_num_chk = int(srfdatalst[1])    
-                    if zone_num_chk != ground_zone_num:
-                        continue
-                    srf_num_chk = srfdatalst[3].split(':')[0]
-                    
-                    valid_srf_index_dict[srf_num_chk] = i
-                    
-                valid_srf_obj = []
-                #Sort srf in zone.surface
-                for i in xrange(len(ground_zone.surfaces)):
-                    srf = ground_zone.surfaces[i]
-                    srfnumchk = srf.name.split('_')[-1]
-                    if not valid_srf_index_dict.has_key(srfnumchk):
-                        continue
-                    
-                    srfindex = valid_srf_index_dict[srfnumchk]    
-                    
-                    srf_temp_lst = srf_data[srfindex][7:]
-                    srf_temp_avg = reduce(lambda x,y:x+y,srf_temp_lst)/float(len(srf_temp_lst))
-                    tnode_.grammar.type['ground_srf_data'].append(srf_temp_avg)
-                    tnode_.grammar.type['ground_srf'].append(srf)
-                    tnode_.grammar.type['ground_srf_pt'].append(srf.cenPt)
-                    tnode_.grammar.type['ground_srf_geom'].append(srf.geometry)
-                    #zerovec = rc.Geometry.Vector3d(0,0,0)
-                    #tnode.grammar.type['ground_srf_normal'].append(zerovec)
-                    #print '--'
-            process_ground_data(tnode,zone,zone_num)
-            return tnode
-        #Check zone_num and srf_data_index
-        #print zone.name
-        #print srf_data[srf_data_index][2]
-        
-        #Need to eliminate geoms not in dist_tol
-        if not tnode.grammar.type.has_key('tolerance_curve'):
-                tnode.grammar.type['tolerance_curve'] = []
-        try:
-            perppts = tnode.shape.offset_perpendicular_from_line(center,dist_tol)
-        except:
-            tnode.grammar.type['freeze'] = True
-            return tnode
-        canoffcrv = rc.Geometry.Curve.CreateControlPointCurve(perppts,1)
-        tnode.grammar.type['tolerance_curve'].append(canoffcrv)
-        IsIntersect = tnode.shape.check_region(canoffcrv,realvalue=True)
-        #if disjoint==setrel: return 0
-        #elif intersect==setrel:return 1
-        #elif AInsideB==setrel:return 2
-        #else: return 3
-        if self.is_near_zero(IsIntersect):
-            tnode.grammar.type['context_geometry'] = tnode.shape.geom
-            tnode.grammar.type['freeze'] = True
-            return tnode
-
-        #Get tnode matrix
         
         matrix = tnode.shape.base_matrix
         if not matrix:
@@ -1064,6 +995,12 @@ class Grammar:
                         closept = rc.Geometry.Line.ClosestPoint(out[1],p1,0.0)
                         if not self.is_near_zero(rs.Distance(closept,p1),1):
                             dir_cut = 0
+                #fix this!! THIS IS WHERE BLOCK FACING STREET ERROR IS HAPPENING
+                
+                if dir_cut<0.5:
+                    dir_cut = 1
+                else:
+                    dir_cut = 0
                 
                 simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=dir_cut)
                 #print simple_ratio
@@ -1903,7 +1840,9 @@ class Grammar:
             temp_node_.loc.append(temp_node_child)
         return temp_node_
     def straight_skeleton(self,temp_node_,PD_):
-        temp_node_.shape.compute_straight_skeleton()
+        temp_node_.grammar.type['grammar'] = 'straight_skeleton'
+        stepnum = PD_['step']
+        temp_node_.shape.compute_straight_skeleton(stepnum)
         return temp_node_
     def node2grammar(self,lst_node_,rule_in_,firstUINode=False):
         def helper_type2node(copy_node_,type_):

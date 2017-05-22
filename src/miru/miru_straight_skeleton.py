@@ -16,6 +16,7 @@ if run:
     rule = DataTree[object]()
     rule_ = [\
     ['straight_skeleton', True],\
+    ['step',step],\
     ['grammar_key','straight_skeleton'],\
     ['end_rule']]
     

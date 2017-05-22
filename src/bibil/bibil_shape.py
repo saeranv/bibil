@@ -1253,7 +1253,7 @@ class Shape:
                     debug_minev = min_event
         return PQ, debug_minev
     
-    def compute_straight_skeleton(self):
+    def compute_straight_skeleton(self,stepnum):
         debug = sc.sticky["debug"]
         #Move this into its own repo/class
         #call bibil for shape libraries
@@ -1267,26 +1267,52 @@ class Shape:
         #Compute the vertex angle bisector (ray) bi
         LAV = self.compute_interior_bisector_vector(LAV)
         #Compute bisector intersections and maintain Priority Queue of Edge Events
+        #An edge event is when a edge shrinks to point in Straight Skeleton
         PQ,minev = self.compute_edge_events_of_polygon(LAV,[])
-        print 'initialization complete'
-        print ''
+        #print 'initialization complete'
+        #print ''
+        
+        copyLAV = copy.deepcopy(LAV)
         
         #Main skeleton algorithm
         ##--- Debug ---##
-        print 'length: ', len(PQ)
+        print 'length: ', len(PQ), ' vertices'
         count=0
         create_geom = True
+        debug_crv = stepnum
+        
         ##--- Debug ---##
         
         while len(PQ) > 0:#count<=2:#
-            print 'count: ', count
+            #print 'count: ', count
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
             edge_event = heapq.heappop(PQ)[1]
             
+            ##--- Debug ---##
+            if count==debug_crv:
+                curr_node = LAV.head
+                LLL=[]
+                for i in xrange(LAV.size):
+                    LLL.append(curr_node.data.vertex)
+                    curr_node = curr_node.next
+                LLL += [LLL[0]]
+                crv__ = rc.Geometry.Curve.CreateControlPointCurve(LLL,1)
+                #debug.append(crv__)
+                debug.extend(LLL)
+                #print '---'
+            ##--- Debug ---##
+            
+            #if create_geom and debug_crv >= 0 and debug_crv == count:
+            #    debug.append(edge_event.node_A.prev.data.vertex)
+            #    debug.append(edge_event.node_A.data.vertex)
+            #    debug.append(edge_event.node_B.data.vertex)
+                
+                
             #If not processed this edge will shrink to zero edge
             if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
                 count+=1
                 continue
+            
             
             Vc_I_arc = None
             #Check for peak of the roof event
@@ -1294,10 +1320,11 @@ class Shape:
                 Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_A.prev.data.vertex,edge_event.int_vertex])
                 Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_A.data.vertex,edge_event.int_vertex])
                 Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_B.data.vertex,edge_event.int_vertex])
-                if create_geom:
+                if create_geom and debug_crv >= 0 and debug_crv == count:
                     debug.append(Va_I_arc)
                     debug.append(Vb_I_arc)
-                if create_geom and Vc_I_arc: debug.append(Vc_I_arc)  
+                if create_geom and Vc_I_arc and debug_crv >= 0 and debug_crv == count: 
+                    debug.append(Vc_I_arc)  
                 
                 edge_event.node_A.data.is_processed = True
                 edge_event.node_B.data.is_processed = True
@@ -1306,7 +1333,7 @@ class Shape:
             
             Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_A.data.vertex,edge_event.int_vertex])
             Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([edge_event.node_B.data.vertex,edge_event.int_vertex])
-            if create_geom:
+            if create_geom and debug_crv >= 0 and debug_crv == count:
                 debug.append(Va_I_arc)
                 debug.append(Vb_I_arc)
                 
@@ -1335,19 +1362,7 @@ class Shape:
             edge_event.node_A.data.is_processed = True
             edge_event.node_B.data.is_processed = True 
             
-            ##--- Debug ---##
-            if count==-2:
-                curr_node = LAV.head
-                LLL=[]
-                for i in xrange(LAV.size):
-                    LLL.append(curr_node.data.vertex)
-                    curr_node = curr_node.next
-                LLL += [LLL[0]]
-                crv__ = Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve(LLL,1)
-                debug.append(crv__)
-                debug.extend(LLL)
-                #print '---'
-            ##--- Debug ---##
+            
             
             #Now compute bisector and edge event for new V node
             V_index = LAV.get_node_index(V)
@@ -1372,13 +1387,20 @@ class Shape:
             ##--- Debug ---##
             
             count += 1  
-            print '--'
-        #if i == 0:
-        #    crv = self.bottom_crv
-        #    sharp = rc.Geometry.CurveOffsetCornerStyle.Sharp
-        #    crvlst = crv.Offset(self.cpt, self.normal, 15.8, 0.0001,sharp)
-        #    print crvlst
-        #    debug.extend(crvlst)
+        print 'final count: ', count
+        print '--'
+        
+        
+        #question: how to extract LAV
+        curr_node = copyLAV.head
+        for i in xrange(copyLAV.size):
+            if i==0:
+                pass
+                #debug.append(curr_node.data.vertex)
+                #debug.append(curr_node.prev.data.vertex)
+                #debug.append(curr_node.next.data.vertex)
+            curr_node = curr_node.next
+        
         
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix

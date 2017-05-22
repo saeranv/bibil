@@ -9,6 +9,10 @@ clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
+
+ghenv.Component.Message = 'Bibil'
+
+
 if run:
 
     rule = DataTree[object]()

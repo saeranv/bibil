@@ -11,6 +11,9 @@ clr.AddReference("Grasshopper")
 from Grasshopper.Kernel.Data import GH_Path
 from Grasshopper import DataTree
 
+
+ghenv.Component.Message = 'Bibil'
+
 Bula = sc.sticky['Bula']
 
 if run:
