@@ -11,6 +11,7 @@ import copy
 import scriptcontext as sc
 from itertools import cycle
 import heapq
+from lib2to3.pytree import Node
 
 TOL = sc.doc.ModelAbsoluteTolerance
 
@@ -61,7 +62,6 @@ class DoubleLinkedList(object):
                 return j
             curr_node = curr_node.next
         return None
-            
 class DLLNode(object):
     def __init__(self,data):
         self.data = data
@@ -69,7 +69,6 @@ class DLLNode(object):
         self.prev = None
     def __str__(self):
         return str(self.data)
-
 class Vertex(object):
     def __init__(self,vertex,edge_prev=None,edge_next=None):
         self.vertex = vertex
@@ -80,7 +79,6 @@ class Vertex(object):
         self.is_processed = False
     def __str__(self):
         return str(self.vertex)
-
 class EdgeEvent(object):
     def __init__(self,int_vertex,int_arc,node_A,node_B,length2edge,currnode4debug):
         self.int_vertex = int_vertex
@@ -93,6 +91,54 @@ class EdgeEvent(object):
         return str(self.int_vertex)
 
 
+#Adjacency list class make into own library
+class GraphNode(object):
+        def __init__(self,key,value):
+            self.key = key
+            self.value = value
+            self.adj_lst = {}
+        def add_neighbor(self,nbr):
+            self.adj_lst[nbr.key] = nbr
+        def __str__(self):
+            return str(self.id) + 'connected to: ' + str(map(lambda x: x.id, self.adj_lst))
+        def get_adj_lst(self):
+            return self.adj_lst.keys()
+class Graph(object):
+    #Graph as adjacency list
+    #Update this with @property decorater
+    #Modified from: http://interactivepython.org/runestone/static/pythonds/Graphs/Implementation.html
+    def __init__(self,adj_lst=None):
+        #adjacency list: 
+        #{1: [2,4],
+        # 2: [3],
+        # 3: [4],
+        # 4: [1]}
+        # 1<--->4
+        # |     |
+        # 2---->3
+        self.graph = graph if graph != None else {}
+        self.num_node = len(graph.keys)
+    def add_node(self,key,value):
+        #We will hide the GraphNode here so less things for
+        #user to remember when implementation
+        self.graph[key] = value
+        self.num_node += 1
+    def __contains__(self,key):
+        return self.graph.has_key(key)
+    def get_node(self,key):
+        if key in self.graph:
+            return self.graph[key]
+        else:
+            return None
+    def get_graph(self):
+        return self.graph.keys()
+    def add_edge(self,key,key2add):
+        if key not in self.graph:
+            print 'Add key value to node'
+        if key2add not in self.graph:
+            print 'Add key2add value to node'
+        self.graph[key].append(key2add)
+            
 class Shape:
     """
     Parent shape operations and information
@@ -1253,33 +1299,22 @@ class Shape:
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
                 if angle_index:
                     debug_minev = min_event
-        return PQ, debug_minev
-    
-    class Graph(object):
-        def __init__(self,vertex,parent=None,child=None):
-            self.vertex = vertex
-            if parent==None:
-                self.parent = []
-            if child == None:
-                self.child = []
-            self.depth = 0 if not parent else parent[0].depth + 1
-            
+        return PQ, debug_minev     
     def shape_to_directed_cyclic_graph(self):
         #Purpose: converts bottom of polygon into a directed cyclic graph
         #Input: self base_matrix 
-        #Output: directed cyclic graph of outer edge by root node
+        #Output: adjacency list polygon shape as directed cycles
         
-        #Add all vertices and incident edges from polygon
+        #Add all vertices from polygon
         ##base_matrix: listof (list of edge vertices)
+        #Label of vertice is index (may have to change this to coordinates)
+        graph = {}
         for i in xrange(len(self.base_matrix)):
             #connect each edge, not everything
-            v = self.base_matrix[i][0]
-            v_prev = self.base_matrix[i-1][0]
-            v_next = self.base_matrix[i][1]
-            node = Graph(v)
-            node.child.append(Graph(v_next))
-            node.parent = None
-        
+            curr_v = self.base_matrix[i][0]
+            next_v = self.base_matrix[i][1]
+            graph[str(i)] = {curr_v:}
+           
         noderoot = node.child[0]   
         return noderoot
     def compute_straight_skeleton(self,stepnum):
@@ -1430,8 +1465,6 @@ class Shape:
                 #debug.append(curr_node.prev.data.vertex)
                 #debug.append(curr_node.next.data.vertex)
             curr_node = curr_node.next
-        
-        
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
         # For n-dim vector create n x n matrix
