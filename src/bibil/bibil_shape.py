@@ -1094,6 +1094,8 @@ class Shape:
             #print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
+            # Get two vectors pointing AWAY from the curr_vertex 
+            # i.e <--- v --->
             dir_prev = edge_prev[0]-edge_prev[1]
             dir_next = edge_next[1]-edge_next[0]
             dir_prev.Unitize()
@@ -1253,6 +1255,33 @@ class Shape:
                     debug_minev = min_event
         return PQ, debug_minev
     
+    class Graph(object):
+        def __init__(self,vertex,parent=None,child=None):
+            self.vertex = vertex
+            if parent==None:
+                self.parent = []
+            if child == None:
+                self.child = []
+            self.depth = 0 if not parent else parent[0].depth + 1
+            
+    def shape_to_directed_cyclic_graph(self):
+        #Purpose: converts bottom of polygon into a directed cyclic graph
+        #Input: self base_matrix 
+        #Output: directed cyclic graph of outer edge by root node
+        
+        #Add all vertices and incident edges from polygon
+        ##base_matrix: listof (list of edge vertices)
+        for i in xrange(len(self.base_matrix)):
+            #connect each edge, not everything
+            v = self.base_matrix[i][0]
+            v_prev = self.base_matrix[i-1][0]
+            v_next = self.base_matrix[i][1]
+            node = Graph(v)
+            node.child.append(Graph(v_next))
+            node.parent = None
+        
+        noderoot = node.child[0]   
+        return noderoot
     def compute_straight_skeleton(self,stepnum):
         debug = sc.sticky["debug"]
         #Move this into its own repo/class
@@ -1264,6 +1293,7 @@ class Shape:
         #LAV: doubly linked list (DLL).
         #Initialize List of Active Vertices as Double Linked List
         LAV = self.convert_shape_to_circular_double_linked_list()
+        graph = self.shape_to_directed_cyclic_graph()
         #Compute the vertex angle bisector (ray) bi
         LAV = self.compute_interior_bisector_vector(LAV)
         #Compute bisector intersections and maintain Priority Queue of Edge Events
