@@ -1842,8 +1842,9 @@ class Grammar:
     def straight_skeleton(self,temp_node_,PD_):
         temp_node_.grammar.type['grammar'] = 'straight_skeleton'
         stepnum = PD_['step']
-        temp_node_.shape.compute_straight_skeleton(stepnum)
+        temp_node_.shape.compute_straight_skeleton(stepnum,temp_node_)
         return temp_node_
+    
     def node2grammar(self,lst_node_,rule_in_,firstUINode=False):
         def helper_type2node(copy_node_,type_):
             #type: list of (dictionary of typology parameters)

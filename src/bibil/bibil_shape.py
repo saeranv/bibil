@@ -94,12 +94,15 @@ class EdgeEvent(object):
 #Adjacency list class make into own library
 class _AdjGraphNode(object):
     #This is a bare bones private class
-    def __init__(self,key,value,id,adj_lst=None):
+    def __init__(self,key,value,id,is_out_edge=False,adj_lst=None):
         #adj_lst: ['key1', 'key2' ....  'keyn']
         self.key = key
         self.id = id
         self.value = value
+        self.is_out_edge = is_out_edge
         self.adj_lst = adj_lst if adj_lst!=None else []
+    def num_neighbor(self):
+        return len(self.adj_lst)
     def __repr__(self):
         return "id: " + str(self.id)
     
@@ -129,14 +132,15 @@ class AdjGraph(object):
                 myhash += ","
         myhash += ")"
         return myhash
-    def add_node(self,key,value):
+    def add_node(self,key,value,is_out_edge=False):
         #_AdjGraphNode is a private class
         #Instantiate _AdjGraphNode, we creates key = num_node
         if key in self.adj_graph:
-            print 'key already exists in adj_graph!'
+            n = self.adj_graph[key]
+            print n.id, ' key already exists in adj_graph!'
             return self.adj_graph[key]
         id = len(self.adj_graph.keys())
-        adj_graph_node = _AdjGraphNode(key,value,id)
+        adj_graph_node = _AdjGraphNode(key,value,id,is_out_edge)
         #Now add it to the adj_graph
         self.adj_graph[key] = adj_graph_node
         self.num_node += 1
@@ -146,9 +150,8 @@ class AdjGraph(object):
             return self.adj_graph[k]
         else:
             return None
-    
-    def get_adj_lst_value_lst(self,key):
-        return map(lambda k: self.adj_graph[k].value,self.adj_graph[key].adj_lst)
+    def keylst_2_nodelst(self,keylst):
+        return map(lambda k: self.adj_graph[k],keylst)
     
     def add_directed_edge(self,key,key2add):
         #This function will add existing node key to adjacency list of 
@@ -161,6 +164,55 @@ class AdjGraph(object):
             node.adj_lst.append(key2add)
         else:
             print 'key not in adj graph'
+    
+    def check_ccw(self,refk,lok):
+        #Input list of keys
+        #output key with most ccw
+        def helper_ccw(refnode,node2check):
+            rad_ = None
+            return rad_
+        refn = self.adj_graph[refk]
+        min_rad = 99999
+        for i in xrange(len(lok)):
+            k = lok[i]
+            n2chk = self.adj_graph[k]
+            rad = helper_ccw(refn,n2chk)
+            #print rad
+        
+        return None
+    def find_most_ccw_cycle(self):
+        #def helper_most_ccw(lok):
+            
+        #Input adjacency graph
+        #Output loc: listof (listof (listof pts in closed cycle))
+        keylst = self.get_sorted_keylst()
+        for i in xrange(len(keylst)):
+            key = keylst[i]
+            root_node = self.adj_graph[key]
+            if not root_node.is_out_edge:
+                continue
+            
+            #Identify the next node on outer edge
+            #b/c outer edge vertexes are placed first in adj graph
+            #worst complexity <= O(n)
+            for i in xrange(root_node.num_neighbor()):
+                adj_key = root_node.adj_lst[i]
+                neighbor = self.adj_graph[adj_key]
+                if neighbor.is_out_edge:
+                    next_node = neighbor
+                    break
+            
+            #Now we recursively check most ccw
+            print root_node, next_node
+            #okay this is obviously good for recursion
+            next_next_node = self.check_ccw(root_node.key,next_node.adj_lst)
+                
+            
+        print '-'
+        #Iterate through edges
+            #print node, node.is_out_edge
+        return None
+        
     def get_sorted_keylst(self):
         valuelst = self.adj_graph.values()
         valuelst.sort(key=lambda v: v.id)
@@ -1197,7 +1249,7 @@ class Shape:
             dir_prev.Unitize()
             dir_next.Unitize()
             
-            # Get angle
+            # Get angle / Make this own function?
             dotprod = rc.Geometry.Vector3d.Multiply(dir_next,dir_prev)
             cos_angle = dotprod/(dir_next.Length * dir_prev.Length)
             dotrad = math.acos(cos_angle)
@@ -1206,7 +1258,7 @@ class Shape:
             
             if inrad > math.pi:
                 curr_node.data.is_reflex = True
-                debug.append(curr_node.data.vertex)
+                #debug.append(curr_node.data.vertex)
                 
             #Flip the cross prod if dotprod gave outer angle
             if self.is_near_zero(abs(inrad - dotrad)):
@@ -1350,8 +1402,8 @@ class Shape:
                 if angle_index:
                     debug_minev = min_event
         return PQ, debug_minev     
-    def shape_to_adjacency_graph(self):
-        #Purpose: converts bottom of polygon into a directed cyclic graph
+    def shape_to_adj_graph(self):
+        #Purpose: converts bottom of polygon into a adjacency list
         #Input: self base_matrix 
         #Output: adjacency list polygon shape as directed cycles
         
@@ -1368,17 +1420,38 @@ class Shape:
                 
             #If beggining need to add previous node
             if prev_node == None:
-                prev_node = adjgraph.add_node(prev_key,prev_v)
+                prev_node = adjgraph.add_node(prev_key,prev_v,is_out_edge=True)
                 first_key = prev_node.key
             curr_v = self.base_matrix[i][0]
             #add_node(key,value)
             curr_key = adjgraph.vector2hash(curr_v)
-            curr_node = adjgraph.add_node(curr_key,curr_v)
+            curr_node = adjgraph.add_node(curr_key,curr_v,is_out_edge=True)
             adjgraph.add_directed_edge(prev_key,curr_key)
         #Make sure to connect last edge back to first edge
         adjgraph.add_directed_edge(curr_key,first_key)        
         return adjgraph
-    def compute_straight_skeleton(self,stepnum):
+    
+    def update_shape_adj_graph(self,adj_graph_,exist_vertex,new_vertex,twoside=True):
+        # Update our adjacency list
+        #Get the key by hashing vertex
+        exist_key = adj_graph_.vector2hash(exist_vertex)
+        new_key = adj_graph_.vector2hash(new_vertex)
+        #Get the node with the key
+        exist_node = adj_graph_[exist_key]
+        
+        if new_key in adj_graph_:
+            new_node = adj_graph_[new_key]
+        else:
+            new_node = adj_graph_.add_node(new_key,new_vertex)
+            print 'newnode', new_node
+        
+        #Add new node to graph
+        adj_graph_.add_directed_edge(exist_key,new_key)
+        if twoside == True:
+            adj_graph_.add_directed_edge(new_key,exist_key)
+        return adj_graph_
+            
+    def compute_straight_skeleton(self,stepnum,tnode):
         debug = sc.sticky["debug"]
         #Move this into its own repo/class
         #call bibil for shape libraries
@@ -1389,7 +1462,7 @@ class Shape:
         #LAV: doubly linked list (DLL).
         #Initialize List of Active Vertices as Double Linked List
         LAV = self.convert_shape_to_circular_double_linked_list()
-        adj_graph = self.shape_to_adjacency_graph()
+        adj_graph = self.shape_to_adj_graph()
         #Compute the vertex angle bisector (ray) bi
         LAV = self.compute_interior_bisector_vector(LAV)
         #Compute bisector intersections and maintain Priority Queue of Edge Events
@@ -1447,14 +1520,22 @@ class Shape:
                 A_vertex = edge_event.node_A.data.vertex
                 B_vertex = edge_event.node_B.data.vertex
                 prev_A_vertex = edge_event.node_A.prev.data.vertex
+                
+                #Update adjacency graph
+                adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
+                adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
+                adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
+            
                 Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([prev_A_vertex, new_int_vertex])
                 Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                 Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
-                if create_geom and debug_crv >= 0 and debug_crv == count:
-                    debug.append(Va_I_arc)
-                    debug.append(Vb_I_arc)
-                if create_geom and Vc_I_arc and debug_crv >= 0 and debug_crv == count: 
-                    debug.append(Vc_I_arc)  
+                
+                if True:#if create_geom and debug_crv >= 0 and debug_crv == count:
+                    #debug.append(Va_I_arc)
+                    #debug.append(Vb_I_arc)
+                    pass
+                if True:#create_geom and Vc_I_arc and debug_crv >= 0 and debug_crv == count: 
+                    pass#debug.append(Vc_I_arc)  
                 
                 edge_event.node_A.data.is_processed = True
                 edge_event.node_B.data.is_processed = True
@@ -1468,33 +1549,16 @@ class Shape:
             new_int_vertex = edge_event.int_vertex
             A_vertex = edge_event.node_A.data.vertex
             B_vertex = edge_event.node_B.data.vertex
-            
-            # Update our adjacency list
-            A_key = adj_graph.vector2hash(A_vertex)
-            B_key = adj_graph.vector2hash(B_vertex)
-            I_key = adj_graph.vector2hash(new_int_vertex)
-            
-            node_A = adj_graph[A_key]
-            node_B = adj_graph[B_key]
-            
-            node_I = adj_graph.add_node(I_key,new_int_vertex)
-            print 'newnode', node_I
-            adj_graph.add_directed_edge(B_key,I_key)
-            adj_graph.add_directed_edge(I_key,A_key)
-            
-            for key in adj_graph.get_sorted_keylst():
-                node = adj_graph[key]
-                if node.id == 6:
-                    debug.append(node.value)
-                    adj_node_lst = adj_graph.get_adj_lst_value_lst(key)
-                    debug.extend(adj_node_lst)
-            print '-- / --'
+            #Update adjacency graph
+            adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
+            adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
+        
             Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
             Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
             if create_geom and debug_crv >= 0 and debug_crv == count:
                 debug.append(Va_I_arc)
                 debug.append(Vb_I_arc)
-                
+            
             #Modify the list of active vertices/nodes   
             new_prev_edge = edge_event.node_A.data.edge_prev
             new_next_edge = edge_event.node_B.data.edge_next
@@ -1547,19 +1611,27 @@ class Shape:
             count += 1  
         
         print adj_graph
+        #loc: listof (listof cycles)
+        loc = adj_graph.find_most_ccw_cycle()
+        
+        tnode.grammar.type['idlst'] = []
+        tnode.grammar.type['ptlst'] = []
+        for key in adj_graph.get_sorted_keylst():
+            node = adj_graph[key]
+            if True:#if node.id == 4:
+                #debug.append(node.value)
+                tnode.grammar.type['idlst'].append(node.id)
+                tnode.grammar.type['ptlst'].append(node.value)
+                #adj_node_lst = adj_graph.get_adj_lst_as_node_lst(key)
+                #debug.extend(adj_node_lst)
         print 'final count: ', count
         print '--'
         
-        
-        #question: how to extract LAV
-        curr_node = copyLAV.head
-        for i in xrange(copyLAV.size):
-            if i==0:
-                pass
-                #debug.append(curr_node.data.vertex)
-                #debug.append(curr_node.prev.data.vertex)
-                #debug.append(curr_node.next.data.vertex)
-            curr_node = curr_node.next
+        ##//func_make_polygons
+        #- iterate through list of edgeobj
+        #- traverse graph
+        #- take first ccw
+        #- exit if close loop     
             
             
     def vector_to_transformation_matrix(self,dir_vector):
