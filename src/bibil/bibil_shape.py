@@ -165,26 +165,82 @@ class AdjGraph(object):
         else:
             print 'key not in adj graph'
     
-    def check_ccw(self,refk,lok):
+    def recurse_ccw(self,refn,nextn,lok,cycle):
+        def get_ccw_angle(prev_dir,next_dir):
+            #FIX THIS LATER: REFLEX CHECKING AND SEPARATE FX
+            
+            #Input prev_dir vector and next_dir vector
+            #Vectors must be facing away from each other!
+            #Output CCW angle between them
+            
+            # Get angle from dot product
+            # This will be between 0 and pi
+            # b/c -1 < cos theta < 1
+            dotprod = rc.Geometry.Vector3d.Multiply(prev_dir,next_dir)
+            cos_angle = dotprod/(prev_dir.Length * next_dir.Length)
+            #print 'ca', cos_angle
+            dotrad = math.acos(cos_angle)
+            
+            #Use the dot product to find the angle and the sign of the cross product to tell you which side it is. 
+            #For storing them in counterclockwise order, positive will be the inner angle
+            
+            #Check the sign of the cross product to check if inner or outer angle
+            #We will take cross of of 2d vector in xy plane
+            #If cross is positive (for ccw ordering) then it is the inner angle
+            #If cross is negative or zero (for ccw ordering) then it is the outer angle
+            #Therefore if cross is negative, then that means dotprod returned outer angle 
+            #because it is between 0 and pi. Therefore it is reflex
+            #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
+            IsInner = prev_dir[0] * next_dir[1] > prev_dir[1] * next_dir[0]
+            if IsInner:
+                #if inner angle is a reflex angle subtract with 2pi
+                dotrad = 2.*math.pi - dotrad
+            return dotrad
+        
+        if True: pass #weird code folding glitch neccessitatest this
         #Input list of keys
         #output key with most ccw
-        def helper_ccw(refnode,node2check):
-            rad_ = None
-            return rad_
-        refn = self.adj_graph[refk]
-        min_rad = 99999
+        #Base case
+        print 'startid, chkid:', cycle[0].id, nextn.id
+        cycle.append(nextn)
+        cycle_id_lst = map(lambda n: n.id, cycle)
+        if nextn.id == cycle_id_lst[0]:
+            return cycle
+        
+        print 'cycle', cycle_id_lst
+        
+        
+        #reference direction vector
+        ref_edge_dir = nextn.value - refn.value
+        ref_edge_dir *= -1 #reverse the vector
+        
+        min_rad = 99999.
+        min_node = None
+         
         for i in xrange(len(lok)):
             k = lok[i]
             n2chk = self.adj_graph[k]
-            rad = helper_ccw(refn,n2chk)
-            #print rad
+            print 'we are chking', refn.id, '-', nextn.id, 'edge to', n2chk.id
+            #Make sure we don't backtrack
+            if n2chk.id == cycle_id_lst[-2]:
+                continue
+            chk_edge_dir = n2chk.value - nextn.value
+            rad = get_ccw_angle(ref_edge_dir,chk_edge_dir)
+            if rad < min_rad:
+                min_rad = rad
+                min_node = n2chk
+        print 'min is', n2chk.id,':', round(math.degrees(rad),2)
+        print '---'
+        alok = min_node.adj_lst
         
-        return None
+        return self.recurse_ccw(nextn,min_node,alok,cycle)
+        
     def find_most_ccw_cycle(self):
         #def helper_most_ccw(lok):
             
         #Input adjacency graph
         #Output loc: listof (listof (listof pts in closed cycle))
+        LOC = []
         keylst = self.get_sorted_keylst()
         for i in xrange(len(keylst)):
             key = keylst[i]
@@ -203,21 +259,22 @@ class AdjGraph(object):
                     break
             
             #Now we recursively check most ccw
-            print root_node, next_node
-            #okay this is obviously good for recursion
-            next_next_node = self.check_ccw(root_node.key,next_node.adj_lst)
-                
-            
+            n_adj_lst = next_node.adj_lst
+            cycle = [root_node]
+            cycle = self.recurse_ccw(root_node,next_node,n_adj_lst,cycle)
+            print '-------\n-----FINISHED CYCLE\n', cycle, '---\---\n'
+            cycle.append(cycle[0])
+            LOC.append(cycle)
         print '-'
-        #Iterate through edges
-            #print node, node.is_out_edge
-        return None
+        return LOC
         
     def get_sorted_keylst(self):
         valuelst = self.adj_graph.values()
         valuelst.sort(key=lambda v: v.id)
         keylst = map(lambda v: v.key,valuelst)
         return keylst
+    def is_near_zero(self,num,eps=1E-10):
+        return abs(float(num)) < eps
     def __repr__(self):
         keylst = self.get_sorted_keylst()
         strgraph = ""
@@ -1614,6 +1671,11 @@ class Shape:
         #loc: listof (listof cycles)
         loc = adj_graph.find_most_ccw_cycle()
         
+        for c in loc:
+            ptlst = map(lambda n: n.value,c)
+            crv = rc.Geometry.Curve.CreateControlPointCurve(ptlst,1)
+            debug.append(crv)
+            
         tnode.grammar.type['idlst'] = []
         tnode.grammar.type['ptlst'] = []
         for key in adj_graph.get_sorted_keylst():
