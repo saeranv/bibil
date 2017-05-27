@@ -152,7 +152,6 @@ class AdjGraph(object):
             return None
     def keylst_2_nodelst(self,keylst):
         return map(lambda k: self.adj_graph[k],keylst)
-    
     def add_directed_edge(self,key,key2add):
         #This function will add existing node key to adjacency list of 
         #another node indicating a directed edge
@@ -163,8 +162,7 @@ class AdjGraph(object):
                 return None
             node.adj_lst.append(key2add)
         else:
-            print 'key not in adj graph'
-    
+            print 'key not in adj graph' 
     def recurse_ccw(self,refn,nextn,lok,cycle):
         def get_ccw_angle(prev_dir,next_dir):
             #FIX THIS LATER: REFLEX CHECKING AND SEPARATE FX
@@ -201,13 +199,13 @@ class AdjGraph(object):
         #Input list of keys
         #output key with most ccw
         #Base case
-        print 'startid, chkid:', cycle[0].id, nextn.id
+        #print 'startid, chkid:', cycle[0].id, nextn.id
         cycle.append(nextn)
         cycle_id_lst = map(lambda n: n.id, cycle)
         if nextn.id == cycle_id_lst[0]:
             return cycle
         
-        print 'cycle', cycle_id_lst
+        #print 'cycle', cycle_id_lst
         
         
         #reference direction vector
@@ -220,7 +218,7 @@ class AdjGraph(object):
         for i in xrange(len(lok)):
             k = lok[i]
             n2chk = self.adj_graph[k]
-            print 'we are chking', refn.id, '-', nextn.id, 'edge to', n2chk.id
+            #print 'we are chking', refn.id, '-', nextn.id, 'edge to', n2chk.id
             #Make sure we don't backtrack
             if n2chk.id == cycle_id_lst[-2]:
                 continue
@@ -229,12 +227,11 @@ class AdjGraph(object):
             if rad < min_rad:
                 min_rad = rad
                 min_node = n2chk
-        print 'min is', n2chk.id,':', round(math.degrees(rad),2)
-        print '---'
+        #print 'min is', n2chk.id,':', round(math.degrees(rad),2)
+        #print '---'
         alok = min_node.adj_lst
         
         return self.recurse_ccw(nextn,min_node,alok,cycle)
-        
     def find_most_ccw_cycle(self):
         #def helper_most_ccw(lok):
             
@@ -262,12 +259,10 @@ class AdjGraph(object):
             n_adj_lst = next_node.adj_lst
             cycle = [root_node]
             cycle = self.recurse_ccw(root_node,next_node,n_adj_lst,cycle)
-            print '-------\n-----FINISHED CYCLE\n', cycle, '---\---\n'
-            cycle.append(cycle[0])
+            #print '-------\n-----FINISHED CYCLE\n', cycle, '---\---\n'
             LOC.append(cycle)
-        print '-'
+        #print '-'
         return LOC
-        
     def get_sorted_keylst(self):
         valuelst = self.adj_graph.values()
         valuelst.sort(key=lambda v: v.id)
@@ -1487,7 +1482,6 @@ class Shape:
         #Make sure to connect last edge back to first edge
         adjgraph.add_directed_edge(curr_key,first_key)        
         return adjgraph
-    
     def update_shape_adj_graph(self,adj_graph_,exist_vertex,new_vertex,twoside=True):
         # Update our adjacency list
         #Get the key by hashing vertex
@@ -1506,15 +1500,14 @@ class Shape:
         adj_graph_.add_directed_edge(exist_key,new_key)
         if twoside == True:
             adj_graph_.add_directed_edge(new_key,exist_key)
-        return adj_graph_
-            
-    def compute_straight_skeleton(self,stepnum,tnode):
+        return adj_graph_  
+    def compute_straight_skeleton(self,tnode,perimeter_depth,stepnum):
         debug = sc.sticky["debug"]
         #Move this into its own repo/class
         #call bibil for shape libraries
         #thats how we can transition to HB
-        
-        ##Initialization
+            
+        ##Initialization of ABN
         #Organize given vertices into LAV in SLAV
         #LAV: doubly linked list (DLL).
         #Initialize List of Active Vertices as Double Linked List
@@ -1602,7 +1595,6 @@ class Shape:
                 #tbd
                 continue
             
-            
             new_int_vertex = edge_event.int_vertex
             A_vertex = edge_event.node_A.data.vertex
             B_vertex = edge_event.node_B.data.vertex
@@ -1667,15 +1659,61 @@ class Shape:
             
             count += 1  
         
-        print adj_graph
+        
+        
+        #Take the cycles and create perimeter
+        
+        #print adj_graph
+        
         #loc: listof (listof cycles)
         loc = adj_graph.find_most_ccw_cycle()
+        #Get offset
+        corner_style = rc.Geometry.CurveOffsetCornerStyle.Sharp
+        core_crv_lst = tnode.shape.bottom_crv.Offset(tnode.shape.cpt,\
+                                 tnode.shape.normal,perimeter_depth,\
+                                 sc.doc.ModelAbsoluteTolerance,corner_style)
         
-        for c in loc:
-            ptlst = map(lambda n: n.value,c)
-            crv = rc.Geometry.Curve.CreateControlPointCurve(ptlst,1)
-            debug.append(crv)
+        #debug.extend(core_crv_lst)
+        core_brep_lst = []
+        if not self.is_near_zero(len(core_crv_lst)):
+            for i in xrange(len(core_crv_lst)):
+                core_crv_chk = core_crv_lst[i]
+                if not core_crv_chk.IsClosed:
+                    continue
+                core_extrusion = rc.Geometry.Extrusion.Create(core_crv_chk,\
+                                                              tnode.shape.ht,True)
+                core_brep = core_extrusion.ToBrep()
+                core_brep_lst.append(core_brep)
+        debug.extend(core_brep_lst)
+        if len(core_brep_lst)>1:
+            print 'we have multiple cores check the way we are diffing this:',\
+             len(core_brep_lst)
+        #Make preimeter breps
+        for i in xrange(len(loc)):
+            cycle = loc[i]
+            ptlst = map(lambda n: n.value,cycle)
+            per_crv = rc.Geometry.Curve.CreateControlPointCurve(ptlst,1)
+            per_extrusion = rc.Geometry.Extrusion.Create(per_crv,tnode.shape.ht,True)
+            per_brep = per_extrusion.ToBrep()
+            diff_per_lst = []
+            if not self.is_near_zero(len(core_brep_lst)):
+                for i in xrange(len(core_brep_lst)):
+                    core_brep = core_brep_lst[i]
+                    diff_per = rc.Geometry.Brep.CreateBooleanDifference(per_brep,\
+                                                                        core_brep,sc.doc.ModelAbsoluteTolerance)
+                    
+                    #If no difference, then just include original zone
+                    if diff_per == None or self.is_near_zero(len(diff_per)):
+                        diff_per_lst.append(per_brep)
+                    else:
+                        diff_per_lst.extend(diff_per)
+            else:#if no core just include original zone
+                diff_per_lst = [per_brep]
             
+            debug.extend(diff_per_lst)
+   
+   
+        #For debugging/checkign
         tnode.grammar.type['idlst'] = []
         tnode.grammar.type['ptlst'] = []
         for key in adj_graph.get_sorted_keylst():
@@ -1688,13 +1726,7 @@ class Shape:
                 #debug.extend(adj_node_lst)
         print 'final count: ', count
         print '--'
-        
-        ##//func_make_polygons
-        #- iterate through list of edgeobj
-        #- traverse graph
-        #- take first ccw
-        #- exit if close loop     
-            
+        return tnode
             
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix

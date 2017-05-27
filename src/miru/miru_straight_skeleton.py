@@ -17,6 +17,7 @@ if run:
     rule_ = [\
     ['straight_skeleton', True],\
     ['step',step],\
+    ['perimeterZoneDepth_',perimeterZoneDepth_],\
     ['grammar_key','straight_skeleton'],\
     ['end_rule']]
     

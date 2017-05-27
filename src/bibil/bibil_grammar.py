@@ -1842,7 +1842,8 @@ class Grammar:
     def straight_skeleton(self,temp_node_,PD_):
         temp_node_.grammar.type['grammar'] = 'straight_skeleton'
         stepnum = PD_['step']
-        temp_node_.shape.compute_straight_skeleton(stepnum,temp_node_)
+        perimeterZoneDepth_ = PD_['perimeterZoneDepth_']
+        temp_node_.shape.compute_straight_skeleton(temp_node_,perimeterZoneDepth_,stepnum,)
         return temp_node_
     
     def node2grammar(self,lst_node_,rule_in_,firstUINode=False):
