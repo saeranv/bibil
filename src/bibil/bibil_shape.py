@@ -44,8 +44,8 @@ class DoubleLinkedList(object):
             self.tail = new_node
         #Now complete circle
         self.head.prev = self.tail
-        self.tail.next = self.head 
-        self.size += 1    
+        self.tail.next = self.head
+        self.size += 1
     def __getitem__(self, i):
         #Worst case O(n) time. Don't use if not neccessary
         curr_node = self.head
@@ -105,11 +105,11 @@ class _AdjGraphNode(object):
         return len(self.adj_lst)
     def __repr__(self):
         return "id: " + str(self.id)
-    
+
 class AdjGraph(object):
     #Graph as adjacency list
     #Good ref for adj graphs: http://interactivepython.org/runestone/static/pythonds/Graphs/Implementation.html
-    #adj_graph is a dict like this: 
+    #adj_graph is a dict like this:
     #{key1: _AdjGraphNode.adj_lst = [2,4],
     # key2: _AdjGraphNode.adj_lst = [3,4],
     # key3: _AdjGraphNode.adj_lst = [4],
@@ -121,14 +121,14 @@ class AdjGraph(object):
     #
     def __init__(self,adj_graph=None):
         self.adj_graph = adj_graph if adj_graph != None else {}
-        self.num_node = len(self.adj_graph.keys())        
+        self.num_node = len(self.adj_graph.keys())
     def vector2hash(self,vector,tol=4):
         #Tolerance set to 4
         myhash = "("
         for i in xrange(len(vector)):
             coordinate = vector[i]
             myhash += str(round(coordinate,tol))
-            if i < len(vector)-1: 
+            if i < len(vector)-1:
                 myhash += ","
         myhash += ")"
         return myhash
@@ -153,48 +153,55 @@ class AdjGraph(object):
     def keylst_2_nodelst(self,keylst):
         return map(lambda k: self.adj_graph[k],keylst)
     def add_directed_edge(self,key,key2add):
-        #This function will add existing node key to adjacency list of 
+        #This function will add existing node key to adjacency list of
         #another node indicating a directed edge
         if key in self.adj_graph and key2add in self.adj_graph:
             node = self.adj_graph[key]
-            if key2add in node.adj_lst:
-                print 'key2add already in adj list'
+            if key2add in node.adj_lst or key2add == key:
+                print 'key2add already in adj list or self-intersection'
                 return None
             node.adj_lst.append(key2add)
         else:
-            print 'key not in adj graph' 
+            print 'key not in adj graph'
     def recurse_ccw(self,refn,nextn,lok,cycle):
         def get_ccw_angle(prev_dir,next_dir):
             #FIX THIS LATER: REFLEX CHECKING AND SEPARATE FX
-            
+
             #Input prev_dir vector and next_dir vector
             #Vectors must be facing away from each other!
             #Output CCW angle between them
-            
+
             # Get angle from dot product
             # This will be between 0 and pi
             # b/c -1 < cos theta < 1
             dotprod = rc.Geometry.Vector3d.Multiply(prev_dir,next_dir)
-            cos_angle = dotprod/(prev_dir.Length * next_dir.Length)
+            try:
+                cos_angle = dotprod/(prev_dir.Length * next_dir.Length)
+            except ZeroDivisionError:
+                print 'ZeroDivisionError'
+                cos_angle = 0.0
             #print 'ca', cos_angle
             dotrad = math.acos(cos_angle)
-            
-            #Use the dot product to find the angle and the sign of the cross product to tell you which side it is. 
+
+            #Use the dot product to find the angle and the sign of the cross product to tell you which side it is.
             #For storing them in counterclockwise order, positive will be the inner angle
-            
+
             #Check the sign of the cross product to check if inner or outer angle
             #We will take cross of of 2d vector in xy plane
             #If cross is positive (for ccw ordering) then it is the inner angle
             #If cross is negative or zero (for ccw ordering) then it is the outer angle
-            #Therefore if cross is negative, then that means dotprod returned outer angle 
+            #Therefore if cross is negative, then that means dotprod returned outer angle
             #because it is between 0 and pi. Therefore it is reflex
             #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
-            IsInner = prev_dir[0] * next_dir[1] > prev_dir[1] * next_dir[0]
-            if IsInner:
+            IsGreater = prev_dir[0] * next_dir[1] > prev_dir[1] * next_dir[0]
+            print 'cp', IsGreater
+            print 'dr', math.degrees(dotrad)
+            if not IsGreater:
+                print 'reflex'
                 #if inner angle is a reflex angle subtract with 2pi
                 dotrad = 2.*math.pi - dotrad
             return dotrad
-        
+
         if True: pass #weird code folding glitch neccessitatest this
         #Input list of keys
         #output key with most ccw
@@ -204,17 +211,17 @@ class AdjGraph(object):
         cycle_id_lst = map(lambda n: n.id, cycle)
         if nextn.id == cycle_id_lst[0]:
             return cycle
-        
+
         #print 'cycle', cycle_id_lst
-        
-        
+
+
         #reference direction vector
         ref_edge_dir = nextn.value - refn.value
         ref_edge_dir *= -1 #reverse the vector
-        
+
         min_rad = 99999.
         min_node = None
-         
+
         for i in xrange(len(lok)):
             k = lok[i]
             n2chk = self.adj_graph[k]
@@ -223,18 +230,20 @@ class AdjGraph(object):
             if n2chk.id == cycle_id_lst[-2]:
                 continue
             chk_edge_dir = n2chk.value - nextn.value
+            print 'chkccw', refn, '-', nextn, 'to', n2chk
             rad = get_ccw_angle(ref_edge_dir,chk_edge_dir)
             if rad < min_rad:
                 min_rad = rad
                 min_node = n2chk
+            print '--'
         #print 'min is', n2chk.id,':', round(math.degrees(rad),2)
         #print '---'
         alok = min_node.adj_lst
-        
+
         return self.recurse_ccw(nextn,min_node,alok,cycle)
     def find_most_ccw_cycle(self):
         #def helper_most_ccw(lok):
-            
+
         #Input adjacency graph
         #Output loc: listof (listof (listof pts in closed cycle))
         LOC = []
@@ -244,7 +253,7 @@ class AdjGraph(object):
             root_node = self.adj_graph[key]
             if not root_node.is_out_edge:
                 continue
-            
+
             #Identify the next node on outer edge
             #b/c outer edge vertexes are placed first in adj graph
             #worst complexity <= O(n)
@@ -254,7 +263,7 @@ class AdjGraph(object):
                 if neighbor.is_out_edge:
                     next_node = neighbor
                     break
-            
+
             #Now we recursively check most ccw
             n_adj_lst = next_node.adj_lst
             cycle = [root_node]
@@ -282,7 +291,7 @@ class AdjGraph(object):
         return strgraph
     def __contains__(self,key):
         return self.adj_graph.has_key(key)
-    
+
 class Shape:
     """
     Parent shape operations and information
@@ -334,14 +343,14 @@ class Shape:
             else:
                 if rs.IsCurve(geom_):
                     curve_guid = geom_
-            
+
             if curve_guid:
                 srf_guid = rs.AddPlanarSrf(curve_guid)[0]
                 rc_brep = rs.coercebrep(srf_guid)
                 return rc_brep,rs.coercecurve(curve_guid)
             else:
                 return rs.coercebrep(geom_),False
-            
+
         # primary edges
         debug = sc.sticky['debug']
         if xy_change == True:
@@ -350,7 +359,7 @@ class Shape:
                 if InputIsCurve!=False:
                     self.bottom_crv = InputIsCurve
                 else:
-                    bbrefpt = self.get_boundingbox(self.geom,None)[0] 
+                    bbrefpt = self.get_boundingbox(self.geom,None)[0]
                     self.bottom_crv = self.get_bottom(self.geom,bbrefpt,bottomref=bbrefpt[2])
             except Exception as e:
                 #print str(e)##sys.exc_traceback.tb_lineno
@@ -444,7 +453,7 @@ class Shape:
         for i in xrange(len(vector)):
             coordinate = vector[i]
             myhash += str(round(coordinate,tol))
-            if i < len(vector)-1: 
+            if i < len(vector)-1:
                 myhash += ","
         myhash += ")"
         return myhash
@@ -561,7 +570,7 @@ class Shape:
                 nc = split_line.ToNurbsCurve()
                 end_pts = [nc.Points[i_].Location for i_ in xrange(nc.Points.Count)]
                 dir_vector = end_pts[1] - end_pts[0]
-                
+
                 z_vector = copy.copy(self.normal)
                 z_vector.Reverse()
                 # create forward and backwards vector using crossproduct
@@ -579,7 +588,7 @@ class Shape:
                 c = rs.ScaleObject(c,rs.AddPoint(0,0,0),sc_)
                 rc_cut = rs.ExtrudeSurface(split_surf,c)
                 rc_cut = rs.MoveObject(rc_cut,normal_b)
-                
+
                 #Check if split and srf is coplanar
                 IsCoPlanar = self.is_near_zero(split_line.PointAtStart[2] - self.cpt[2])
                 if IsCoPlanar:
@@ -600,17 +609,17 @@ class Shape:
                 if self.is_near_zero(chk_region):
                     IsValidCut = False
                 #if rc_geom is inside rc_cut
-                if abs(chk_region - 3.0)<0.01 and IsCoPlanar:     
+                if abs(chk_region - 3.0)<0.01 and IsCoPlanar:
                     self.geom = None #no children, but also no parent
                     IsValidCut = False
-                
-                if IsValidCut:    
+
+                if IsValidCut:
                     rc_geom,rc_cut = rs.coercebrep(self.geom),rs.coercebrep(rc_cut)
                     #ghcomp.Flip(rc_cut,sc.sticky['surface_ref'])[0]
                     geom_childs = rc.Geometry.Brep.CreateBooleanDifference(rc_geom,rc_cut,TOL)
                     if geom_childs:
                         lst_child.extend(geom_childs)
-                    
+
                 else:
                     lst_child = []
                 #del rc_cut
@@ -739,7 +748,7 @@ class Shape:
             if self.is_guid(refpt): refpt = rs.coerce3dpoint(refpt)
             if self.is_guid(g): g = rs.coercebrep(g)
             plane = rc.Geometry.Plane(refpt,rc.Geometry.Vector3d(0,0,1))
-            
+
             crv = g.CreateContourCurves(g,plane)[0]
             if IsAtGroundPlane==True:
                 crv = sc.doc.Objects.AddCurve(crv)
@@ -753,7 +762,7 @@ class Shape:
             print str(e)#sys.exc_traceback.tb_lineno
     def move_geom(self,guidobj,dir_vector,copy=False):
         #Moves a geometry
-        #Note, you MUST convert to guid and convert back to rc geom    
+        #Note, you MUST convert to guid and convert back to rc geom
         xf = rc.Geometry.Transform.Translation(dir_vector)
         xform = rs.coercexform(xf, True)
         guidid = rs.coerceguid(guidobj, False)
@@ -1195,7 +1204,7 @@ class Shape:
                 #debug.append(int_pt)
                 #debug.append(rs.AddCurve([int_pt,int_pt+normal2steprefline*-5],3))
                 pt4front = rc.Geometry.Intersect.Intersection.RayShoot(ray2geom,[self.geom],1)
-                if pt4front:    
+                if pt4front:
                     ChkDistTol = dis_tol >= rs.Distance(pt4front[0],int_pt)
                     if ChkDistTol:
                         front_edges.append(edge)
@@ -1253,7 +1262,7 @@ class Shape:
             anglerad = 2.*math.pi - anglerad
         return anglerad
     def convert_shape_to_circular_double_linked_list(self):
-        
+
         LAV = DoubleLinkedList()
         #Add all vertices and incident edges from polygon
         for i in xrange(len(self.base_matrix)):
@@ -1264,7 +1273,7 @@ class Shape:
             edge_next = self.base_matrix[i+1]
             vrt = Vertex(v,edge_prev,edge_next)
             LAV.append(vrt)
-        
+
         ##Test
         #dll = DoubleLinkedList()
         #dll.append(1)
@@ -1272,14 +1281,14 @@ class Shape:
         #dll.append(3)
         #dll.insert(dll[1],DLLNode(1.5))
         #print dll
-        
+
         #Test initialization
         #print 'head', dll.head
         #print 'tail', dll.tail
         #print '== 2', dll.head.next
         #print '== 2', dll.tail.prev
         #print '== 3', dll.head.prev
-        #print '== 1', dll.tail.next 
+        #print '== 1', dll.tail.next
         #print '== 3', dll.head.next.next
         return LAV
     def compute_interior_bisector_vector(self,LAV,angle_index=False):
@@ -1290,139 +1299,139 @@ class Shape:
             curr_node = LAV[i]
             if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
                 continue
-            
+
             #print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
-            # Get two vectors pointing AWAY from the curr_vertex 
+            # Get two vectors pointing AWAY from the curr_vertex
             # i.e <--- v --->
             dir_prev = edge_prev[0]-edge_prev[1]
             dir_next = edge_next[1]-edge_next[0]
             dir_prev.Unitize()
             dir_next.Unitize()
-            
+
             # Get angle / Make this own function?
             dotprod = rc.Geometry.Vector3d.Multiply(dir_next,dir_prev)
             cos_angle = dotprod/(dir_next.Length * dir_prev.Length)
             dotrad = math.acos(cos_angle)
-            
+
             inrad = self.get_inner_angle(dir_prev,dir_next,dotrad)
-            
+
             if inrad > math.pi:
                 curr_node.data.is_reflex = True
                 #debug.append(curr_node.data.vertex)
-                
+
             #Flip the cross prod if dotprod gave outer angle
             if self.is_near_zero(abs(inrad - dotrad)):
                 crossprod = rc.Geometry.Vector3d.CrossProduct(dir_prev,dir_next)
             else:
                 crossprod = rc.Geometry.Vector3d.CrossProduct(dir_next,dir_prev)
-            
+
             #Rotate next point CCW by inner_rad
             dir_next.Rotate(-inrad/2.,crossprod)
-            
+
             #Create bisector ray
             ray_origin = curr_node.data.vertex
             ray_dir = dir_next
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
-            
-            
+
+
         return LAV
     def compute_edge_events_of_polygon(self,LAV,PQ,angle_index=False,cchk=None):
         def distline2pt(v,w,p):
-            ##This algorithm returns the minimum distance between 
+            ##This algorithm returns the minimum distance between
             ##line segment vw and point p
             ##Modified from http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
             ##This is the explaination from stackoverflow for ref:
             ##Consider the line extending the segment, parameterized as v + t (w - v).
-            ##We find projection of point p onto the line. 
+            ##We find projection of point p onto the line.
             ##It falls where t = [(p-v) . (w-v)] / |w-v|^2
             ##We clamp t from [0,1] to handle points outside the segment vw.
-            
+
             ##Convert to rc geometry
             v = rc.Geometry.Vector3d(v)
             w = rc.Geometry.Vector3d(w)
             p = rc.Geometry.Vector3d(p)
-            
+
             ##Create dir vectors for line and point
             wv = w-v
             pv = p-v
-            
+
             ##Calculate |w-v|^2 w/o costly sqrt
-            lsq = wv.SquareLength     
+            lsq = wv.SquareLength
             # Check for zero line segment case: v == w
             if self.is_near_zero(lsq):
                 return pv.Length
-            
+
             ##ProjectionPVonWV = (w-v)/|w-v| * (w-v)/|w-v| * (p-v)
             ##simplfiied = projpv = (w-v) * ((p-v) * (w-v))/|w-v|^2
             ##Then: projpv - p == perpendicular line
-            
+
             ##clamp_to_line: ((p-v) * (w-v))/|w-v|^2
             ##(w-v): wv
-            ##projpv = clamp_to_line * wv 
+            ##projpv = clamp_to_line * wv
             clamp_to_line = (pv * wv)/lsq
-            
+
             ##This is to handle points outside line segment. They will have
             ##obtuse angle so costheta < 0. in that case will clamp_to_line factor == 0.
             ##therefore if obtuse, clamp_to_line turns projpv into a zero vector and
             ##and will return (non perpendicular) distance from point v to p.
             clamp_to_line = max(0., min(1.,clamp_to_line))
             projpv = clamp_to_line * wv
-            
+
             ##Instead of simply subtracting projpv-p, we first add it to v
             ##and then subtract it from p
             ##This is so that if p is outside of line segment, then projpv = 0 vector, so
             ##v - p will be our minimum distance.
             perpvector = (v + projpv) - p
-            
+
             ##Return values
             perpgeom = rs.AddLine(projpv,p)
             perpline = rs.AddLine(v,w)
             perppt = rc.Geometry.Point3d(p)
             return perpvector.Length, (perpgeom,perpline,perppt)
-        
+
         debug = sc.sticky['debug']
         #Create Priotity Queue from Python module
         #Ref: https://docs.python.org/2.7/library/heapq.html#priority-queue-implementation-notes
-        
+
         #hypothenuse = sqrt(a^2 + b^2) = c; to get longest line
         side1 = self.get_long_short_axis()[1]
         side2 = self.get_long_short_axis()[3]
         linedim = math.sqrt(side1*side1 + side2*side2)
-        
+
         debug_minev = None
-        
+
         for i in xrange(LAV.size):
             curr_node = LAV[i]
             if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
                 continue
-            
+
             curr_ray = curr_node.data.bisector_ray
             prev_ray = curr_node.prev.data.bisector_ray
             next_ray = curr_node.next.data.bisector_ray
-            
+
             #Get intersection
             p_start = curr_ray[0] + (curr_ray[1]*-1) * linedim
             p_end = curr_ray[0]+curr_ray[1]*linedim
             curr_line = rc.Geometry.Curve.CreateControlPointCurve([p_start,p_end],0)
-            
+
             #!!!should check for parallel edge case
             int_prev = self.extend_ray_to_line(prev_ray,curr_line)
             int_next = self.extend_ray_to_line(next_ray,curr_line)
-            
+
             #Get prev/next edges for distance check
             #DO NOT USE THE POINTERS TO PREV/NEXT NODES
-            
+
             pn1,pn2 = curr_node.data.edge_prev[0],curr_node.data.edge_prev[1]
             nn1,nn2 = curr_node.data.edge_next[0],curr_node.data.edge_next[1]
-            
+
             ##--- Debug ---##
-            if cchk==-1:#cchk==None and i==3: 
+            if cchk==-1:#cchk==None and i==3:
                 pdt,g1 = distline2pt(pn1,pn2,int_prev.PointAtEnd)
                 ndt,g2 = distline2pt(nn1,nn2,int_next.PointAtEnd)
-                
+
                 debug.append(curr_line)
                 debug.append(curr_node.prev.data.vertex)
                 debug.append(curr_node.data.vertex)
@@ -1435,16 +1444,16 @@ class Shape:
                 debug.append(g2[1])#line
                 debug.append(g2[2])#pt
             ##--- Debug ---##
-                
-            event_tuple = [] 
-            ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):        
+
+            event_tuple = []
+            ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
             if int_prev != None:
-                #Calculate distance to edge 
+                #Calculate distance to edge
                 prevdist,g = distline2pt(pn1,pn2,int_prev.PointAtEnd)
                 prev_edge_event = EdgeEvent(int_prev.PointAtEnd,int_prev,curr_node.prev,curr_node,prevdist,curr_node)#int_prev.GetLength(),curr_node)
                 event_tuple.append(prev_edge_event)
             if int_next != None:
-                #Calculate distance to edge 
+                #Calculate distance to edge
                 nextdist,g = distline2pt(nn1,nn2,int_next.PointAtEnd)
                 next_edge_event = EdgeEvent(int_next.PointAtEnd,int_next,curr_node,curr_node.next,nextdist,curr_node)#int_next.GetLength(),curr_node)
                 event_tuple.append(next_edge_event)
@@ -1453,12 +1462,12 @@ class Shape:
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
                 if angle_index:
                     debug_minev = min_event
-        return PQ, debug_minev     
+        return PQ, debug_minev
     def shape_to_adj_graph(self):
         #Purpose: converts bottom of polygon into a adjacency list
-        #Input: self base_matrix 
+        #Input: self base_matrix
         #Output: adjacency list polygon shape as directed cycles
-        
+
         #Add all vertices from polygon
         ##base_matrix: listof (list of edge vertices)
         #Label of vertice is index (may have to change this to coordinates)
@@ -1469,7 +1478,7 @@ class Shape:
             prev_v = self.base_matrix[i-1][0]
             prev_key = adjgraph.vector2hash(prev_v)
             prev_node = adjgraph[prev_key]
-                
+
             #If beggining need to add previous node
             if prev_node == None:
                 prev_node = adjgraph.add_node(prev_key,prev_v,is_out_edge=True)
@@ -1480,7 +1489,7 @@ class Shape:
             curr_node = adjgraph.add_node(curr_key,curr_v,is_out_edge=True)
             adjgraph.add_directed_edge(prev_key,curr_key)
         #Make sure to connect last edge back to first edge
-        adjgraph.add_directed_edge(curr_key,first_key)        
+        adjgraph.add_directed_edge(curr_key,first_key)
         return adjgraph
     def update_shape_adj_graph(self,adj_graph_,exist_vertex,new_vertex,twoside=True):
         # Update our adjacency list
@@ -1489,24 +1498,24 @@ class Shape:
         new_key = adj_graph_.vector2hash(new_vertex)
         #Get the node with the key
         exist_node = adj_graph_[exist_key]
-        
+
         if new_key in adj_graph_:
             new_node = adj_graph_[new_key]
         else:
             new_node = adj_graph_.add_node(new_key,new_vertex)
             print 'newnode', new_node
-        
+
         #Add new node to graph
         adj_graph_.add_directed_edge(exist_key,new_key)
         if twoside == True:
             adj_graph_.add_directed_edge(new_key,exist_key)
-        return adj_graph_  
+        return adj_graph_
     def compute_straight_skeleton(self,tnode,perimeter_depth,stepnum):
         debug = sc.sticky["debug"]
         #Move this into its own repo/class
         #call bibil for shape libraries
         #thats how we can transition to HB
-            
+
         ##Initialization of ABN
         #Organize given vertices into LAV in SLAV
         #LAV: doubly linked list (DLL).
@@ -1520,23 +1529,23 @@ class Shape:
         PQ,minev = self.compute_edge_events_of_polygon(LAV,[])
         #print 'initialization complete'
         #print ''
-        
+
         copyLAV = copy.deepcopy(LAV)
-        
+
         #Main skeleton algorithm
         ##--- Debug ---##
         print 'length: ', len(PQ), ' vertices'
         count=0
         create_geom = True
         debug_crv = -1#stepnum
-        
+
         ##--- Debug ---##
-        
+
         while len(PQ) > 0:#count<=2:#
             #print 'count: ', count
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
             edge_event = heapq.heappop(PQ)[1]
-            
+
             ##--- Debug ---##
             if count==debug_crv:
                 curr_node = LAV.head
@@ -1550,19 +1559,19 @@ class Shape:
                 debug.extend(LLL)
                 #print '---'
             ##--- Debug ---##
-            
+
             #if create_geom and debug_crv >= 0 and debug_crv == count:
             #    debug.append(edge_event.node_A.prev.data.vertex)
             #    debug.append(edge_event.node_A.data.vertex)
             #    debug.append(edge_event.node_B.data.vertex)
-                
-                
+
+
             #If not processed this edge will shrink to zero edge
             if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
                 count+=1
                 continue
-            
-            
+
+
             Vc_I_arc = None
             #Check for peak of the roof event
             if edge_event.node_A.prev.prev is edge_event.node_B:
@@ -1570,76 +1579,76 @@ class Shape:
                 A_vertex = edge_event.node_A.data.vertex
                 B_vertex = edge_event.node_B.data.vertex
                 prev_A_vertex = edge_event.node_A.prev.data.vertex
-                
+
                 #Update adjacency graph
                 adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
                 adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
                 adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
-            
+
                 Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([prev_A_vertex, new_int_vertex])
                 Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                 Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
-                
+
                 if True:#if create_geom and debug_crv >= 0 and debug_crv == count:
-                    #debug.append(Va_I_arc)
-                    #debug.append(Vb_I_arc)
+                    debug.append(Va_I_arc)
+                    debug.append(Vb_I_arc)
                     pass
-                if True:#create_geom and Vc_I_arc and debug_crv >= 0 and debug_crv == count: 
-                    pass#debug.append(Vc_I_arc)  
-                
+                if True:#create_geom and Vc_I_arc and debug_crv >= 0 and debug_crv == count:
+                    debug.append(Vc_I_arc)
+
                 edge_event.node_A.data.is_processed = True
                 edge_event.node_B.data.is_processed = True
                 count += 1
-                
+
                 #Update the adjacency list
                 #tbd
                 continue
-            
+
             new_int_vertex = edge_event.int_vertex
             A_vertex = edge_event.node_A.data.vertex
             B_vertex = edge_event.node_B.data.vertex
             #Update adjacency graph
             adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
             adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
-        
+
             Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
             Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
-            if create_geom and debug_crv >= 0 and debug_crv == count:
+            if create_geom: #and debug_crv >= 0 and debug_crv == count:
                 debug.append(Va_I_arc)
                 debug.append(Vb_I_arc)
-            
-            #Modify the list of active vertices/nodes   
+
+            #Modify the list of active vertices/nodes
             new_prev_edge = edge_event.node_A.data.edge_prev
             new_next_edge = edge_event.node_B.data.edge_next
             #Create new vertex node
             int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
             V = DLLNode(int_vertex_obj)
-            
+
             #Swap node_A, node_B w/ V
             #This would be better as remove/insert function in DLL class
             edge_event.node_A.prev.next = V
             edge_event.node_B.next.prev = V
             V.prev = edge_event.node_A.prev
             V.next = edge_event.node_B.next
-                
+
             #change the head for node_A, node_B
             chkhead = LAV.head in (edge_event.node_A,edge_event.node_B)
             chktail = LAV.tail in (edge_event.node_A,edge_event.node_B)
             if chkhead or chktail:
                 LAV.head = V
                 LAV.tail = V.prev
-            
+
             #Mark as processed
             edge_event.node_A.data.is_processed = True
-            edge_event.node_B.data.is_processed = True 
-            
-            
-            
+            edge_event.node_B.data.is_processed = True
+
+
+
             #Now compute bisector and edge event for new V node
             V_index = LAV.get_node_index(V)
             LAV = self.compute_interior_bisector_vector(LAV,angle_index=V_index)
             PQ,minev = self.compute_edge_events_of_polygon(LAV,PQ,angle_index=V_index,cchk=count)
-            
+
             ##--- Debug ---##
             if count==-1:
                 #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
@@ -1656,23 +1665,24 @@ class Shape:
                 #debug.append(V.node_B.data.vertex)
                 if V: print 'length2edged', V.length2edge
             ##--- Debug ---##
-            
-            count += 1  
-        
-        
-        
+
+            count += 1
+
+
+
         #Take the cycles and create perimeter
-        
-        #print adj_graph
-        
+
+        print adj_graph
+
         #loc: listof (listof cycles)
         loc = adj_graph.find_most_ccw_cycle()
+        """
         #Get offset
         corner_style = rc.Geometry.CurveOffsetCornerStyle.Sharp
         core_crv_lst = tnode.shape.bottom_crv.Offset(tnode.shape.cpt,\
                                  tnode.shape.normal,perimeter_depth,\
                                  sc.doc.ModelAbsoluteTolerance,corner_style)
-        
+
         #debug.extend(core_crv_lst)
         core_brep_lst = []
         if not self.is_near_zero(len(core_crv_lst)):
@@ -1701,7 +1711,7 @@ class Shape:
                     core_brep = core_brep_lst[i]
                     diff_per = rc.Geometry.Brep.CreateBooleanDifference(per_brep,\
                                                                         core_brep,sc.doc.ModelAbsoluteTolerance)
-                    
+
                     #If no difference, then just include original zone
                     if diff_per == None or self.is_near_zero(len(diff_per)):
                         diff_per_lst.append(per_brep)
@@ -1709,10 +1719,10 @@ class Shape:
                         diff_per_lst.extend(diff_per)
             else:#if no core just include original zone
                 diff_per_lst = [per_brep]
-            
+
             debug.extend(diff_per_lst)
-   
-   
+
+        """
         #For debugging/checkign
         tnode.grammar.type['idlst'] = []
         tnode.grammar.type['ptlst'] = []
@@ -1727,7 +1737,7 @@ class Shape:
         print 'final count: ', count
         print '--'
         return tnode
-            
+
     def vector_to_transformation_matrix(self,dir_vector):
         #obj: Create transformation matrix
         # For n-dim vector create n x n matrix
