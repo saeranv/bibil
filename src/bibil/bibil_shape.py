@@ -163,7 +163,7 @@ class AdjGraph(object):
             node.adj_lst.append(key2add)
         else:
             print 'key not in adj graph'
-    def recurse_ccw(self,refn,nextn,lok,cycle):
+    def recurse_ccw(self,refn,nextn,lok,cycle,count):
         def get_ccw_angle(prev_dir,next_dir):
             #FIX THIS LATER: REFLEX CHECKING AND SEPARATE FX
 
@@ -174,6 +174,14 @@ class AdjGraph(object):
             # Get angle from dot product
             # This will be between 0 and pi
             # b/c -1 < cos theta < 1
+
+            #We reverse the prev_dir so that we can correctly get angle
+            #btwn vectors
+            try:
+                prev_dir.Reverse()
+            except:
+                print 'reverse fail'
+                pass
             dotprod = rc.Geometry.Vector3d.Multiply(prev_dir,next_dir)
             try:
                 cos_angle = dotprod/(prev_dir.Length * next_dir.Length)
@@ -209,7 +217,7 @@ class AdjGraph(object):
         #print 'startid, chkid:', cycle[0].id, nextn.id
         cycle.append(nextn)
         cycle_id_lst = map(lambda n: n.id, cycle)
-        if nextn.id == cycle_id_lst[0]:
+        if nextn.id == cycle_id_lst[0] or count > 20:
             return cycle
 
         #print 'cycle', cycle_id_lst
@@ -240,7 +248,7 @@ class AdjGraph(object):
         #print '---'
         alok = min_node.adj_lst
 
-        return self.recurse_ccw(nextn,min_node,alok,cycle)
+        return self.recurse_ccw(nextn,min_node,alok,cycle,count+1)
     def find_most_ccw_cycle(self):
         #def helper_most_ccw(lok):
 
@@ -267,7 +275,7 @@ class AdjGraph(object):
             #Now we recursively check most ccw
             n_adj_lst = next_node.adj_lst
             cycle = [root_node]
-            cycle = self.recurse_ccw(root_node,next_node,n_adj_lst,cycle)
+            cycle = self.recurse_ccw(root_node,next_node,n_adj_lst,cycle,0)
             #print '-------\n-----FINISHED CYCLE\n', cycle, '---\---\n'
             LOC.append(cycle)
         #print '-'
