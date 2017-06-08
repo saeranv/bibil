@@ -177,11 +177,11 @@ class AdjGraph(object):
 
             #We reverse the prev_dir so that we can correctly get angle
             #btwn vectors
-            try:
-                prev_dir.Reverse()
-            except:
-                print 'reverse fail'
-                pass
+            #try:
+            #    prev_dir.Reverse()
+            #except:
+            #    print 'reverse fail'
+            #     pass
             dotprod = rc.Geometry.Vector3d.Multiply(prev_dir,next_dir)
             try:
                 cos_angle = dotprod/(prev_dir.Length * next_dir.Length)
@@ -275,7 +275,10 @@ class AdjGraph(object):
             #Now we recursively check most ccw
             n_adj_lst = next_node.adj_lst
             cycle = [root_node]
-            cycle = self.recurse_ccw(root_node,next_node,n_adj_lst,cycle,0)
+            try:
+                cycle = self.recurse_ccw(root_node,next_node,n_adj_lst,cycle,0)
+            except:
+                pass
             #print '-------\n-----FINISHED CYCLE\n', cycle, '---\---\n'
             LOC.append(cycle)
         #print '-'
