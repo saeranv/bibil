@@ -1433,9 +1433,11 @@ class Shape:
                     #polygon in two
                     #Compute point B, where a 'split event' will occur
                     print 'is_reflex', curr_node_.data.is_reflex
-                    vertex_bisector_line = (curr_node_.data.bisector_ray[0],\
-                                                rc.Geometry.Point3d(curr_node_.data.bisector_ray[1]))
-                        
+                    bisector_start_pt = curr_node_.data.bisector_ray[0]
+                    bisector_end_pt = rc.Geometry.Point3d(bisector_start_pt + curr_node_.data.bisector_ray[1]*10.0)
+                    vertex_bisector_line = (bisector_start_pt,bisector_end_pt)
+                    
+                    #debug.append(vertex_bisector_line[1])
                     #Loop through LAV original edges
                     for i in xrange(orig_LAV_.size):
                         orig_node_ = orig_LAV_[i]
@@ -1447,6 +1449,7 @@ class Shape:
                         if chk_next or chk_prev:
                             print 'same edge'
                             return None
+                        
                         
                         int_pt = self.intersect_infinite_lines(vertex_bisector_line,edge_line)
                         if not int_pt:
