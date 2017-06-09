@@ -165,45 +165,36 @@ class AdjGraph(object):
             print 'key not in adj graph'
     def recurse_ccw(self,refn,nextn,lok,cycle,count):
         def get_ccw_angle(prev_dir,next_dir):
-            #FIX THIS LATER: REFLEX CHECKING AND SEPARATE FX
-
             #Input prev_dir vector and next_dir vector in CCW ordering
-            #Output CCW angle between them
+            #Output CCW angle between them in radians
 
-            # Get angle from dot product
-            # This will be between 0 and pi
-            # b/c -1 < cos theta < 1
-            
             #Reverse prev_dir order for angle checking
             #We create a new vector b/c must be ccw order for reflex check
             reverse_prev_dir = prev_dir * -1.0
+            #Use the dot product to find the angle
             dotprod = rc.Geometry.Vector3d.Multiply(reverse_prev_dir,next_dir)
             try:
                 cos_angle = dotprod/(prev_dir.Length * next_dir.Length)
             except ZeroDivisionError:
                 print 'ZeroDivisionError'
                 cos_angle = 0.0
-                
+            
+            # Get angle from dot product
+            # This will be between 0 and pi
+            # b/c -1 < cos theta < 1
             dotrad = math.acos(cos_angle)
-            #Use the dot product to find the angle and the sign of the cross product to tell you which side it is.
-            #For storing them in counterclockwise order, positive will be the inner angle
-
-            #Check the sign of the cross product to check if inner or outer angle
-            #We will take cross of of 2d vector in xy plane
-            #If cross is positive (for ccw ordering) then it is the inner angle
-            #If cross is negative or zero (for ccw ordering) then it is the outer angle
-            #Therefore if cross is negative, then that means dotprod returned outer angle
-            #because it is between 0 and pi. Therefore it is reflex
-            #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
-            prev_dir
-            IsGreater = prev_dir[0] * next_dir[1] > prev_dir[1] * next_dir[0]
-            print 'cross: ', IsGreater 
-            print 'deg: ', round(math.degrees(dotrad),2)
-            if not IsGreater:
-                print 'is reflex'
-                #if inner angle is a reflex angle subtract with 2pi
+            
+            #Use 2d cross product (axby - bxay) to see if next_vector is right/left
+            #This requires ccw ordering of vectors
+            #If cross is positive (for ccw ordering) then next_vector is to left (inner)
+            #If cross is negative (for ccw ordering) then next_vector is to right (outer)
+            #If cross is equal then zero vector, then vectors are colinear. Assume inner.
+            
+            cross_z_sign = prev_dir[0] * next_dir[1] - prev_dir[1] * next_dir[0]
+            #print 'deg: ', round(math.degrees(dotrad),2)
+            #If reflex we must subtract 2pi from it to get reflex angle
+            if cross_z_sign < 0.0:
                 dotrad2 = 2*math.pi - dotrad
-                print 'deg: ', round(math.degrees(dotrad2),2)  
             return dotrad
 
         if True: pass #weird code folding glitch neccessitatest this
@@ -218,7 +209,6 @@ class AdjGraph(object):
 
         #print 'cycle', cycle_id_lst
 
-
         #reference direction vector
         ref_edge_dir =  nextn.value - refn.value
         
@@ -232,12 +222,12 @@ class AdjGraph(object):
             if n2chk.id == cycle_id_lst[-2]:
                 continue
             chk_edge_dir = n2chk.value - nextn.value
-            print 'chkccw', refn.id, '--', nextn.id, '--->', n2chk.id
+            #print 'chkccw', refn.id, '--', nextn.id, '--->', n2chk.id
             rad = get_ccw_angle(ref_edge_dir,chk_edge_dir)
             if rad < min_rad:
                 min_rad = rad
                 min_node = n2chk
-            print '--'
+            #print '---'
         #print 'min is', n2chk.id,':', round(math.degrees(rad),2)
         #print '---'
         alok = min_node.adj_lst
