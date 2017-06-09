@@ -75,7 +75,7 @@ class Vertex(object):
         self.edge_prev = edge_prev
         self.edge_next = edge_next
         self.bisector_ray = None
-        self.is_reflex = None
+        self.is_reflex = False
         self.is_processed = False
     def __str__(self):
         return str(self.vertex)
@@ -194,7 +194,7 @@ class AdjGraph(object):
             #print 'deg: ', round(math.degrees(dotrad),2)
             #If reflex we must subtract 2pi from it to get reflex angle
             if cross_z_sign < 0.0:
-                dotrad2 = 2*math.pi - dotrad
+                dotrad = 2*math.pi - dotrad
             return dotrad
 
         if True: pass #weird code folding glitch neccessitatest this
@@ -1294,8 +1294,8 @@ class Shape:
             curr_node = LAV[i]
             if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
                 continue
-
-            #print 'index:', i
+            
+            print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
             # Get two vectors pointing AWAY from the curr_vertex
@@ -1315,7 +1315,10 @@ class Shape:
             if inrad > math.pi:
                 curr_node.data.is_reflex = True
                 #debug.append(curr_node.data.vertex)
-
+            
+            #print 'deg:', round(math.degrees(inrad),2)
+            #print 'is reflex:', curr_node.data.is_reflex
+            
             #Flip the cross prod if dotprod gave outer angle
             if self.is_near_zero(abs(inrad - dotrad)):
                 crossprod = rc.Geometry.Vector3d.CrossProduct(dir_prev,dir_next)
@@ -1330,10 +1333,10 @@ class Shape:
             ray_dir = dir_next
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
-
+        print '---'
 
         return LAV
-    def compute_edge_events_of_polygon(self,LAV,PQ,angle_index=False,cchk=None):
+    def compute_edge_events_of_polygon(self,LAV,orig_LAV,PQ,angle_index=False,cchk=None):
         def distline2pt(v,w,p):
             ##This algorithm returns the minimum distance between
             ##line segment vw and point p
@@ -1406,7 +1409,22 @@ class Shape:
             curr_ray = curr_node.data.bisector_ray
             prev_ray = curr_node.prev.data.bisector_ray
             next_ray = curr_node.next.data.bisector_ray
-
+            
+            #In case of reflex angle, edge_event or split_event can occur
+            if curr_node.data.is_reflex==True:
+                def compute_split_event(curr_node_,orig_LAV_):
+                    #Split event: when interior vertex hits opposite edge, splitting
+                    #polygon in two
+                    #Compute point B, where a 'split event' will occur
+                    print 'is_reflex', curr_node_.data.is_reflex
+                    
+                    #Loop through LAV original edges
+                    for i in xrange(orig_LAV_.size):
+                        curr_node_ = orig_LAV_[i]
+                        print curr_node_
+                compute_split_event(curr_node,orig_LAV)
+            else:
+                print 'not reflex'
             #Get intersection
             p_start = curr_ray[0] + (curr_ray[1]*-1) * linedim
             p_end = curr_ray[0]+curr_ray[1]*linedim
@@ -1457,6 +1475,8 @@ class Shape:
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
                 if angle_index:
                     debug_minev = min_event
+            print '-'
+        print '----'
         return PQ, debug_minev
     def shape_to_adj_graph(self):
         #Purpose: converts bottom of polygon into a adjacency list
@@ -1519,13 +1539,13 @@ class Shape:
         adj_graph = self.shape_to_adj_graph()
         #Compute the vertex angle bisector (ray) bi
         LAV = self.compute_interior_bisector_vector(LAV)
+        #Keep a copy of LAV for original polygon 
+        original_LAV = copy.deepcopy(LAV)
         #Compute bisector intersections and maintain Priority Queue of Edge Events
         #An edge event is when a edge shrinks to point in Straight Skeleton
-        PQ,minev = self.compute_edge_events_of_polygon(LAV,[])
+        PQ,minev = self.compute_edge_events_of_polygon(LAV,original_LAV,[])
         #print 'initialization complete'
         #print ''
-
-        copyLAV = copy.deepcopy(LAV)
 
         #Main skeleton algorithm
         ##--- Debug ---##
@@ -1642,7 +1662,7 @@ class Shape:
             #Now compute bisector and edge event for new V node
             V_index = LAV.get_node_index(V)
             LAV = self.compute_interior_bisector_vector(LAV,angle_index=V_index)
-            PQ,minev = self.compute_edge_events_of_polygon(LAV,PQ,angle_index=V_index,cchk=count)
+            PQ,minev = self.compute_edge_events_of_polygon(LAV,original_LAV,PQ,angle_index=V_index,cchk=count)
 
             ##--- Debug ---##
             if count==-1:
