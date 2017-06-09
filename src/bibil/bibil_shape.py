@@ -1041,6 +1041,22 @@ class Shape:
         dist = ghcomp.CurveClosestPoint(testpt,crv)[2]
         IsColinear = True if abs(dist-0.)<tol else False
         return IsColinear
+    def intersect_infinite_lines(self,line1,line2):
+        #Input line1 and line2 
+        #where: line: (startpt,endpt)
+        #and startpt and endpt are rc.Geometry.Point3d
+        #Compute intersection of infinite lines
+        #Return point of intersection
+        #debug = sc.sticky['debug']
+        intersect_pt = None
+        #Convert to rhino common geometry obj
+        line1 = rc.Geometry.Line(line1[0],line1[1])
+        line2 = rc.Geometry.Line(line2[0],line2[1])
+        
+        int_exist,a,b = rc.Geometry.Intersect.Intersection.LineLine(line1,line2,0.001,False)
+        if int_exist:
+            intersect_pt = line2.PointAt(b)
+        return intersect_pt
     def planar_intersect_ray_with_line(self,base_vector,direction_vector,linept1,linept2,refz=0.0):
         #Input: ray (basevector and dirvector), line (two pts)
         #Output: intersection point or else False
@@ -1146,7 +1162,7 @@ class Shape:
             #debug.append(self.cpt)
         return point_intersect_lst
     def extend_ray_to_line(self,chk_ray,lineref):
-        #ray: (ray_origin (pt), ray_dir (vector)
+        #ray: (ray_origin (pt), ray_dir (vector))
         #line: control point curve
         #Output: line that is intersected
         chk_line = rc.Geometry.Curve.CreateControlPointCurve([chk_ray[0],chk_ray[0]+chk_ray[1]*2.],0)
@@ -1417,12 +1433,28 @@ class Shape:
                     #polygon in two
                     #Compute point B, where a 'split event' will occur
                     print 'is_reflex', curr_node_.data.is_reflex
-                    
+                    vertex_bisector_line = (curr_node_.data.bisector_ray[0],\
+                                                rc.Geometry.Point3d(curr_node_.data.bisector_ray[1]))
+                        
                     #Loop through LAV original edges
                     for i in xrange(orig_LAV_.size):
-                        curr_node_ = orig_LAV_[i]
-                        print curr_node_
-                compute_split_event(curr_node,orig_LAV)
+                        orig_node_ = orig_LAV_[i]
+                        edge_line = (orig_node_.data.vertex,\
+                                      orig_node_.data.edge_next[1])
+                        
+                        chk_next = edge_line == curr_node_.data.edge_next
+                        chk_prev = edge_line == curr_node_.data.edge_prev
+                        if chk_next or chk_prev:
+                            print 'same edge'
+                            return None
+                        
+                        int_pt = self.intersect_infinite_lines(vertex_bisector_line,edge_line)
+                        if not int_pt:
+                            continue
+                        #Check if reversed
+                        debug.append(int_pt)
+                        print '-'
+                B = compute_split_event(curr_node,orig_LAV)
             else:
                 print 'not reflex'
             #Get intersection
@@ -1441,7 +1473,7 @@ class Shape:
             nn1,nn2 = curr_node.data.edge_next[0],curr_node.data.edge_next[1]
 
             ##--- Debug ---##
-            if cchk==-1:#cchk==None and i==3:
+            def debug_dist2line(pn1,pn2,curr_node,int_prev,int_next):
                 pdt,g1 = distline2pt(pn1,pn2,int_prev.PointAtEnd)
                 ndt,g2 = distline2pt(nn1,nn2,int_next.PointAtEnd)
 
@@ -1456,6 +1488,7 @@ class Shape:
                 #debug.append(g2[0])#proj
                 debug.append(g2[1])#line
                 debug.append(g2[2])#pt
+            #debug_dist2line(pn1,pn2,curr_node,int_prev,int_next)
             ##--- Debug ---##
 
             event_tuple = []
