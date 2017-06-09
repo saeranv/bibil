@@ -167,30 +167,24 @@ class AdjGraph(object):
         def get_ccw_angle(prev_dir,next_dir):
             #FIX THIS LATER: REFLEX CHECKING AND SEPARATE FX
 
-            #Input prev_dir vector and next_dir vector
-            #Vectors must be facing away from each other!
+            #Input prev_dir vector and next_dir vector in CCW ordering
             #Output CCW angle between them
 
             # Get angle from dot product
             # This will be between 0 and pi
             # b/c -1 < cos theta < 1
-
-            #We reverse the prev_dir so that we can correctly get angle
-            #btwn vectors
-            #try:
-            #    prev_dir.Reverse()
-            #except:
-            #    print 'reverse fail'
-            #     pass
-            dotprod = rc.Geometry.Vector3d.Multiply(prev_dir,next_dir)
+            
+            #Reverse prev_dir order for angle checking
+            #We create a new vector b/c must be ccw order for reflex check
+            reverse_prev_dir = prev_dir * -1.0
+            dotprod = rc.Geometry.Vector3d.Multiply(reverse_prev_dir,next_dir)
             try:
                 cos_angle = dotprod/(prev_dir.Length * next_dir.Length)
             except ZeroDivisionError:
                 print 'ZeroDivisionError'
                 cos_angle = 0.0
-            #print 'ca', cos_angle
+                
             dotrad = math.acos(cos_angle)
-
             #Use the dot product to find the angle and the sign of the cross product to tell you which side it is.
             #For storing them in counterclockwise order, positive will be the inner angle
 
@@ -201,13 +195,15 @@ class AdjGraph(object):
             #Therefore if cross is negative, then that means dotprod returned outer angle
             #because it is between 0 and pi. Therefore it is reflex
             #Ref: http://stackoverflow.com/questions/20252845/best-algorithm-for-detecting-interior-and-exterior-angles-of-an-arbitrary-shape
+            prev_dir
             IsGreater = prev_dir[0] * next_dir[1] > prev_dir[1] * next_dir[0]
-            print 'cp', IsGreater
-            print 'dr', math.degrees(dotrad)
+            print 'cross: ', IsGreater 
+            print 'deg: ', round(math.degrees(dotrad),2)
             if not IsGreater:
-                print 'reflex'
+                print 'is reflex'
                 #if inner angle is a reflex angle subtract with 2pi
-                dotrad = 2.*math.pi - dotrad
+                dotrad2 = 2*math.pi - dotrad
+                print 'deg: ', round(math.degrees(dotrad2),2)  
             return dotrad
 
         if True: pass #weird code folding glitch neccessitatest this
@@ -224,21 +220,19 @@ class AdjGraph(object):
 
 
         #reference direction vector
-        ref_edge_dir = nextn.value - refn.value
-        ref_edge_dir *= -1 #reverse the vector
-
+        ref_edge_dir =  nextn.value - refn.value
+        
         min_rad = 99999.
         min_node = None
 
         for i in xrange(len(lok)):
             k = lok[i]
             n2chk = self.adj_graph[k]
-            #print 'we are chking', refn.id, '-', nextn.id, 'edge to', n2chk.id
             #Make sure we don't backtrack
             if n2chk.id == cycle_id_lst[-2]:
                 continue
             chk_edge_dir = n2chk.value - nextn.value
-            print 'chkccw', refn, '-', nextn, 'to', n2chk
+            print 'chkccw', refn.id, '--', nextn.id, '--->', n2chk.id
             rad = get_ccw_angle(ref_edge_dir,chk_edge_dir)
             if rad < min_rad:
                 min_rad = rad
