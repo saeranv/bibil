@@ -1466,8 +1466,8 @@ class Shape:
                     #Loop through LAV original edges
                     for i in xrange(orig_LAV_.size):
                         orig_node_ = orig_LAV_[i]
-                        edge_line = (orig_node_.data.vertex,\
-                                      orig_node_.data.edge_next[1])
+                        edge_line = [orig_node_.data.vertex,\
+                                      orig_node_.data.edge_next[1]]
                         
                         chk_next = edge_line == curr_node_.data.edge_next
                         chk_prev = edge_line == curr_node_.data.edge_prev
@@ -1500,7 +1500,6 @@ class Shape:
                         
                         #Intersection at edge
                         edge_int_pt = self.intersect_infinite_lines(vertex_edge_line,edge_line)
-                        print 'edgeintpt', edge_int_pt
                         if not edge_int_pt:
                             continue
                         
@@ -1514,16 +1513,50 @@ class Shape:
                         B_bisect_dir = edge_line_vec - vertex_edge_vec
                         
                         B_bisect_dir.Unitize()
+                        Bline = [edge_int_pt, edge_int_pt + B_bisect_dir*50.0]
+                        rayline = [raypt, raypt + raydir]
+                        B = self.intersect_infinite_lines(Bline,rayline)
+                        if not B:
+                            continue
+                        
+                        #Check if B is bound by edge_line, and left,right bisectors of edge_line
+                        def is_pt_bound_by_vectors(pt2chk,ray2chk,direction="ccw"):
+                            #Input: pt, and ray(raypt, raydir)
+                            #Output: Bool if bound by area (i.e. inside)
+                            #This function uses cross product to see if pt2chk is inside rays
+                            boundvec = (ray2chk[0] + ray2chk[1]) - ray2chk[0]
+                            chkvec = pt2chk - ray2chk[0] 
+                            crossprod2d = boundvec[0]*chkvec[1] - boundvec[1]*chkvec[0]
+                            if direction=="ccw":
+                                IsBound = True if crossprod2d > 0.0 else False
+                            else:
+                                IsBound = True if crossprod2d < 0.0 else False
+                            return IsBound
+                        
+                        #Create left/right bisectors from edge
+                        #Using node.next rather then node.data.edge_next... careful...
+                        leftray = orig_node_.data.bisector_ray
+                        IsLeftBound = is_pt_bound_by_vectors(B,leftray,direction="cw")
+                        
+                        rightray = orig_node_.next.data.bisector_ray
+                        IsRightBound = is_pt_bound_by_vectors(B,rightray,direction="ccw")
+                        
+                        bottomray = (edge_line[0], edge_line_vec)
+                        IsBottomBound = is_pt_bound_by_vectors(B,bottomray,direction="ccw")
                         
                         
+                        IsBound = IsLeftBound and IsRightBound and IsBottomBound
                         
-                        endpt = edge_int_pt + B_bisect_dir * 50.
-                        debug.append(endpt)
-                        bline = [edge_int_pt, endpt]
-                        edgeline = rc.Geometry.Curve.CreateControlPointCurve(bline)
+                        print 'check bounds'
+                        print IsLeftBound, IsRightBound, IsBottomBound
+                        
+                        if not IsBound:
+                            continue
+                        
+                        edgeline = rc.Geometry.Curve.CreateControlPointCurve(Bline)
                         #debug.extend(edge_line)
                         #edgeline = rc.Geometry.Curve.CreateControlPointCurve(vertex_edge_line)
-                        
+                        debug.append(B)
                         debug.append(edgeline)
                         #debug.append(edge_int_pt)
                         
