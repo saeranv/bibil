@@ -1161,6 +1161,32 @@ class Shape:
             #debug.extend(point_intersect_lst)
             #debug.append(self.cpt)
         return point_intersect_lst
+    def intersect_ray_to_infinite_line(self,raypt,raydir,line):
+        #Input: Ray(raystartpt, ray_dir_vector)
+        #and Line (startpt, endpt)
+        #Output intersection in direction of ray
+        
+        ray_line = (raypt,rc.Geometry.Point3d(raypt + raydir))
+        int_pt = self.intersect_infinite_lines(ray_line,line)                
+        
+        #Check validity of int_pt
+        if not int_pt:
+            return None
+        #Identify if intpt same dir as ray dir
+        ref_dir = raydir
+        int_dir = rc.Geometry.Vector3d(int_pt-raypt)
+        
+        #If int_pt = start_pt then intpt "behind" vertex
+        if self.is_near_zero(int_dir.Length):
+            return None
+        
+        dotprod = ref_dir * int_dir
+        cos_theta = dotprod/(ref_dir.Length * int_dir.Length)
+        #if cos theta = 1 is parellel b/c cos(0) = 1
+        if cos_theta < 0.0:
+            return None
+        
+        return int_pt
     def extend_ray_to_line(self,chk_ray,lineref):
         #ray: (ray_origin (pt), ray_dir (vector))
         #line: control point curve
@@ -1320,7 +1346,7 @@ class Shape:
             dir_next = edge_next[1]-edge_next[0]
             dir_prev.Unitize()
             dir_next.Unitize()
-
+            
             # Get angle / Make this own function?
             dotprod = rc.Geometry.Vector3d.Multiply(dir_next,dir_prev)
             cos_angle = dotprod/(dir_next.Length * dir_prev.Length)
@@ -1433,9 +1459,8 @@ class Shape:
                     #polygon in two
                     #Compute point B, where a 'split event' will occur
                     print 'is_reflex', curr_node_.data.is_reflex
-                    bisector_start_pt = curr_node_.data.bisector_ray[0]
-                    bisector_end_pt = rc.Geometry.Point3d(bisector_start_pt + curr_node_.data.bisector_ray[1]*10.0)
-                    vertex_bisector_line = (bisector_start_pt,bisector_end_pt)
+                    raypt = curr_node_.data.bisector_ray[0]
+                    raydir = curr_node_.data.bisector_ray[1]
                     
                     #debug.append(vertex_bisector_line[1])
                     #Loop through LAV original edges
@@ -1447,15 +1472,61 @@ class Shape:
                         chk_next = edge_line == curr_node_.data.edge_next
                         chk_prev = edge_line == curr_node_.data.edge_prev
                         if chk_next or chk_prev:
-                            print 'same edge'
-                            return None
-                        
-                        
-                        int_pt = self.intersect_infinite_lines(vertex_bisector_line,edge_line)
-                        if not int_pt:
                             continue
-                        #Check if reversed
-                        debug.append(int_pt)
+                        
+                        bisect_int_pt = self.intersect_ray_to_infinite_line(raypt,raydir,edge_line)
+                        if not bisect_int_pt:
+                            continue
+                        
+                        #Now we use edge_line to compute point B
+                        #pt_B: intersection btwn bisector at V and 
+                        #bisector btwn least parrallel edge starting at V and edge_line
+                        
+                        #Choose least parallel edge for curr_node_.prev/next with edge_line
+                        #Maintain CCW ordering
+                        #Note that we are using pointers to edge_next/edge_prev 
+                        edge_next_vec = curr_node_.data.edge_next[1] - curr_node_.data.edge_next[0]
+                        edge_prev_vec = curr_node_.data.edge_prev[1] - curr_node_.data.edge_prev[0]
+                        edge_line_vec = edge_line[1] - edge_line[0]
+                        
+                        edge_prev_vec.Unitize()
+                        edge_next_vec.Unitize()
+                        edge_line_vec.Unitize()
+                        
+                        #Use dot prod to get angle
+                        prev_rad = math.acos(edge_prev_vec * edge_line_vec)
+                        next_rad = math.acos(edge_next_vec * edge_line_vec)
+                        vertex_edge_line = curr_node_.data.edge_next if next_rad > prev_rad else curr_node_.data.edge_prev
+                        
+                        #Intersection at edge
+                        edge_int_pt = self.intersect_infinite_lines(vertex_edge_line,edge_line)
+                        print 'edgeintpt', edge_int_pt
+                        if not edge_int_pt:
+                            continue
+                        
+                        #Now get bisector btwn edge_line and vertex_edge_line
+                        #B_bisect: edge_line_vec.unitize - vertex_edge_vec.unitize
+                        #^ Trying a cleaner way to get angle bisector!
+                        vertex_edge_vec = vertex_edge_line[1] - vertex_edge_line[0]
+                        #Unitize edge vectors to create rhombus for bisector
+                        vertex_edge_vec.Unitize()
+                        #Get bisector by subtraction
+                        B_bisect_dir = edge_line_vec - vertex_edge_vec
+                        
+                        B_bisect_dir.Unitize()
+                        
+                        
+                        
+                        endpt = edge_int_pt + B_bisect_dir * 50.
+                        debug.append(endpt)
+                        bline = [edge_int_pt, endpt]
+                        edgeline = rc.Geometry.Curve.CreateControlPointCurve(bline)
+                        #debug.extend(edge_line)
+                        #edgeline = rc.Geometry.Curve.CreateControlPointCurve(vertex_edge_line)
+                        
+                        debug.append(edgeline)
+                        #debug.append(edge_int_pt)
+                        
                         print '-'
                 B = compute_split_event(curr_node,orig_LAV)
             else:
@@ -1641,12 +1712,12 @@ class Shape:
                 Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
 
                 if True:#if create_geom and debug_crv >= 0 and debug_crv == count:
-                    debug.append(Va_I_arc)
-                    debug.append(Vb_I_arc)
+                    #debug.append(Va_I_arc)
+                    #debug.append(Vb_I_arc)
                     pass
                 if True:#create_geom and Vc_I_arc and debug_crv >= 0 and debug_crv == count:
-                    debug.append(Vc_I_arc)
-
+                    #debug.append(Vc_I_arc)
+                    pass
                 edge_event.node_A.data.is_processed = True
                 edge_event.node_B.data.is_processed = True
                 count += 1
@@ -1665,9 +1736,9 @@ class Shape:
             Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
             Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
             if create_geom: #and debug_crv >= 0 and debug_crv == count:
-                debug.append(Va_I_arc)
-                debug.append(Vb_I_arc)
-
+                #debug.append(Va_I_arc)
+                #debug.append(Vb_I_arc)
+                pass
             #Modify the list of active vertices/nodes
             new_prev_edge = edge_event.node_A.data.edge_prev
             new_next_edge = edge_event.node_B.data.edge_next
