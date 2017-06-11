@@ -1304,7 +1304,7 @@ class Shape:
         for i in xrange(len(self.base_matrix)):
             v = self.base_matrix[i][0]
             i -= 1
-            #swap this for inner angle???
+            #Edge data is stable. We don't relink it in LAV
             edge_prev = self.base_matrix[i]
             edge_next = self.base_matrix[i+1]
             vrt = Vertex(v,edge_prev,edge_next)
@@ -1339,6 +1339,7 @@ class Shape:
             print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
+            
             # Get two vectors pointing AWAY from the curr_vertex
             # i.e <--- v --->
             dir_prev = edge_prev[0]-edge_prev[1]
@@ -1367,6 +1368,7 @@ class Shape:
                 crossprod = rc.Geometry.Vector3d.CrossProduct(dir_next,dir_prev)
 
             #Rotate next point CCW by inner_rad
+            #We could also use unit vector addition to get biesctor
             dir_next.Rotate(-inrad/2.,crossprod)
 
             #Create bisector ray
@@ -1374,6 +1376,20 @@ class Shape:
             ray_dir = dir_next
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
+            
+            xchk = 178.000124531
+            xcor = curr_node.data.vertex[0]
+            if True==False:#Sangle_index == 0 and i == 0: #and self.is_near_zero(abs(xcor-xchk),1):
+                print curr_node.data.vertex[0]
+                debug.append(curr_node.data.vertex)
+                ptlst = [ray_origin,ray_origin+ray_dir*15.0]
+                debug.append(rc.Geometry.Curve.CreateControlPointCurve(ptlst))
+                debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_prev))
+                debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_next))
+                
+                
+            
+            
         print '---'
 
         return LAV
@@ -1575,10 +1591,9 @@ class Shape:
             int_next = self.extend_ray_to_line(next_ray,curr_line)
 
             #Get nodes from prevedge and nextedge for distance check
-            #Don't use the link in LAV to next or previous node i.e:
-            #pn1, pn2 = curr_node.prev.data.vertex, curr_node.data.vertex
-            #nn1, nn2 = curr_node.data.vertex, curr_node.next.data.vertex
-            #b/c they are changing
+            #Use edge pointers we stored earlier as 
+            #we updated LAV. This edge pointer point back to original edges in polgon
+            #but changes along with LAV
             
             pn1,pn2 = curr_node.data.edge_prev[0],curr_node.data.edge_prev[1]
             nn1,nn2 = curr_node.data.edge_next[0],curr_node.data.edge_next[1]
@@ -1605,8 +1620,9 @@ class Shape:
             event_tuple = []
             ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
             if int_prev != None:
-                #Calculate distance to edge
+                #Calculate distance to original edge in polygon
                 prevdist,g = distline2pt(pn1,pn2,int_prev.PointAtEnd)
+                #Event: (I (point3d), int_prev (arc), Va (pointer to previos node in LAV), Vb (pointer to next node in LAV), current node, ....) 
                 prev_edge_event = EdgeEvent(int_prev.PointAtEnd,int_prev,curr_node.prev,curr_node,prevdist,curr_node)#int_prev.GetLength(),curr_node)
                 event_tuple.append(prev_edge_event)
             if int_next != None:
@@ -1614,6 +1630,10 @@ class Shape:
                 nextdist,g = distline2pt(nn1,nn2,int_next.PointAtEnd)
                 next_edge_event = EdgeEvent(int_next.PointAtEnd,int_next,curr_node,curr_node.next,nextdist,curr_node)#int_next.GetLength(),curr_node)
                 event_tuple.append(next_edge_event)
+            #If int_reflex != None:
+            #make edge_event
+            #event_tuple.append(edge_event)
+            
             if event_tuple:
                 min_event = min(event_tuple, key=lambda e: e.length2edge)
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
@@ -1788,14 +1808,19 @@ class Shape:
                 #debug.append(Va_I_arc)
                 #debug.append(Vb_I_arc)
                 pass
-            #Modify the list of active vertices/nodes
+            
+            #Pointer to appropriate edge for bisector compution
+            #Note that these edges according to Felkel and Obdrsalek are NOT adjacent
+            #edges, but actually original edges from polygon linked via LAV
             new_prev_edge = edge_event.node_A.data.edge_prev
             new_next_edge = edge_event.node_B.data.edge_next
+           
             #Create new vertex node
             int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
             V = DLLNode(int_vertex_obj)
-
-            #Swap node_A, node_B w/ V
+            
+            #Modify the list of active vertices/nodes
+            #Swap node_A, node_B w/ V in LAV
             #This would be better as remove/insert function in DLL class
             edge_event.node_A.prev.next = V
             edge_event.node_B.next.prev = V
