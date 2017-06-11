@@ -105,7 +105,6 @@ class _AdjGraphNode(object):
         return len(self.adj_lst)
     def __repr__(self):
         return "id: " + str(self.id)
-
 class AdjGraph(object):
     #Graph as adjacency list
     #Good ref for adj graphs: http://interactivepython.org/runestone/static/pythonds/Graphs/Implementation.html
@@ -212,7 +211,7 @@ class AdjGraph(object):
         #reference direction vector
         ref_edge_dir =  nextn.value - refn.value
         
-        min_rad = 99999.
+        min_rad = float("Inf")
         min_node = None
 
         for i in xrange(len(lok)):
@@ -1453,6 +1452,7 @@ class Shape:
             next_ray = curr_node.next.data.bisector_ray
             
             #In case of reflex angle, edge_event or split_event can occur
+            split_event_pt = None
             if curr_node.data.is_reflex==True:
                 def compute_split_event(curr_node_,orig_LAV_):
                     #Split event: when interior vertex hits opposite edge, splitting
@@ -1464,6 +1464,8 @@ class Shape:
                     
                     #debug.append(vertex_bisector_line[1])
                     #Loop through LAV original edges
+                    min_dist = float("Inf")
+                    min_candidate_B = None
                     for i in xrange(orig_LAV_.size):
                         orig_node_ = orig_LAV_[i]
                         edge_line = [orig_node_.data.vertex,\
@@ -1543,25 +1545,24 @@ class Shape:
                         
                         bottomray = (edge_line[0], edge_line_vec)
                         IsBottomBound = is_pt_bound_by_vectors(B,bottomray,direction="ccw")
-                        
-                        
-                        IsBound = IsLeftBound and IsRightBound and IsBottomBound
-                        
-                        print 'check bounds'
-                        print IsLeftBound, IsRightBound, IsBottomBound
-                        
-                        if not IsBound:
+                
+                        if not (IsLeftBound and IsRightBound and IsBottomBound):
                             continue
                         
-                        edgeline = rc.Geometry.Curve.CreateControlPointCurve(Bline)
+                        B_dist = B.DistanceTo(curr_node_.data.vertex)
+                        if min_dist > B_dist:
+                            min_dist = B_dist
+                            min_candidate_B = B
+                        
+                        #edgeline = rc.Geometry.Curve.CreateControlPointCurve(Bline)
                         #debug.extend(edge_line)
                         #edgeline = rc.Geometry.Curve.CreateControlPointCurve(vertex_edge_line)
-                        debug.append(B)
-                        debug.append(edgeline)
+                        #debug.append(edgeline)
                         #debug.append(edge_int_pt)
-                        
-                        print '-'
-                B = compute_split_event(curr_node,orig_LAV)
+                        #print '-'
+                    return min_candidate_B
+                split_event_pt = compute_split_event(curr_node,orig_LAV)
+                debug.append(split_event_pt)
             else:
                 print 'not reflex'
             #Get intersection
@@ -1615,6 +1616,7 @@ class Shape:
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
                 if angle_index:
                     debug_minev = min_event
+            
             print '-'
         print '----'
         return PQ, debug_minev
