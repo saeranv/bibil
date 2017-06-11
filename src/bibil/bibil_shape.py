@@ -1574,12 +1574,15 @@ class Shape:
             int_prev = self.extend_ray_to_line(prev_ray,curr_line)
             int_next = self.extend_ray_to_line(next_ray,curr_line)
 
-            #Get prev/next edges for distance check
-            #DO NOT USE THE POINTERS TO PREV/NEXT NODES
-
+            #Get nodes from prevedge and nextedge for distance check
+            #Don't use the link in LAV to next or previous node i.e:
+            #pn1, pn2 = curr_node.prev.data.vertex, curr_node.data.vertex
+            #nn1, nn2 = curr_node.data.vertex, curr_node.next.data.vertex
+            #b/c they are changing
+            
             pn1,pn2 = curr_node.data.edge_prev[0],curr_node.data.edge_prev[1]
             nn1,nn2 = curr_node.data.edge_next[0],curr_node.data.edge_next[1]
-
+            
             ##--- Debug ---##
             def debug_dist2line(pn1,pn2,curr_node,int_prev,int_next):
                 pdt,g1 = distline2pt(pn1,pn2,int_prev.PointAtEnd)
@@ -1701,6 +1704,17 @@ class Shape:
         while len(PQ) > 0:#count<=2:#
             #print 'count: ', count
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
+            
+            
+            #Priority Queue as Heap data structure
+            #time complexity for insertion is: O(nlogn)
+            #space complexity is: O(1)
+            #find minimum is O(1) time, so good for us!
+            #heap absolutely, completely beats sorting arrays is a 
+            #situation where small numbers of items are removed or added, 
+            #and after each change you want to know again which is the 
+            #smallest element
+            
             edge_event = heapq.heappop(PQ)[1]
 
             ##--- Debug ---##
