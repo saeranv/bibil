@@ -79,14 +79,14 @@ class Vertex(object):
         self.is_processed = False
     def __str__(self):
         return str(self.vertex)
-class EdgeEvent(object):
-    def __init__(self,int_vertex,int_arc,node_A,node_B,length2edge,currnode4debug):
+class Event(object):
+    def __init__(self,int_vertex,node_A,node_B,length2edge,event_type="event",LAV=None):
         self.int_vertex = int_vertex
-        self.int_arc = int_arc
         self.node_A = node_A
         self.node_B = node_B
+        self.event_type = event_type
         self.length2edge = length2edge
-        self.currnode4debug = currnode4debug
+        self.LAV = LAV
     def __str__(self):
         return str(self.int_vertex)
 
@@ -1618,17 +1618,17 @@ class Shape:
             ##--- Debug ---##
 
             event_tuple = []
-            ##ref: __init__(self,int_vertex,int_arc,node_A,node_B,length2edge):
+            ##ref: __init__(self,int_vertex,node_A,node_B,length2edge):
             if int_prev != None:
                 #Calculate distance to original edge in polygon
                 prevdist,g = distline2pt(pn1,pn2,int_prev.PointAtEnd)
-                #Event: (I (point3d), int_prev (arc), Va (pointer to previos node in LAV), Vb (pointer to next node in LAV), current node, ....) 
-                prev_edge_event = EdgeEvent(int_prev.PointAtEnd,int_prev,curr_node.prev,curr_node,prevdist,curr_node)#int_prev.GetLength(),curr_node)
+                #Event: (I (point3d), Va (pointer to previos node in LAV), Vb (pointer to next node in LAV), current node, ....) 
+                prev_edge_event = Event(int_prev.PointAtEnd,curr_node.prev,curr_node,prevdist,"edge")#int_prev.GetLength(),curr_node)
                 event_tuple.append(prev_edge_event)
             if int_next != None:
                 #Calculate distance to edge
                 nextdist,g = distline2pt(nn1,nn2,int_next.PointAtEnd)
-                next_edge_event = EdgeEvent(int_next.PointAtEnd,int_next,curr_node,curr_node.next,nextdist,curr_node)#int_next.GetLength(),curr_node)
+                next_edge_event = Event(int_next.PointAtEnd,curr_node,curr_node.next,nextdist,"edge")#int_next.GetLength(),curr_node)
                 event_tuple.append(next_edge_event)
             #If int_reflex != None:
             #make edge_event
@@ -1636,6 +1636,7 @@ class Shape:
             
             if event_tuple:
                 min_event = min(event_tuple, key=lambda e: e.length2edge)
+                min_event.LAV = LAV #store pointer to LAV
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
                 if angle_index:
                     debug_minev = min_event
@@ -1698,6 +1699,11 @@ class Shape:
 
         ##Initialization of ABN
         #Organize given vertices into LAV in SLAV
+        #Set of LAV: (listof LAV)
+        SLAV = []
+        PQ = []
+        
+        
         #LAV: doubly linked list (DLL).
         #Initialize List of Active Vertices as Double Linked List
         LAV = self.convert_shape_to_circular_double_linked_list()
@@ -1706,25 +1712,27 @@ class Shape:
         LAV = self.compute_interior_bisector_vector(LAV)
         #Keep a copy of LAV for original polygon 
         original_LAV = copy.deepcopy(LAV)
+        
         #Compute bisector intersections and maintain Priority Queue of Edge Events
         #An edge event is when a edge shrinks to point in Straight Skeleton
-        PQ,minev = self.compute_edge_events_of_polygon(LAV,original_LAV,[])
-        #print 'initialization complete'
-        #print ''
-
+        PQ,minev = self.compute_edge_events_of_polygon(LAV,original_LAV,PQ)
+        
+        #Add LAV to SLAV
+        SLAV.append(LAV)
+            
+        
         #Main skeleton algorithm
         ##--- Debug ---##
         print 'length: ', len(PQ), ' vertices'
         count=0
         create_geom = True
         debug_crv = -1#stepnum
-
         ##--- Debug ---##
-
+        
+        
         while len(PQ) > 0:#count<=2:#
             #print 'count: ', count
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
-            
             
             #Priority Queue as Heap data structure
             #time complexity for insertion is: O(nlogn)
@@ -1736,27 +1744,10 @@ class Shape:
             #smallest element
             
             edge_event = heapq.heappop(PQ)[1]
-
-            ##--- Debug ---##
-            if count==debug_crv:
-                curr_node = LAV.head
-                LLL=[]
-                for i in xrange(LAV.size):
-                    LLL.append(curr_node.data.vertex)
-                    curr_node = curr_node.next
-                LLL += [LLL[0]]
-                crv__ = rc.Geometry.Curve.CreateControlPointCurve(LLL,1)
-                #debug.append(crv__)
-                debug.extend(LLL)
-                #print '---'
-            ##--- Debug ---##
-
-            #if create_geom and debug_crv >= 0 and debug_crv == count:
-            #    debug.append(edge_event.node_A.prev.data.vertex)
-            #    debug.append(edge_event.node_A.data.vertex)
-            #    debug.append(edge_event.node_B.data.vertex)
-
-
+            
+            #Get specific LAV from SLAV using event class
+            LAV_ = edge_event.LAV
+            
             #If not processed this edge will shrink to zero edge
             if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
                 count+=1
@@ -1826,13 +1817,13 @@ class Shape:
             edge_event.node_B.next.prev = V
             V.prev = edge_event.node_A.prev
             V.next = edge_event.node_B.next
-
+            
             #change the head for node_A, node_B
-            chkhead = LAV.head in (edge_event.node_A,edge_event.node_B)
-            chktail = LAV.tail in (edge_event.node_A,edge_event.node_B)
+            chkhead = LAV_.head in (edge_event.node_A,edge_event.node_B)
+            chktail = LAV_.tail in (edge_event.node_A,edge_event.node_B)
             if chkhead or chktail:
-                LAV.head = V
-                LAV.tail = V.prev
+                LAV_.head = V
+                LAV_.tail = V.prev
 
             #Mark as processed
             edge_event.node_A.data.is_processed = True
@@ -1841,9 +1832,9 @@ class Shape:
 
 
             #Now compute bisector and edge event for new V node
-            V_index = LAV.get_node_index(V)
-            LAV = self.compute_interior_bisector_vector(LAV,angle_index=V_index)
-            PQ,minev = self.compute_edge_events_of_polygon(LAV,original_LAV,PQ,angle_index=V_index,cchk=count)
+            V_index = LAV_.get_node_index(V)
+            LAV_ = self.compute_interior_bisector_vector(LAV_,angle_index=V_index)
+            PQ,minev = self.compute_edge_events_of_polygon(LAV_,original_LAV,PQ,angle_index=V_index,cchk=count)
 
             ##--- Debug ---##
             if count==-1:
@@ -1853,7 +1844,7 @@ class Shape:
                 #debug.append(edge_event.currnode4debug.data.vertex)
                 #debug.append(edge_event.int_vertex)
                 V = minev
-                r = LAV[V_index].data.bisector_ray
+                r = LAV_[V_index].data.bisector_ray
                 #debug.append(r[0] + r[1]*2.0)
                 #debug.append(edge_event.int_arc)
                 #debug.append(V.int_vertex)
