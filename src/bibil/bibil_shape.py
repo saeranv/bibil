@@ -177,18 +177,18 @@ class AdjGraph(object):
             except ZeroDivisionError:
                 print 'ZeroDivisionError'
                 cos_angle = 0.0
-            
+
             # Get angle from dot product
             # This will be between 0 and pi
             # b/c -1 < cos theta < 1
             dotrad = math.acos(cos_angle)
-            
+
             #Use 2d cross product (axby - bxay) to see if next_vector is right/left
             #This requires ccw ordering of vectors
             #If cross is positive (for ccw ordering) then next_vector is to left (inner)
             #If cross is negative (for ccw ordering) then next_vector is to right (outer)
             #If cross is equal then zero vector, then vectors are colinear. Assume inner.
-            
+
             cross_z_sign = prev_dir[0] * next_dir[1] - prev_dir[1] * next_dir[0]
             #print 'deg: ', round(math.degrees(dotrad),2)
             #If reflex we must subtract 2pi from it to get reflex angle
@@ -210,7 +210,7 @@ class AdjGraph(object):
 
         #reference direction vector
         ref_edge_dir =  nextn.value - refn.value
-        
+
         min_rad = float("Inf")
         min_node = None
 
@@ -1041,7 +1041,7 @@ class Shape:
         IsColinear = True if abs(dist-0.)<tol else False
         return IsColinear
     def intersect_infinite_lines(self,line1,line2):
-        #Input line1 and line2 
+        #Input line1 and line2
         #where: line: (startpt,endpt)
         #and startpt and endpt are rc.Geometry.Point3d
         #Compute intersection of infinite lines
@@ -1051,7 +1051,7 @@ class Shape:
         #Convert to rhino common geometry obj
         line1 = rc.Geometry.Line(line1[0],line1[1])
         line2 = rc.Geometry.Line(line2[0],line2[1])
-        
+
         int_exist,a,b = rc.Geometry.Intersect.Intersection.LineLine(line1,line2,0.001,False)
         if int_exist:
             intersect_pt = line2.PointAt(b)
@@ -1164,27 +1164,27 @@ class Shape:
         #Input: Ray(raystartpt, ray_dir_vector)
         #and Line (startpt, endpt)
         #Output intersection in direction of ray
-        
+
         ray_line = (raypt,rc.Geometry.Point3d(raypt + raydir))
-        int_pt = self.intersect_infinite_lines(ray_line,line)                
-        
+        int_pt = self.intersect_infinite_lines(ray_line,line)
+
         #Check validity of int_pt
         if not int_pt:
             return None
         #Identify if intpt same dir as ray dir
         ref_dir = raydir
         int_dir = rc.Geometry.Vector3d(int_pt-raypt)
-        
+
         #If int_pt = start_pt then intpt "behind" vertex
         if self.is_near_zero(int_dir.Length):
             return None
-        
+
         dotprod = ref_dir * int_dir
         cos_theta = dotprod/(ref_dir.Length * int_dir.Length)
         #if cos theta = 1 is parellel b/c cos(0) = 1
         if cos_theta < 0.0:
             return None
-        
+
         return int_pt
     def extend_ray_to_line(self,chk_ray,lineref):
         #ray: (ray_origin (pt), ray_dir (vector))
@@ -1335,18 +1335,18 @@ class Shape:
             curr_node = LAV[i]
             if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
                 continue
-            
+
             print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
-            
+
             # Get two vectors pointing AWAY from the curr_vertex
             # i.e <--- v --->
             dir_prev = edge_prev[0]-edge_prev[1]
             dir_next = edge_next[1]-edge_next[0]
             dir_prev.Unitize()
             dir_next.Unitize()
-            
+
             # Get angle / Make this own function?
             dotprod = rc.Geometry.Vector3d.Multiply(dir_next,dir_prev)
             cos_angle = dotprod/(dir_next.Length * dir_prev.Length)
@@ -1357,10 +1357,10 @@ class Shape:
             if inrad > math.pi:
                 curr_node.data.is_reflex = True
                 #debug.append(curr_node.data.vertex)
-            
+
             #print 'deg:', round(math.degrees(inrad),2)
             #print 'is reflex:', curr_node.data.is_reflex
-            
+
             #Flip the cross prod if dotprod gave outer angle
             if self.is_near_zero(abs(inrad - dotrad)):
                 crossprod = rc.Geometry.Vector3d.CrossProduct(dir_prev,dir_next)
@@ -1376,7 +1376,7 @@ class Shape:
             ray_dir = dir_next
             #Create ray tuple
             curr_node.data.bisector_ray = (ray_origin,ray_dir)
-            
+
             xchk = 178.000124531
             xcor = curr_node.data.vertex[0]
             if True==False:#Sangle_index == 0 and i == 0: #and self.is_near_zero(abs(xcor-xchk),1):
@@ -1386,10 +1386,10 @@ class Shape:
                 debug.append(rc.Geometry.Curve.CreateControlPointCurve(ptlst))
                 debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_prev))
                 debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_next))
-                
-                
-            
-            
+
+
+
+
         print '---'
 
         return LAV
@@ -1462,11 +1462,11 @@ class Shape:
             curr_node = LAV[i]
             if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
                 continue
-            
+
             curr_ray = curr_node.data.bisector_ray
             prev_ray = curr_node.prev.data.bisector_ray
             next_ray = curr_node.next.data.bisector_ray
-            
+
             #In case of reflex angle, edge_event or split_event can occur
             split_event_pt = None
             if curr_node.data.is_reflex==True:
@@ -1477,12 +1477,14 @@ class Shape:
                     print 'is_reflex', curr_node_.data.is_reflex
                     raypt = curr_node_.data.bisector_ray[0]
                     raydir = curr_node_.data.bisector_ray[1]
-                    
+
                     #debug.append(vertex_bisector_line[1])
                     #Loop through LAV original edges
                     min_dist = float("Inf")
                     min_candidate_B = None
-                    
+                    min_edge_line = None
+                    min_node_A = None
+
                     #Botffy uses original edges (LOV) to calculate split events
                     #But Felzel and Obdzel seem to suggest use active SLAV...
                     for i in xrange(len(SLAV_)):
@@ -1491,41 +1493,46 @@ class Shape:
                             orig_node_ = LAV_[j]
                             edge_line = [orig_node_.data.vertex,\
                                           orig_node_.data.edge_next[1]]
-                            
+
                             chk_next = edge_line == curr_node_.data.edge_next
                             chk_prev = edge_line == curr_node_.data.edge_prev
                             if chk_next or chk_prev:
                                 continue
-                            
+
                             bisect_int_pt = self.intersect_ray_to_infinite_line(raypt,raydir,edge_line)
                             if not bisect_int_pt:
                                 continue
-                            
+
                             #Now we use edge_line to compute point B
-                            #pt_B: intersection btwn bisector at V and 
+                            #pt_B: intersection btwn bisector at V and
                             #bisector btwn least parrallel edge starting at V and edge_line
-                            
+
                             #Choose least parallel edge for curr_node_.prev/next with edge_line
                             #Maintain CCW ordering
-                            #Note that we are using pointers to edge_next/edge_prev 
+                            #Note that we are using pointers to edge_next/edge_prev
                             edge_next_vec = curr_node_.data.edge_next[1] - curr_node_.data.edge_next[0]
                             edge_prev_vec = curr_node_.data.edge_prev[1] - curr_node_.data.edge_prev[0]
                             edge_line_vec = edge_line[1] - edge_line[0]
-                            
+
                             edge_prev_vec.Unitize()
                             edge_next_vec.Unitize()
                             edge_line_vec.Unitize()
-                            
+
                             #Use dot prod to get angle
                             prev_rad = math.acos(edge_prev_vec * edge_line_vec)
                             next_rad = math.acos(edge_next_vec * edge_line_vec)
-                            vertex_edge_line = curr_node_.data.edge_next if next_rad > prev_rad else curr_node_.data.edge_prev
-                            
+
+                            #Store this info carefully bc need it for Event creation
+                            if next_rad > prev_rad:
+                                vertex_edge_line = curr_node_.data.edge_next
+                            else:
+                                vertex_edge_line = curr_node_.data.edge_prev
+
                             #Intersection at edge
                             edge_int_pt = self.intersect_infinite_lines(vertex_edge_line,edge_line)
                             if not edge_int_pt:
                                 continue
-                            
+
                             #Now get bisector btwn edge_line and vertex_edge_line
                             #B_bisect: edge_line_vec.unitize - vertex_edge_vec.unitize
                             #^ Trying a cleaner way to get angle bisector!
@@ -1534,55 +1541,57 @@ class Shape:
                             vertex_edge_vec.Unitize()
                             #Get bisector by subtraction
                             B_bisect_dir = edge_line_vec - vertex_edge_vec
-                            
+
                             B_bisect_dir.Unitize()
                             Bline = [edge_int_pt, edge_int_pt + B_bisect_dir*50.0]
                             rayline = [raypt, raypt + raydir]
                             B = self.intersect_infinite_lines(Bline,rayline)
                             if not B:
                                 continue
-                            
+
                             #Check if B is bound by edge_line, and left,right bisectors of edge_line
                             def is_pt_bound_by_vectors(pt2chk,ray2chk,direction="ccw"):
                                 #Input: pt, and ray(raypt, raydir)
                                 #Output: Bool if bound by area (i.e. inside)
                                 #This function uses cross product to see if pt2chk is inside rays
                                 boundvec = (ray2chk[0] + ray2chk[1]) - ray2chk[0]
-                                chkvec = pt2chk - ray2chk[0] 
+                                chkvec = pt2chk - ray2chk[0]
                                 crossprod2d = boundvec[0]*chkvec[1] - boundvec[1]*chkvec[0]
                                 if direction=="ccw":
                                     IsBound = True if crossprod2d > 0.0 else False
                                 else:
                                     IsBound = True if crossprod2d < 0.0 else False
                                 return IsBound
-                            
+
                             #Create left/right bisectors from edge
                             #Using node.next rather then node.data.edge_next... careful...
                             leftray = orig_node_.data.bisector_ray
                             IsLeftBound = is_pt_bound_by_vectors(B,leftray,direction="cw")
-                            
+
                             rightray = orig_node_.next.data.bisector_ray
                             IsRightBound = is_pt_bound_by_vectors(B,rightray,direction="ccw")
-                            
+
                             bottomray = (edge_line[0], edge_line_vec)
                             IsBottomBound = is_pt_bound_by_vectors(B,bottomray,direction="ccw")
-                    
+
                             if not (IsLeftBound and IsRightBound and IsBottomBound):
                                 continue
-                            
+
                             B_dist = B.DistanceTo(curr_node_.data.vertex)
                             if min_dist > B_dist:
                                 min_dist = B_dist
                                 min_candidate_B = B
-                            
+                                min_edge_line = edge_line
+                                min_node_A = curr_node_
+
                             #edgeline = rc.Geometry.Curve.CreateControlPointCurve(Bline)
                             #debug.extend(edge_line)
                             #edgeline = rc.Geometry.Curve.CreateControlPointCurve(vertex_edge_line)
                             #debug.append(edgeline)
                             #debug.append(edge_int_pt)
                             #print '-'
-                    return min_candidate_B
-                split_event_pt = compute_split_event(curr_node,SLAV)
+                    return min_candidate_B, min_edge_line, min_node_A
+                split_event_pt, split_event_line, split_node_A = compute_split_event(curr_node,SLAV)
                 debug.append(split_event_pt)
             else:
                 print 'not reflex'
@@ -1596,13 +1605,13 @@ class Shape:
             int_next = self.extend_ray_to_line(next_ray,curr_line)
 
             #Get nodes from prevedge and nextedge for distance check
-            #Use edge pointers we stored earlier as 
+            #Use edge pointers we stored earlier as
             #we updated LAV. This edge pointer point back to original edges in polgon
             #but changes along with LAV
-            
+
             pn1,pn2 = curr_node.data.edge_prev[0],curr_node.data.edge_prev[1]
             nn1,nn2 = curr_node.data.edge_next[0],curr_node.data.edge_next[1]
-            
+
             ##--- Debug ---##
             def debug_dist2line(pn1,pn2,curr_node,int_prev,int_next):
                 pdt,g1 = distline2pt(pn1,pn2,int_prev.PointAtEnd)
@@ -1624,10 +1633,11 @@ class Shape:
 
             event_tuple = []
             ##ref: __init__(self,int_vertex,node_A,node_B,length2edge):
+            #node_A, node_B are the two nodes whose intersection creates new node
             if int_prev != None:
                 #Calculate distance to original edge in polygon
                 prevdist,g = distline2pt(pn1,pn2,int_prev.PointAtEnd)
-                #Event: (I (point3d), Va (pointer to previos node in LAV), Vb (pointer to next node in LAV), current node, ....) 
+                #Event: (I (point3d), Va (pointer to previos node in LAV), Vb (pointer to next node in LAV), current node, ....)
                 prev_edge_event = Event(int_prev.PointAtEnd,curr_node.prev,curr_node,prevdist,"edge")#int_prev.GetLength(),curr_node)
                 event_tuple.append(prev_edge_event)
             if int_next != None:
@@ -1635,17 +1645,20 @@ class Shape:
                 nextdist,g = distline2pt(nn1,nn2,int_next.PointAtEnd)
                 next_edge_event = Event(int_next.PointAtEnd,curr_node,curr_node.next,nextdist,"edge")#int_next.GetLength(),curr_node)
                 event_tuple.append(next_edge_event)
-            #If int_reflex != None:
+            if split_event_pt != None:
+                split_event_dist,g = distline2pt(split_event_line[0],split_event_line[1],split_event_pt)
+                split_edge_event = Event(split_event_pt,split_node_A,split_event_line,split_event_dist,"split")
+                event_tuple.append(split_edge_event)
             #make edge_event
             #event_tuple.append(edge_event)
-            
+
             if event_tuple:
                 min_event = min(event_tuple, key=lambda e: e.length2edge)
                 min_event.LAV = LAV #store pointer to LAV
                 heapq.heappush(PQ,(min_event.length2edge,min_event))
                 if angle_index:
                     debug_minev = min_event
-            
+
             print '-'
         print '----'
         return PQ, debug_minev
@@ -1707,27 +1720,27 @@ class Shape:
         #Set of LAV: (listof LAV)
         SLAV = []
         PQ = []
-        
-        
+
+
         #LAV: doubly linked list (DLL).
         #Initialize List of Active Vertices as Double Linked List
         LAV = self.convert_shape_to_circular_double_linked_list()
         adj_graph = self.shape_to_adj_graph()
         #Compute the vertex angle bisector (ray) bi
         LAV = self.compute_interior_bisector_vector(LAV)
-        #Keep a copy of LAV for original polygon 
+        #Keep a copy of LAV for original polygon
         #LOV: List of Original Vertices
         LOV = copy.deepcopy(LAV)
-        
+
         #Add LAV to SLAV
         SLAV.append(LAV)
         #Compute bisector intersections and maintain Priority Queue of Edge Events
         #An edge event is when a edge shrinks to point in Straight Skeleton
         PQ,minev = self.find_polygon_events(LAV,SLAV,PQ)
-        
-        
-            
-        
+
+
+
+
         #Main skeleton algorithm
         ##--- Debug ---##
         print 'length: ', len(PQ), ' vertices'
@@ -1735,129 +1748,141 @@ class Shape:
         create_geom = True
         debug_crv = -1#stepnum
         ##--- Debug ---##
-        
-        
+
+
         while len(PQ) > 0:#count<=2:#
             #print 'count: ', count
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
-            
+
             #Priority Queue as Heap data structure
             #time complexity for insertion is: O(nlogn)
             #space complexity is: O(1)
             #find minimum is O(1) time, so good for us!
-            #heap absolutely, completely beats sorting arrays is a 
-            #situation where small numbers of items are removed or added, 
-            #and after each change you want to know again which is the 
+            #heap absolutely, completely beats sorting arrays is a
+            #situation where small numbers of items are removed or added,
+            #and after each change you want to know again which is the
             #smallest element
-            
+
             edge_event = heapq.heappop(PQ)[1]
-            
+
             #Get specific LAV from SLAV using event class
             LAV_ = edge_event.LAV
-            
-            #If not processed this edge will shrink to zero edge
-            if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
-                count+=1
-                continue
+
+            if edge_event.event_type == "edge":
+                print 'event type edge'
+
+                #If not processed this edge will shrink to zero edge
+                if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
+                    count+=1
+                    continue
 
 
-            Vc_I_arc = None
-            #Check for peak of the roof event
-            if edge_event.node_A.prev.prev is edge_event.node_B:
+                Vc_I_arc = None
+                #Check for peak of the roof event
+                if edge_event.node_A.prev.prev is edge_event.node_B:
+                    new_int_vertex = edge_event.int_vertex
+                    A_vertex = edge_event.node_A.data.vertex
+                    B_vertex = edge_event.node_B.data.vertex
+                    prev_A_vertex = edge_event.node_A.prev.data.vertex
+
+                    #Update adjacency graph
+                    adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
+                    adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
+                    adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
+
+                    Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([prev_A_vertex, new_int_vertex])
+                    Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
+                    Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
+
+                    if True:#if create_geom and debug_crv >= 0 and debug_crv == count:
+                        debug.append(Va_I_arc)
+                        debug.append(Vb_I_arc)
+                        debug.append(Vc_I_arc)
+                        pass
+                    edge_event.node_A.data.is_processed = True
+                    edge_event.node_B.data.is_processed = True
+                    count += 1
+
+                    #Update the adjacency list
+                    #tbd
+                    continue
+
                 new_int_vertex = edge_event.int_vertex
                 A_vertex = edge_event.node_A.data.vertex
                 B_vertex = edge_event.node_B.data.vertex
-                prev_A_vertex = edge_event.node_A.prev.data.vertex
-
                 #Update adjacency graph
-                adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
                 adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
-                adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
+                adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
 
-                Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([prev_A_vertex, new_int_vertex])
                 Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                 Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
-
-                if True:#if create_geom and debug_crv >= 0 and debug_crv == count:
+                if create_geom: #and debug_crv >= 0 and debug_crv == count:
                     debug.append(Va_I_arc)
                     debug.append(Vb_I_arc)
-                    debug.append(Vc_I_arc)
                     pass
+
+                #Pointer to appropriate edge for bisector compution
+                #Note that these edges according to Felkel and Obdrsalek are NOT adjacent
+                #edges, but actually original edges from polygon linked via LAV
+                new_prev_edge = edge_event.node_A.data.edge_prev
+                new_next_edge = edge_event.node_B.data.edge_next
+
+                #Create new vertex node
+                int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
+                V = DLLNode(int_vertex_obj)
+
+                #Modify the list of active vertices/nodes
+                #Swap node_A, node_B w/ V in LAV
+                #This would be better as remove/insert function in DLL class
+                edge_event.node_A.prev.next = V
+                edge_event.node_B.next.prev = V
+                V.prev = edge_event.node_A.prev
+                V.next = edge_event.node_B.next
+                LAV_.size -= 1
+
+                #change the head for node_A, node_B
+                chkhead = LAV_.head in (edge_event.node_A,edge_event.node_B)
+                chktail = LAV_.tail in (edge_event.node_A,edge_event.node_B)
+                if chkhead or chktail:
+                    LAV_.head = V
+                    LAV_.tail = V.prev
+
+                #Mark as processed
                 edge_event.node_A.data.is_processed = True
                 edge_event.node_B.data.is_processed = True
-                count += 1
-
-                #Update the adjacency list
-                #tbd
-                continue
-
-            new_int_vertex = edge_event.int_vertex
-            A_vertex = edge_event.node_A.data.vertex
-            B_vertex = edge_event.node_B.data.vertex
-            #Update adjacency graph
-            adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
-            adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
-
-            Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
-            Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
-            if create_geom: #and debug_crv >= 0 and debug_crv == count:
-                debug.append(Va_I_arc)
-                debug.append(Vb_I_arc)
-                pass
-            
-            #Pointer to appropriate edge for bisector compution
-            #Note that these edges according to Felkel and Obdrsalek are NOT adjacent
-            #edges, but actually original edges from polygon linked via LAV
-            new_prev_edge = edge_event.node_A.data.edge_prev
-            new_next_edge = edge_event.node_B.data.edge_next
-           
-            #Create new vertex node
-            int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
-            V = DLLNode(int_vertex_obj)
-            
-            #Modify the list of active vertices/nodes
-            #Swap node_A, node_B w/ V in LAV
-            #This would be better as remove/insert function in DLL class
-            edge_event.node_A.prev.next = V
-            edge_event.node_B.next.prev = V
-            V.prev = edge_event.node_A.prev
-            V.next = edge_event.node_B.next
-            LAV_.size -= 1
-            
-            #change the head for node_A, node_B
-            chkhead = LAV_.head in (edge_event.node_A,edge_event.node_B)
-            chktail = LAV_.tail in (edge_event.node_A,edge_event.node_B)
-            if chkhead or chktail:
-                LAV_.head = V
-                LAV_.tail = V.prev
-
-            #Mark as processed
-            edge_event.node_A.data.is_processed = True
-            edge_event.node_B.data.is_processed = True
 
 
 
-            #Now compute bisector and edge event for new V node
-            V_index = LAV_.get_node_index(V)
-            LAV_ = self.compute_interior_bisector_vector(LAV_,angle_index=V_index)
-            PQ,minev = self.find_polygon_events(LAV_,SLAV,PQ,angle_index=V_index,cchk=count)
+                #Now compute bisector and edge event for new V node
+                V_index = LAV_.get_node_index(V)
+                LAV_ = self.compute_interior_bisector_vector(LAV_,angle_index=V_index)
+                PQ,minev = self.find_polygon_events(LAV_,SLAV,PQ,angle_index=V_index,cchk=count)
 
-            ##--- Debug ---##
-            if count==-1:
-                #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
-                #debug.append(edge_event.node_A.data.vertex)
-                #debug.append(edge_event.node_B.data.vertex)
-                #debug.append(edge_event.currnode4debug.data.vertex)
-                #debug.append(edge_event.int_vertex)
-                V = minev
-                r = LAV_[V_index].data.bisector_ray
-                #debug.append(r[0] + r[1]*2.0)
-                #debug.append(edge_event.int_arc)
-                #debug.append(V.int_vertex)
-                #debug.append(V.node_A.data.vertex)
-                #debug.append(V.node_B.data.vertex)
-                if V: print 'length2edged', V.length2edge
-            ##--- Debug ---##
+                ##--- Debug ---##
+                if count==-1:
+                    #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
+                    #debug.append(edge_event.node_A.data.vertex)
+                    #debug.append(edge_event.node_B.data.vertex)
+                    #debug.append(edge_event.currnode4debug.data.vertex)
+                    #debug.append(edge_event.int_vertex)
+                    V = minev
+                    r = LAV_[V_index].data.bisector_ray
+                    #debug.append(r[0] + r[1]*2.0)
+                    #debug.append(edge_event.int_arc)
+                    #debug.append(V.int_vertex)
+                    #debug.append(V.node_A.data.vertex)
+                    #debug.append(V.node_B.data.vertex)
+                    if V: print 'length2edged', V.length2edge
+                ##--- Debug ---##
+
+            else:
+                print 'event type split'
+                #If not processed this edge will shrink to zero edge
+                if edge_event.node_A.data.is_processed:
+                    count+=1
+                    continue
+
+
 
             count += 1
 
