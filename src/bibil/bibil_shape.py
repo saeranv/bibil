@@ -1887,35 +1887,48 @@ class Shape:
                 split_I_arc = rc.Geometry.Curve.CreateControlPointCurve([int_vertex, node_V.data.vertex])
                 debug.append(split_I_arc)
 
-                #E) Modify the SLAV
                 edge_event.node_A.is_processed = True
 
-                V1 = vrt = Vertex(edge_event.node_A.data.vertex,None,None)
-                V2 = vrt = Vertex(edge_event.node_A.data.vertex,None,None)
+                #Find opposite edge from V
+                #Botsky just uses original, Fezkel suggests do it again.
+                opposite_edge, opposite_I, opposite_A = self.find_opposite_edge_from_node(node_V,SLAV)
+                #opposite_A is the node that you are evaluating for split_events, likely won't be used
 
-                #get opposite edge from V
-                #Botsky just uses original, Fezkel suggests do it again. 
-                opposite_edge, opposite_B, opposite_A = self.find_opposite_edge_from_node(node_V,SLAV)
+                #Make twp copies of V for our LAV splitting
+                #Add pointer to edge. This is based on Figure 6 from Felkel and Obdrzalek
+                vertex_V1 = Vertex(edge_event.node_A.data.vertex,node_V.data.edge_prev,opposite_edge)
+                vertex_V2 = Vertex(edge_event.node_A.data.vertex,opposite_edge,node_V.data.edge_next)
+                node_V1 = DLLNode(vertex_V1)
+                node_V2 = DLLNode(vertex_V2)
 
-                #found opposite edge
-                #what is edge_left??? what is edge_right???
-                #Vertex. __init__(self,vertex,edge_prev=None,edge_next=None):
+                #E) Modify the SLAV
+                #Not a great solution...but we need to find opposite edge points
+                for j in xrange(LAV_.size):
+                    opposite_tail_node = None
+                    opposite_head_node = None
+                    check_vertex = LAV_[j].data.vertex
+                    if not opposite_tail_node and check_vertex == opposite_edge[1]:
+                        opposite_tail_node = LAV_[j]
+                    elif not opposite_head_node and check_vertex == opposite_edge[0]:
+                        opposite_head_node = LAV_[j]
+                    if opposite_tail_node != None and opposite_head_node != None:
+                        break
 
-                #V1.edge_prev = edge_left#??
-                V1.edge_next = opposite_edge
-                # V2.edge_prev = edge_left#??
-                V2.edge_next = opposite_edge
+                node_V1.prev = node_V.prev
+                node_V1.next = opposite_tail_node
+                node_V2.prev = opposite_head_node
+                node_V2.next = node_V.next
+
+                #Now how do we link this in SLAV....
+                
 
             count += 1
 
-
-
         #Take the cycles and create perimeter
-
-        print adj_graph
+        #print adj_graph
 
         #loc: listof (listof cycles)
-        loc = adj_graph.find_most_ccw_cycle()
+        #loc = adj_graph.find_most_ccw_cycle()
         """
         #Get offset
         corner_style = rc.Geometry.CurveOffsetCornerStyle.Sharp
@@ -1963,6 +1976,7 @@ class Shape:
             debug.extend(diff_per_lst)
 
         """
+        """
         #For debugging/checkign
         tnode.grammar.type['idlst'] = []
         tnode.grammar.type['ptlst'] = []
@@ -1976,6 +1990,7 @@ class Shape:
                 #debug.extend(adj_node_lst)
         print 'final count: ', count
         print '--'
+        """
         return tnode
 
     def vector_to_transformation_matrix(self,dir_vector):
