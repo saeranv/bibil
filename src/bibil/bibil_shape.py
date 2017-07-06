@@ -1876,12 +1876,65 @@ class Shape:
                 ##--- Debug ---##
 
             else:
-                print 'event type split'
+                print 'split event type'
                 #If not processed this edge will shrink to zero edge
-                if edge_event.node_A.data.is_processed:
+                ##ref: __init__(self,int_vertex,node_A,node_B,length2edge):
+                if edge_event.node_A.data.is_processed: #do we need another check here?
                     count+=1
                     continue
 
+                int_vertex = edge_event.int_vertex
+                node_V = edge_event.node_A #this is the only node/vertex that points to I/int_vertex
+
+                #C) Check if A.next.next = B... but what is B
+                #check check
+                #continue
+
+                #D) Output arc
+                split_I_arc = rc.Geometry.Curve.CreateControlPointCurve([int_vertex, node_V.data.vertex)
+                debug.append(split_I_arc)
+
+                #E) Modify the SLAV
+                edge_event.node_A.is_processed = True
+
+
+                V1 = vrt = Vertex(edge_event.node_A.data.vertex,None,None)
+                V2 = vrt = Vertex(edge_event.node_A.data.vertex,None,None)
+
+                #get opposite edge from V
+                #This is redundant but for now redo opposite edge calc....
+                opposite_edge = False
+                for i in xrange(len(SLAV)):
+                    LAV_ = SLAV[i]
+                    for j in xrange(LAV_.size):
+                        orig_node_ = LAV_[j]
+                        edge_line = [orig_node_.data.vertex,\
+                                      orig_node_.data.edge_next[1]]
+
+                        chk_next = edge_line == node_V.data.edge_next
+                        chk_prev = edge_line == node_V.data.edge_prev
+                        if chk_next or chk_prev:
+                            continue
+
+                        raypt = node_V.data.bisector_ray[0]
+                        raydir = node_V.data.bisector_ray[1]
+
+                        bisect_int_pt = self.intersect_ray_to_infinite_line(raypt,raydir,edge_line)
+                        #add check to see if it's not negative dir
+                        if bisect_int_pt:
+                            opposite_edge = edge_line
+                            break
+                    if opposite_edge!=False:
+                        break
+
+                #found opposite edge
+                #what is edge_left??? what is edge_right???
+                #Vertex. __init__(self,vertex,edge_prev=None,edge_next=None):
+
+                V1.edge_prev = edge_left#??
+                V1.edge_next = opposite_edge
+                V2.edge_prev = edge_left#??
+                V2.edge_next = opposite_edge
 
 
             count += 1
