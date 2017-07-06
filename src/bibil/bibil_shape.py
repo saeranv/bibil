@@ -1903,6 +1903,7 @@ class Shape:
 
                 #E) Modify the SLAV
                 #Not a great solution...but we need to find opposite edge points
+                #should update the split event class to include this information
                 for j in xrange(LAV_.size):
                     opposite_tail_node = None
                     opposite_head_node = None
@@ -1920,7 +1921,7 @@ class Shape:
                 node_V2.next = node_V.next
 
                 #Now how do we link this in SLAV....
-                
+
 
             count += 1
 
