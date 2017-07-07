@@ -1904,9 +1904,9 @@ class Shape:
                 #E) Modify the SLAV
                 #Not a great solution...but we need to find opposite edge points
                 #should update the split event class to include this information
+                opposite_tail_node = None
+                opposite_head_node = None
                 for j in xrange(LAV_.size):
-                    opposite_tail_node = None
-                    opposite_head_node = None
                     check_vertex = LAV_[j].data.vertex
                     if not opposite_tail_node and check_vertex == opposite_edge[1]:
                         opposite_tail_node = LAV_[j]
@@ -1917,10 +1917,20 @@ class Shape:
 
                 node_V1.prev = node_V.prev
                 node_V1.next = opposite_tail_node
-                node_V2.prev = opposite_head_node
-                node_V2.next = node_V.next
+                #Should check head/tail stuff here
+                for i in xrange(len(SLAV)):
+                    if SLAV[i] == LAV_:
+                        SLAV[i] = None
+                SLAV = filter(lambda n: n==None,SLAV)
+                SLAV.append(node_V1)
+                SLAV.append(node_V2)
+                print node_V1.size
+                print 'slav check', SLAV
 
-                #Now how do we link this in SLAV....
+
+
+
+
 
 
             count += 1
