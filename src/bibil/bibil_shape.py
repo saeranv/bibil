@@ -46,6 +46,43 @@ class DoubleLinkedList(object):
         self.head.prev = self.tail
         self.tail.next = self.head
         self.size += 1
+    def insert_node(self,new_node,prev_node):
+        #Modify the list of active vertices/nodes
+        #Swap node_A, node_B w/ V in LAV
+        next_node = prev_node.next
+
+        prev_node.next = new_node
+        next_node.prev = new_node
+        new_node.prev = prev_node
+        new_node.next = next_node
+
+        self.size += 1
+
+        #change if prev/next node were head/tail
+        if self.head == new_node.next:
+            self.tail = new_node
+        elif self.tail == new_node.prev:
+            self.tail = new_node
+
+    def remove_node(self,old_node):
+        #change if prev/next node were head/tail
+        if self.head == old_node:
+            self.head = old_node.next
+        elif self.tail == old_node:
+            self.tail = old_node.prev
+
+        next_node = old_node.next
+        prev_node = old_node.prev
+
+        next_node.prev = prev_node
+        prev_node.next = next_node 
+
+        #Detach links from node
+        old_node.next = None
+        old_node.prev = None
+
+        self.size -= 1
+
     def __getitem__(self, i):
         #Worst case O(n) time. Don't use if not neccessary
         curr_node = self.head
@@ -122,7 +159,7 @@ class AdjGraph(object):
         self.adj_graph = adj_graph if adj_graph != None else {}
         self.num_node = len(self.adj_graph.keys())
     def vector2hash(self,vector,tol=4):
-        #Tolerance set to 4
+        #Tolerance set to
         myhash = "("
         for i in xrange(len(vector)):
             coordinate = vector[i]
@@ -1826,21 +1863,9 @@ class Shape:
                 int_vertex_obj = Vertex(edge_event.int_vertex,new_prev_edge,new_next_edge)
                 V = DLLNode(int_vertex_obj)
 
-                #Modify the list of active vertices/nodes
-                #Swap node_A, node_B w/ V in LAV
-                #This would be better as remove/insert function in DLL class
-                edge_event.node_A.prev.next = V
-                edge_event.node_B.next.prev = V
-                V.prev = edge_event.node_A.prev
-                V.next = edge_event.node_B.next
-                LAV_.size -= 1
-
-                #change the head for node_A, node_B
-                chkhead = LAV_.head in (edge_event.node_A,edge_event.node_B)
-                chktail = LAV_.tail in (edge_event.node_A,edge_event.node_B)
-                if chkhead or chktail:
-                    LAV_.head = V
-                    LAV_.tail = V.prev
+                LAV_.insert_node(V,edge_event.node_A)
+                LAV_.remove_node(edge_event.node_A)
+                LAV_.remove_node(edge_event.node_B)
 
                 #Mark as processed
                 edge_event.node_A.data.is_processed = True
@@ -1868,7 +1893,7 @@ class Shape:
                     if V: print 'length2edged', V.length2edge
                 ##--- Debug ---##
 
-            else:
+            if True==False:#else:
                 print 'split event type'
                 #If not processed this edge will shrink to zero edge
                 ##ref: __init__(self,int_vertex,node_A,node_B,length2edge):
@@ -1924,14 +1949,8 @@ class Shape:
                 SLAV = filter(lambda n: n==None,SLAV)
                 SLAV.append(node_V1)
                 SLAV.append(node_V2)
-                print node_V1.size
+                #print node_V1.size
                 print 'slav check', SLAV
-
-
-
-
-
-
 
             count += 1
 
