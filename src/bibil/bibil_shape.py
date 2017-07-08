@@ -32,6 +32,13 @@ class DoubleLinkedList(object):
         return self.size == 0
     def __len__(self):
         return self.size
+    def reset_size(self):
+        curr_node = self.head
+        self.size = 0
+        while curr_node != self.tail:
+            self.size += 1
+            curr_node = curr_node.next
+        self.size += 1
     def append(self,data):
         new_node = DLLNode(data)
         if self.head == None:
@@ -75,7 +82,7 @@ class DoubleLinkedList(object):
         prev_node = old_node.prev
 
         next_node.prev = prev_node
-        prev_node.next = next_node 
+        prev_node.next = next_node
 
         #Detach links from node
         old_node.next = None
@@ -1454,7 +1461,6 @@ class Shape:
                 orig_node_ = LAV_[j]
                 edge_line = [orig_node_.data.vertex,\
                               orig_node_.data.edge_next[1]]
-
                 chk_next = edge_line == curr_node_.data.edge_next
                 chk_prev = edge_line == curr_node_.data.edge_prev
                 if chk_next or chk_prev:
@@ -1893,20 +1899,37 @@ class Shape:
                     if V: print 'length2edged', V.length2edge
                 ##--- Debug ---##
 
-            if True==False:#else:
+            else:
                 print 'split event type'
                 #If not processed this edge will shrink to zero edge
                 ##ref: __init__(self,int_vertex,node_A,node_B,length2edge):
-                if edge_event.node_A.data.is_processed: #do we need another check here?
+                if edge_event.node_A.data.is_processed:# or edge_event.node_B==True:
                     count+=1
                     continue
 
                 int_vertex = edge_event.int_vertex
                 node_V = edge_event.node_A #this is the only node/vertex that points to I/int_vertex
 
-                #C) Check if A.next.next = B... but what is B
-                #check check
-                #continue
+                #C) Check for peak of the roof event
+                ref_edge = edge_event.node_B
+                if edge_event.node_A.next.next.data.vertex == ref_edge[0]:
+                    #edge_event.node_A.prev.prev.data.vertex == ref_edge[0]:
+                    new_int_vertex = edge_event.int_vertex
+                    A_vertex = edge_event.node_A.data.vertex
+                    B_vertex = ref_edge[1]
+                    prev_A_vertex = edge_event.node_A.prev.data.vertex
+
+                    Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([prev_A_vertex, new_int_vertex])
+                    Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
+                    Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
+
+                    #debug.append(Vc_I_arc)
+                    #debug.append(Va_I_arc)
+                    #debug.append(Vb_I_arc)
+
+                    edge_event.node_A.data.is_processed = True
+                    edge_event.node_B = True
+                    #continue
 
                 #D) Output arc
                 split_I_arc = rc.Geometry.Curve.CreateControlPointCurve([int_vertex, node_V.data.vertex])
@@ -1919,10 +1942,10 @@ class Shape:
                 opposite_edge, opposite_I, opposite_A = self.find_opposite_edge_from_node(node_V,SLAV)
                 #opposite_A is the node that you are evaluating for split_events, likely won't be used
 
-                #Make twp copies of V for our LAV splitting
+                #Make two copies of V for our LAV splitting
                 #Add pointer to edge. This is based on Figure 6 from Felkel and Obdrzalek
-                vertex_V1 = Vertex(edge_event.node_A.data.vertex,node_V.data.edge_prev,opposite_edge)
-                vertex_V2 = Vertex(edge_event.node_A.data.vertex,opposite_edge,node_V.data.edge_next)
+                vertex_V1 = Vertex(opposite_I,node_V.data.edge_prev,opposite_edge)
+                vertex_V2 = Vertex(opposite_I,opposite_edge,node_V.data.edge_next)
                 node_V1 = DLLNode(vertex_V1)
                 node_V2 = DLLNode(vertex_V2)
 
@@ -1940,17 +1963,59 @@ class Shape:
                     if opposite_tail_node != None and opposite_head_node != None:
                         break
 
+                def copy_DLL_from_node(old_LAV):
+                    copy_LAV = DoubleLinkedList()
+                    curr_node = old_LAV.head
+                    while curr_node != old_LAV.tail:
+                        copy_LAV.append(curr_node.data)
+                        curr_node = curr_node.next
+                    #get tail data in to
+                    copy_LAV.append(curr_node.data)
+                    return copy_LAV
+
+
+                #Split LAV - V1
+                node_V.prev.next = node_V1
+                opposite_tail_node.prev = node_V1
                 node_V1.prev = node_V.prev
                 node_V1.next = opposite_tail_node
-                #Should check head/tail stuff here
+
+                #Copy LAV_ for V1
+                LAV_.head = node_V1
+                LAV_.tail = node_V1.prev
+                LAV_V1 = copy_DLL_from_node(LAV_)
+
+
+
+                #Split LAV - V2
+                node_V.next.prev = node_V2
+                opposite_tail_node.next = node_V2
+                node_V2.next = node_V.next
+                node_V2.prev = opposite_tail_node
+
+                #Copy LAV_ for V2
+                LAV_.head = node_V2
+                LAV_.tail = node_V2.prev
+                LAV_V2 = copy_DLL_from_node(LAV_)
+
+                #remove node_V
+                LAV_.remove_node(node_V)
+
                 for i in xrange(len(SLAV)):
                     if SLAV[i] == LAV_:
                         SLAV[i] = None
                 SLAV = filter(lambda n: n==None,SLAV)
-                SLAV.append(node_V1)
-                SLAV.append(node_V2)
-                #print node_V1.size
-                print 'slav check', SLAV
+                SLAV.append(LAV_V1)
+                SLAV.append(LAV_V2)
+
+                #Now compute bisector and edge event for new V1/2 node
+                V1_index = LAV_.get_node_index(node_V1)
+                LAV_V1 = self.compute_interior_bisector_vector(LAV_V1,angle_index=V1_index)
+                PQ,minev = self.find_polygon_events(LAV_V1,SLAV,PQ,angle_index=V1_index,cchk=count)
+
+                V2_index = LAV_.get_node_index(node_V2)
+                LAV_V2 = self.compute_interior_bisector_vector(LAV_V2,angle_index=V2_index)
+                PQ,minev = self.find_polygon_events(LAV_V2,SLAV,PQ,angle_index=V2_index,cchk=count)
 
             count += 1
 
