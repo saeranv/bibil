@@ -1380,7 +1380,6 @@ class Shape:
             if type(angle_index)==type(1) and not self.is_near_zero(i-angle_index):
                 continue
 
-            print 'index:', i
             edge_prev = curr_node.data.edge_prev
             edge_next = curr_node.data.edge_next
 
@@ -1431,11 +1430,6 @@ class Shape:
                 debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_prev))
                 debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_next))
 
-
-
-
-        print '---'
-
         return LAV
     def find_opposite_edge_from_node(self,curr_node_,SLAV_):
         #Split event: when interior vertex hits opposite edge, splitting
@@ -1443,6 +1437,7 @@ class Shape:
         #Compute point B, where a 'split event' will occur
         #Returns opposite edge, B, and node_A if exists
         #print 'is_reflex', curr_node_.data.is_reflex
+        debug = sc.sticky["debug"]
         raypt = curr_node_.data.bisector_ray[0]
         raydir = curr_node_.data.bisector_ray[1]
 
@@ -1460,7 +1455,7 @@ class Shape:
             for j in xrange(LAV_.size):
                 orig_node_ = LAV_[j]
                 edge_line = [orig_node_.data.vertex,\
-                              orig_node_.data.edge_next[1]]
+                            orig_node_.data.edge_next[1]]
                 chk_next = edge_line == curr_node_.data.edge_next
                 chk_prev = edge_line == curr_node_.data.edge_prev
                 if chk_next or chk_prev:
@@ -1551,8 +1546,8 @@ class Shape:
                     min_edge_line = edge_line
                     min_node_A = curr_node_
 
-                #edgeline = rc.Geometry.Curve.CreateControlPointCurve(Bline)
-                #debug.extend(edge_line)
+                #edgeline = rc.Geometry.Curve.CreateControlPointCurve(edge_line)
+                #debug.extend(min_edge_line)
                 #edgeline = rc.Geometry.Curve.CreateControlPointCurve(vertex_edge_line)
                 #debug.append(edgeline)
                 #debug.append(edge_int_pt)
@@ -1636,9 +1631,9 @@ class Shape:
             split_event_pt = None
             if curr_node.data.is_reflex==True:
                 split_event_line, split_event_pt, split_node_A = self.find_opposite_edge_from_node(curr_node,SLAV)
-                debug.append(split_event_pt)
+                #debug.append(split_event_pt)
             else:
-                print 'not reflex'
+                pass#print 'not reflex'
             #Get intersection
             p_start = curr_ray[0] + (curr_ray[1]*-1) * linedim
             p_end = curr_ray[0]+curr_ray[1]*linedim
@@ -1703,8 +1698,8 @@ class Shape:
                 if angle_index:
                     debug_minev = min_event
 
-            print '-'
-        print '----'
+            #print '-'
+        #print '----'
         return PQ, debug_minev
     def shape_to_adj_graph(self):
         #Purpose: converts bottom of polygon into a adjacency list
@@ -1784,13 +1779,17 @@ class Shape:
         #Main skeleton algorithm
         ##--- Debug ---##
         print 'length: ', len(PQ), ' vertices'
-        count=0
+        count = 0
         create_geom = True
-        debug_crv = -1#stepnum
+        debug_crv = stepnum
         ##--- Debug ---##
 
         while len(PQ) > 0:#count<=2:#
-            #print 'count: ', count
+
+            if count > stepnum:
+                break
+            print '-'
+            print 'count: ', count
             #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
 
             #Priority Queue as Heap data structure
@@ -1806,33 +1805,55 @@ class Shape:
 
             #Get specific LAV from SLAV using event class
             LAV_ = edge_event.LAV
-
+            print 'lav size', LAV_.size
             if edge_event.event_type == "edge":
                 print 'event type edge'
 
                 #If not processed this edge will shrink to zero edge
                 if edge_event.node_A.data.is_processed or edge_event.node_B.data.is_processed:
+                    print '0 peak'
                     count+=1
                     continue
 
                 Vc_I_arc = None
                 #Check for peak of the roof event
+                #print 'eenA', edge_event.node_A.prev
+                def debug_LAV_links(LA):
+                    print '---- ----'
+                    print 'checking LAV_ size is:', LAV.size
+                    for cnt in xrange(LAV.size):
+                        cn = LAV[cnt]
+                        #if cnt > 4:
+                        #    break
+                        print cnt, ":", self.vector2hash(cn.data.vertex,1)
+                        print ''
+                        if cnt == 5:
+                            debug.append(cn.next.data.vertex)
+                        #debug.append(cn.data.vertex)
+                    print '---- ----'
+
+                #debug_LAV_links(LAV_V1)
+                #debug.append(edge_event.node_A.data.vertex)
+                #print edge_event.node_A.data.is_processed
+                #break
+
                 if edge_event.node_A.prev.prev is edge_event.node_B:
+                    print '3 peak'
                     new_int_vertex = edge_event.int_vertex
                     A_vertex = edge_event.node_A.data.vertex
                     B_vertex = edge_event.node_B.data.vertex
                     prev_A_vertex = edge_event.node_A.prev.data.vertex
 
                     #Update adjacency graph
-                    adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
-                    adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
-                    adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
+                    #adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
+                    #adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
+                    #adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
 
                     Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([prev_A_vertex, new_int_vertex])
                     Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                     Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
 
-                    if True:#if create_geom and debug_crv >= 0 and debug_crv == count:
+                    if create_geom and debug_crv >= 0 and debug_crv >= count:
                         debug.append(Va_I_arc)
                         debug.append(Vb_I_arc)
                         debug.append(Vc_I_arc)
@@ -1849,12 +1870,13 @@ class Shape:
                 A_vertex = edge_event.node_A.data.vertex
                 B_vertex = edge_event.node_B.data.vertex
                 #Update adjacency graph
-                adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
-                adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
+                #adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
+                #adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
 
                 Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                 Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
-                if create_geom: #and debug_crv >= 0 and debug_crv == count:
+                print '2 peak'
+                if create_geom and debug_crv >= 0 and debug_crv >= count:
                     debug.append(Va_I_arc)
                     debug.append(Vb_I_arc)
                     pass
@@ -1882,22 +1904,6 @@ class Shape:
                 LAV_ = self.compute_interior_bisector_vector(LAV_,angle_index=V_index)
                 PQ,minev = self.find_polygon_events(LAV_,SLAV,PQ,angle_index=V_index,cchk=count)
 
-                ##--- Debug ---##
-                if count==-1:
-                    #edge_event: int_vertex,int_arc,node_A,node_B,length2edge
-                    #debug.append(edge_event.node_A.data.vertex)
-                    #debug.append(edge_event.node_B.data.vertex)
-                    #debug.append(edge_event.currnode4debug.data.vertex)
-                    #debug.append(edge_event.int_vertex)
-                    V = minev
-                    r = LAV_[V_index].data.bisector_ray
-                    #debug.append(r[0] + r[1]*2.0)
-                    #debug.append(edge_event.int_arc)
-                    #debug.append(V.int_vertex)
-                    #debug.append(V.node_A.data.vertex)
-                    #debug.append(V.node_B.data.vertex)
-                    if V: print 'length2edged', V.length2edge
-                ##--- Debug ---##
 
             else:
                 print 'split event type'
@@ -1907,12 +1913,26 @@ class Shape:
                     count+=1
                     continue
 
+                #if count == 2:
+                #    debug.append(edge_event.node_A.data.vertex)
+                #    debug.extend(edge_event.node_B)
+
                 int_vertex = edge_event.int_vertex
                 node_V = edge_event.node_A #this is the only node/vertex that points to I/int_vertex
 
                 #C) Check for peak of the roof event
                 ref_edge = edge_event.node_B
+                if LAV_.size < 3:
+                    Vb_H_arc = rc.Geometry.Curve.CreateControlPointCurve([LAV.head.data.vertex,LAV.head.next.data.vertex])
+                    debug.append(Vb_H_arc)
+                    print 'LAV == 2'
+                    count += 1
+                    #edge_event.node_A.data.is_processed = True
+                    continue
+
                 if edge_event.node_A.next.next.data.vertex == ref_edge[0]:
+                    print '3 peak'
+                    """
                     #edge_event.node_A.prev.prev.data.vertex == ref_edge[0]:
                     new_int_vertex = edge_event.int_vertex
                     A_vertex = edge_event.node_A.data.vertex
@@ -1923,25 +1943,46 @@ class Shape:
                     Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                     Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
 
-                    #debug.append(Vc_I_arc)
-                    #debug.append(Va_I_arc)
-                    #debug.append(Vb_I_arc)
+                    debug.append(Vc_I_arc)
+                    debug.append(Va_I_arc)
+                    debug.append(Vb_I_arc)
 
                     edge_event.node_A.data.is_processed = True
-                    edge_event.node_B = True
-                    #continue
+                    #edge_event.node_B = True
+                    count += 1
+                    continue
+                    """
 
                 #D) Output arc
                 split_I_arc = rc.Geometry.Curve.CreateControlPointCurve([int_vertex, node_V.data.vertex])
-                debug.append(split_I_arc)
-
-                edge_event.node_A.is_processed = True
+                if create_geom and debug_crv >= 0 and debug_crv >= count:
+                    debug.append(split_I_arc)
+                print '2 peak'
+                edge_event.node_A.data.is_processed = True
+                if count == 7:
+                    debug.append(LAV_.head.next.data.vertex)
 
                 #Find opposite edge from V
                 #Botsky just uses original, Fezkel suggests do it again.
                 opposite_edge, opposite_I, opposite_A = self.find_opposite_edge_from_node(node_V,SLAV)
-                #opposite_A is the node that you are evaluating for split_events, likely won't be used
+                #if count == 4:
+                    #debug.append(opposite_edge[0])
+                    #debug.append(opposite_edge[1])
+                    #debug.append(edge_event.node_A.data.vertex)
+                    #print edge_event.node_A.data.is_processed
+                    #debug.append(edge_event.int_vertex)
+                    #debug.append(LAV_.head.data.vertex)
+                    #print 'slav len', len(SLAV)
+                    #LAV_1 = SLAV[0]
+                    #for i in xrange(LAV_1.size):
+                        #cn = LAV_1[i]
+                        #debug.append(cn.data.vertex)
 
+                #opposite_A is the node that you are evaluating for split_events, likely won't be used
+                if opposite_edge == None:
+                    print 'Opposite edge not found! line 1930'
+                    count += 1
+                    continue
                 #Make two copies of V for our LAV splitting
                 #Add pointer to edge. This is based on Figure 6 from Felkel and Obdrzalek
                 vertex_V1 = Vertex(opposite_I,node_V.data.edge_prev,opposite_edge)
@@ -1950,18 +1991,30 @@ class Shape:
                 node_V2 = DLLNode(vertex_V2)
 
                 #E) Modify the SLAV
-                #Not a great solution...but we need to find opposite edge points
-                #should update the split event class to include this information
-                opposite_tail_node = None
-                opposite_head_node = None
-                for j in xrange(LAV_.size):
-                    check_vertex = LAV_[j].data.vertex
-                    if not opposite_tail_node and check_vertex == opposite_edge[1]:
-                        opposite_tail_node = LAV_[j]
-                    elif not opposite_head_node and check_vertex == opposite_edge[0]:
-                        opposite_head_node = LAV_[j]
-                    if opposite_tail_node != None and opposite_head_node != None:
+                #Match the correct nodes to vertex from opposite_edge event ref
+                #The trick here is to ensure new opposite node may not be original original
+                #watch out for LAVs that share a vertex but not same node linked in different LAV
+                op_zero_node,op_one_node = None, None
+                #opposite_vector = opposite_edge[1] - opposite_edge[0]
+                for i in xrange(len(SLAV)):
+                    LAV__ = SLAV[i]
+                    for j in xrange(LAV__.size):
+                        chk_zero_pt = LAV__[j].data.vertex
+                        chk_one_pt = LAV__[j].next.data.vertex
+                        #chk_vector = chk_one_pt - chk_zero_pt
+                        #IsVector = opposite_vector.IsParallelTo(chk_vector)
+                        IsLine = chk_zero_pt == opposite_edge[0] and chk_one_pt == opposite_edge[1]
+                        if IsLine:
+                            op_zero_node = LAV__[j]
+                            op_one_node = LAV__[j].next
+                            break
+                    if op_zero_node != None:
                         break
+
+                if op_zero_node == None or op_one_node == None:
+                    print 'opposite edge nodes not found!'
+                    count += 1
+                    continue
 
                 def copy_DLL_from_node(old_LAV):
                     copy_LAV = DoubleLinkedList()
@@ -1976,47 +2029,87 @@ class Shape:
 
                 #Split LAV - V1
                 node_V.prev.next = node_V1
-                opposite_tail_node.prev = node_V1
+                op_one_node.prev = node_V1
                 node_V1.prev = node_V.prev
-                node_V1.next = opposite_tail_node
-
+                node_V1.next = op_one_node
                 #Copy LAV_ for V1
                 LAV_.head = node_V1
                 LAV_.tail = node_V1.prev
                 LAV_V1 = copy_DLL_from_node(LAV_)
 
 
-
                 #Split LAV - V2
                 node_V.next.prev = node_V2
-                opposite_tail_node.next = node_V2
+                op_zero_node.next = node_V2
                 node_V2.next = node_V.next
-                node_V2.prev = opposite_tail_node
+                node_V2.prev = op_zero_node
 
+                #debug.append(node_V.next.data.vertex)
+                #debug.append(opposite_left_node.data.vertex)
                 #Copy LAV_ for V2
                 LAV_.head = node_V2
                 LAV_.tail = node_V2.prev
                 LAV_V2 = copy_DLL_from_node(LAV_)
 
                 #remove node_V
-                LAV_.remove_node(node_V)
+                #LAV_.remove_node(node_V)
+                node_V.next = None
+                node_V.prev = None
+
+
+                #opposite_left_node.is_processed = True
+                #opposite_right_node.is_processed = True
 
                 for i in xrange(len(SLAV)):
                     if SLAV[i] == LAV_:
                         SLAV[i] = None
-                SLAV = filter(lambda n: n==None,SLAV)
+
+                SLAV = filter(lambda n: n!=None,SLAV)
                 SLAV.append(LAV_V1)
                 SLAV.append(LAV_V2)
+                print 'LAV_V1', len(LAV_V1)
+                print 'LAV_V2', len(LAV_V2)
+
+                for i in xrange(len(SLAV)):
+                    LAV__ = SLAV[i]
+                    if LAV__.size < 3:
+                        for j in xrange(LAV__.size):
+                            cn = LAV__[j]
+                            cn.is_processed = True
 
                 #Now compute bisector and edge event for new V1/2 node
-                V1_index = LAV_.get_node_index(node_V1)
+                V1_index = LAV_V1.get_node_index(node_V1)
+                V2_index = LAV_V2.get_node_index(node_V2)
+
                 LAV_V1 = self.compute_interior_bisector_vector(LAV_V1,angle_index=V1_index)
+                LAV_V2 = self.compute_interior_bisector_vector(LAV_V2,angle_index=V2_index)
+
                 PQ,minev = self.find_polygon_events(LAV_V1,SLAV,PQ,angle_index=V1_index,cchk=count)
 
-                V2_index = LAV_.get_node_index(node_V2)
-                LAV_V2 = self.compute_interior_bisector_vector(LAV_V2,angle_index=V2_index)
-                PQ,minev = self.find_polygon_events(LAV_V2,SLAV,PQ,angle_index=V2_index,cchk=count)
+                def debug_LAV_links(LAV):
+                    print '---- ----'
+                    print 'checking LAV_ size is:', LAV.size
+                    for cnt in xrange(LAV.size):
+                        cn = LAV[cnt]
+                        #if cnt > 4:
+                        #    break
+                        print cnt, ":", self.vector2hash(cn.data.vertex,1)
+                        print ''
+                        #if cnt == 5:
+                        #    debug.append(cn.next.data.vertex)
+                        debug.append(cn.data.vertex)
+                    print '---- ----'
 
+                #debug.append(opposite_edge[0])
+                #debug.append(opposite_edge[1])
+                #debug.append(node_V.data.vertex)
+                #debug.append(node_V1.data.vertex)
+                #debug_LAV_links(LAV_V1)
+                #debug_LAV_links(LAV_V1)
+                #debug.append(LAV_V2.head.next.next.data.vertex)
+                #break
+                PQ,minev = self.find_polygon_events(LAV_V2,SLAV,PQ,angle_index=V2_index,cchk=count)
+                #break
             count += 1
 
         #Take the cycles and create perimeter
