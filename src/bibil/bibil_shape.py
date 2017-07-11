@@ -2070,13 +2070,14 @@ class Shape:
                 print 'LAV_V1', len(LAV_V1)
                 print 'LAV_V2', len(LAV_V2)
 
+                """
                 for i in xrange(len(SLAV)):
                     LAV__ = SLAV[i]
                     if LAV__.size < 3:
                         for j in xrange(LAV__.size):
                             cn = LAV__[j]
                             cn.is_processed = True
-
+                """
                 #Now compute bisector and edge event for new V1/2 node
                 V1_index = LAV_V1.get_node_index(node_V1)
                 V2_index = LAV_V2.get_node_index(node_V2)
