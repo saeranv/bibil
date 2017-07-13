@@ -1431,7 +1431,7 @@ class Shape:
                 debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_next))
 
         return LAV
-    def find_opposite_edge_from_node(self,curr_node_,SLAV_):
+    def find_opposite_edge_from_node(self,curr_node_,LOV_,SLAV_):
         #Split event: when interior vertex hits opposite edge, splitting
         #polygon in two
         #Compute point B, where a 'split event' will occur
@@ -1450,6 +1450,12 @@ class Shape:
 
         #Botffy uses original edges (LOV) to calculate split events
         #But Felzel and Obdzel seem to suggest use active SLAV...
+        #print type(SLOV_[0])
+        #print SLAV_[0].size
+        #print SLOV_[0].size
+
+        #if original == True:
+        #sSLAV_ = [LOV_]
         for i in xrange(len(SLAV_)):
             LAV_ = SLAV_[i]
             for j in xrange(LAV_.size):
@@ -1553,7 +1559,7 @@ class Shape:
                 #debug.append(edge_int_pt)
                 #print '-'
         return min_edge_line, min_candidate_B, min_node_A
-    def find_polygon_events(self,LAV,SLAV,PQ,angle_index=False,cchk=None):
+    def find_polygon_events(self,LAV,LOV,SLAV,PQ,angle_index=False,cchk=None):
         def distline2pt(v,w,p):
             ##This algorithm returns the minimum distance between
             ##line segment vw and point p
@@ -1630,7 +1636,7 @@ class Shape:
             #In case of reflex angle, edge_event or split_event can occur
             split_event_pt = None
             if curr_node.data.is_reflex==True:
-                split_event_line, split_event_pt, split_node_A = self.find_opposite_edge_from_node(curr_node,SLAV)
+                split_event_line, split_event_pt, split_node_A = self.find_opposite_edge_from_node(curr_node,LOV,SLAV)
                 #debug.append(split_event_pt)
             else:
                 pass#print 'not reflex'
@@ -1757,7 +1763,7 @@ class Shape:
         ##Initialization of ABN
         #Organize given vertices into LAV in SLAV
         #Set of LAV: (listof LAV)
-        SLAV = []
+        SLAV,SLOV = [],[]
         PQ = []
 
         #LAV: doubly linked list (DLL).
@@ -1769,13 +1775,14 @@ class Shape:
         #Keep a copy of LAV for original polygon
         #LOV: List of Original Vertices
         LOV = copy.deepcopy(LAV)
-
         #Add LAV to SLAV
         SLAV.append(LAV)
+        SLOV.append(LOV)
         #Compute bisector intersections and maintain Priority Queue of Edge Events
         #An edge event is when a edge shrinks to point in Straight Skeleton
-        PQ,minev = self.find_polygon_events(LAV,SLAV,PQ)
 
+        PQ,minev = self.find_polygon_events(LAV,LOV,SLAV,PQ)
+        print 'asfdaf'
         #Main skeleton algorithm
         ##--- Debug ---##
         print 'length: ', len(PQ), ' vertices'
@@ -1902,7 +1909,7 @@ class Shape:
                 #Now compute bisector and edge event for new V node
                 V_index = LAV_.get_node_index(V)
                 LAV_ = self.compute_interior_bisector_vector(LAV_,angle_index=V_index)
-                PQ,minev = self.find_polygon_events(LAV_,SLAV,PQ,angle_index=V_index,cchk=count)
+                PQ,minev = self.find_polygon_events(LAV_,LOV,SLAV,PQ,angle_index=V_index,cchk=count)
 
 
             else:
@@ -1964,7 +1971,7 @@ class Shape:
 
                 #Find opposite edge from V
                 #Botsky just uses original, Fezkel suggests do it again.
-                opposite_edge, opposite_I, opposite_A = self.find_opposite_edge_from_node(node_V,SLAV)
+                opposite_edge, opposite_I, opposite_A = self.find_opposite_edge_from_node(node_V,LOV,SLAV)
                 #if count == 4:
                     #debug.append(opposite_edge[0])
                     #debug.append(opposite_edge[1])
@@ -2085,7 +2092,7 @@ class Shape:
                 LAV_V1 = self.compute_interior_bisector_vector(LAV_V1,angle_index=V1_index)
                 LAV_V2 = self.compute_interior_bisector_vector(LAV_V2,angle_index=V2_index)
 
-                PQ,minev = self.find_polygon_events(LAV_V1,SLAV,PQ,angle_index=V1_index,cchk=count)
+                PQ,minev = self.find_polygon_events(LAV_V1,LOV,SLAV,PQ,angle_index=V1_index,cchk=count)
 
                 def debug_LAV_links(LAV):
                     print '---- ----'
@@ -2109,7 +2116,7 @@ class Shape:
                 #debug_LAV_links(LAV_V1)
                 #debug.append(LAV_V2.head.next.next.data.vertex)
                 #break
-                PQ,minev = self.find_polygon_events(LAV_V2,SLAV,PQ,angle_index=V2_index,cchk=count)
+                PQ,minev = self.find_polygon_events(LAV_V2,LOV,SLAV,PQ,angle_index=V2_index,cchk=count)
                 #break
             count += 1
 
