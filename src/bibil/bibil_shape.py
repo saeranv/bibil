@@ -1449,7 +1449,7 @@ class Shape:
         min_node_A = None
         print curr_node_.data.vertex[0]
         debugisfirst = False
-        if self.is_near_zero(abs(curr_node_.data.vertex[0] - 659.0),50.0):
+        if self.is_near_zero(abs(curr_node_.data.vertex[0] - 275.89),5.0):
             debugisfirst = True
         #if not debugisfirst:
         #    debug.append(curr_node_.data.vertex)
@@ -1459,7 +1459,7 @@ class Shape:
         for i in xrange(len(SLAV_)):
             LAV_ = SLAV_[i]
             for j in xrange(LAV_.size):
-                if not debugisfirst: print '-\nj', j
+                print '-\nj', j
                 orig_node_ = LAV_[j]
                 edge_line = [orig_node_.data.vertex,\
                             orig_node_.data.edge_next[1]]
@@ -1537,16 +1537,18 @@ class Shape:
                     boundvec.Unitize()
                     chkvec.Unitize()
                     crossprod2d = boundvec[0]*chkvec[1] - boundvec[1]*chkvec[0]
-                    if self.is_near_zero(crossprod2d,0.001):
+                    print 'crossprod is: ', crossprod2d
+                    if self.is_near_zero(crossprod2d):
                         print 'cross prod at 0, must be parallel edges'
                         print 'print chk prallel', boundvec.IsParallelTo(chkvec)
-                        #debug.extend([ray2chk[0] + ray2chk[1],ray2chk[0]])
-                        #debug.extend([pt2chk,ray2chk])
-                    if direction=="ccw":
-                        IsBound = True if crossprod2d > 0.0 else False
+                        IsBound = True
+                        #    #debug.extend([ray2chk[0] + ray2chk[1],ray2chk[0]])
+                        #    #debug.extend([pt2chk,ray2chk])
+                    elif direction=="ccw":
+                        IsBound = True if crossprod2d < 0.0 else False
                         #IsBound = True if crossprod2d < 0.0 else False
                     else:
-                        IsBound = True if crossprod2d < 0.0 else False
+                        IsBound = True if crossprod2d > 0.0 else False
                     return IsBound
 
                 #Create left/right bisectors from edge
@@ -1572,16 +1574,8 @@ class Shape:
                 print 'isleftbound', IsLeftBound
 
                 rightray = orig_node_.next.data.bisector_ray
-                if not debugisfirst and j==3:
-                    print 'oriigial'
-                    debug.append(rightray[0])
-                    #tail = (rightray[1]*50) + rightray[0]
-                    #debug.append(tail)
-                    debug.append(B)
                 IsRightBound = is_pt_bound_by_vectors(B,rightray,direction="ccw")
-                print 'isrightbound', IsRightBound
-                #if not debugisfirst:
-                #    IsRightBound = True
+
                 bottomray = (edge_line[0], edge_line_vec)
                 IsBottomBound = is_pt_bound_by_vectors(B,bottomray,direction="ccw")
                 print 'isbottombound', IsBottomBound
