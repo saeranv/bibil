@@ -1431,7 +1431,7 @@ class Shape:
                 debug.append(rc.Geometry.Curve.CreateControlPointCurve(edge_next))
 
         return LAV
-    def find_opposite_edge_from_node(self,curr_node_,SLAV_,cchk=None):
+    def find_opposite_edge_from_node(self,curr_node_,SLAV_,is_LOV=True,edge_event_=None,cchk=None):
         #Split event: when interior vertex hits opposite edge, splitting
         #polygon in two
         #Compute point B, where a 'split event' will occur
@@ -1454,6 +1454,7 @@ class Shape:
         #if not debugisfirst:
         #    debug.append(curr_node_.data.vertex)
         print 'checking reflex ----------'
+        print 'does edge event exist??????', edge_event_
         #Botffy uses original edges (LOV) to calculate split events
         #But Felzel and Obdzel seem to suggest use active SLAV...
         for i in xrange(len(SLAV_)):
@@ -1461,8 +1462,10 @@ class Shape:
             for j in xrange(LAV_.size):
                 print '-\nj', j
                 orig_node_ = LAV_[j]
-                edge_line = [orig_node_.data.vertex,\
-                            orig_node_.data.edge_next[1]]
+                edge_line = orig_node_.data.edge_next#[orig_node_.data.vertex,orig_node_.data.edge_next[1]]
+
+                #edge_line = orig_node_.data.edge_prev
+
                 chk_next = edge_line == curr_node_.data.edge_next
                 chk_prev = edge_line == curr_node_.data.edge_prev
                 if chk_next or chk_prev:
@@ -1492,12 +1495,13 @@ class Shape:
                 next_rad = math.acos(edge_next_vec * edge_line_vec)
 
                 #Store this info carefully bc need it for Event creation
-                if next_rad < prev_rad:
+                if next_rad > prev_rad:
                     vertex_edge_line = curr_node_.data.edge_next
                 else:
                     vertex_edge_line = curr_node_.data.edge_prev
 
                 vertex_vec = vertex_edge_line[1]-vertex_edge_line[0]
+                #vertex_vec.Unitize()
 
                 print 'print chk prallel', edge_line_vec.IsParallelTo(vertex_vec)
 
@@ -1512,11 +1516,19 @@ class Shape:
                 vertex_edge_vec = vertex_edge_line[1] - vertex_edge_line[0]
                 #Unitize edge vectors to create rhombus for bisector
                 vertex_edge_vec.Unitize()
+                edge_line_vec.Unitize()
                 #Get bisector by subtraction
-                B_bisect_dir = edge_line_vec - vertex_edge_vec
+
+                B_bisect_dir =  edge_line_vec - vertex_edge_vec
 
                 B_bisect_dir.Unitize()
+
+
+
                 Bline = [edge_int_pt, edge_int_pt + B_bisect_dir*50.0]
+                if j==2:
+                    pass#debug.extend(vertex_edge_line)
+                    #debug.append(curr_node_.data.vertex)
                 rayline = [raypt, raypt + raydir]
                 B = self.intersect_infinite_lines(Bline,rayline)
                 if not B:
@@ -1524,29 +1536,37 @@ class Shape:
                 #if not debugisfirst:
                     #if j<=3:#if j==1:#if cchk >= j:
                     #    debug.append(B)
-
+                if j==2:
+                    debug.append(B)
                 print 'B exists'
 
                 #Check if B is bound by edge_line, and left,right bisectors of edge_line
-                def is_pt_bound_by_vectors(pt2chk,ray2chk,direction="ccw"):
+                def is_pt_bound_by_vectors(pt2chk,ray2chk,direction="istoleft",chkdebug=False):
                     #Input: pt, and ray(raypt, raydir)
                     #Output: Bool if bound by area (i.e. inside)
                     #This function uses cross product to see if pt2chk is inside rays
                     boundvec = (ray2chk[0] + ray2chk[1]) - ray2chk[0]
+                    if j==2 and chkdebug:
+                        #debug.append(ray2chk[0])
+                        #debug.append(ray2chk[0] + ray2chk[1])
+                        debug.append(pt2chk)
+                        debug.append(ray2chk[0])
                     chkvec = pt2chk - ray2chk[0]
                     boundvec.Unitize()
                     chkvec.Unitize()
-                    crossprod2d = boundvec[0]*chkvec[1] - boundvec[1]*chkvec[0]
+                    crossprod2d = boundvec[0]*chkvec[1] - chkvec[0]*boundvec[1]
                     print 'crossprod is: ', crossprod2d
+                    print 'actual cross', rc.Geometry.Vector3d.CrossProduct(boundvec,chkvec)
+                    #print res = a[0] * b[1] - b[0] * a[1]
+
                     if self.is_near_zero(crossprod2d):
                         print 'cross prod at 0, must be parallel edges'
                         print 'print chk prallel', boundvec.IsParallelTo(chkvec)
                         IsBound = True
                         #    #debug.extend([ray2chk[0] + ray2chk[1],ray2chk[0]])
                         #    #debug.extend([pt2chk,ray2chk])
-                    elif direction=="ccw":
+                    elif direction=="istoright":
                         IsBound = True if crossprod2d < 0.0 else False
-                        #IsBound = True if crossprod2d < 0.0 else False
                     else:
                         IsBound = True if crossprod2d > 0.0 else False
                     return IsBound
@@ -1570,14 +1590,15 @@ class Shape:
                     #debug.append(edgeline)
 
                 leftray = orig_node_.data.bisector_ray
-                IsLeftBound = is_pt_bound_by_vectors(B,leftray,direction="cw")
+                IsLeftBound = is_pt_bound_by_vectors(B,leftray,direction="istoright",chkdebug=True)
                 print 'isleftbound', IsLeftBound
 
                 rightray = orig_node_.next.data.bisector_ray
-                IsRightBound = is_pt_bound_by_vectors(B,rightray,direction="ccw")
+                IsRightBound = is_pt_bound_by_vectors(B,rightray,direction="istoleft")
+                print 'isrightbound', IsRightBound
 
                 bottomray = (edge_line[0], edge_line_vec)
-                IsBottomBound = is_pt_bound_by_vectors(B,bottomray,direction="ccw")
+                IsBottomBound = is_pt_bound_by_vectors(B,bottomray,direction="istoleft")
                 print 'isbottombound', IsBottomBound
 
                 if not (IsLeftBound and IsRightBound and IsBottomBound):
@@ -1677,7 +1698,11 @@ class Shape:
             split_event_pt = None
             if curr_node.data.is_reflex==True:
                 print 'found reflex'
-                split_event_line, split_event_pt, split_node_A = self.find_opposite_edge_from_node(curr_node,SLAV,cchk=cchk)
+                if angle_index==False:
+                    split_event_line, split_event_pt, split_node_A = self.find_opposite_edge_from_node(curr_node,SLAV,cchk=cchk)
+                else:
+                    print 'this is not LOV'
+                    split_event_line, split_event_pt, split_node_A = self.find_opposite_edge_from_node(curr_node,SLAV,is_LOV=False,cchk=cchk)
                 #debug.append(split_event_pt)
             else:
                 pass#print 'not reflex'
@@ -1801,7 +1826,7 @@ class Shape:
         #call bibil for shape libraries
         #thats how we can transition to HB
 
-        ##Initialization of ABN
+        ##Initialization of ABNunlo
         #Organize given vertices into LAV in SLAV
         #Set of LAV: (listof LAV)
         SLAV = []
@@ -1830,7 +1855,8 @@ class Shape:
         create_geom = True
         debug_crv = stepnum
         ##--- Debug ---##
-
+        #if True:
+        #    return None
         while len(PQ) > 0 and count<=50:
 
             if count > stepnum:
@@ -2011,20 +2037,8 @@ class Shape:
 
                 #Find opposite edge from V
                 #Botsky just uses original, Fezkel suggests do it again.
-                opposite_edge, opposite_I, opposite_A = self.find_opposite_edge_from_node(node_V,SLAV)
-                #if count == 4:
-                    #debug.append(opposite_edge[0])
-                    #debug.append(opposite_edge[1])
-                    #debug.append(edge_event.node_A.data.vertex)
-                    #print edge_event.node_A.data.is_processed
-                    #debug.append(edge_event.int_vertex)
-                    #debug.append(LAV_.head.data.vertex)
-                    #print 'slav len', len(SLAV)
-                    #LAV_1 = SLAV[0]
-                    #for i in xrange(LAV_1.size):
-                        #cn = LAV_1[i]
-                        #debug.append(cn.data.vertex)
-
+                opposite_edge, opposite_I, opposite_A = self.find_opposite_edge_from_node(node_V,SLAV,edge_event_=edge_event)
+                #print 'does opposited edgevent exist????222', edge_event
                 #opposite_A is the node that you are evaluating for split_events, likely won't be used
                 if opposite_edge == None:
                     print 'Opposite edge not found! line 1930'
@@ -2102,7 +2116,6 @@ class Shape:
                 #LAV_.remove_node(node_V)
                 node_V.next = None
                 node_V.prev = None
-
 
                 #opposite_left_node.is_processed = True
                 #opposite_right_node.is_processed = True
