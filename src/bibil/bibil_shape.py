@@ -1533,13 +1533,13 @@ class Shape:
 
                     if orig_oppo_vec == edge_line_next_vec and edge_event_.opposite_edge[0] == orig_node_.data.vertex:
                         print 'is next vec'
-                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]
+                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]# orig_node_.next.data.vertex]#
                     elif orig_oppo_vec == edge_line_prev_vec and edge_event_.opposite_edge[0] == orig_node_.data.edge_prev[0]:
                         print 'is prev vec'
-                        edge_line = [orig_node_.data.edge_prev[0], orig_node_.data.vertex]
+                        edge_line = [orig_node_.data.edge_prev[0], orig_node_.data.vertex]#[orig_node_.prev.data.vertex,orig_node_.data.vertex]#
                     else:
                         print 'cant find match'
-                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]
+                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]#[orig_node_.data.vertex, orig_node_.next.data.vertex]
                         #break
 
                     #if norm == v.edge_left.v.normalized() and event.opposite_edge.p == v.edge_left.p:
@@ -1958,7 +1958,7 @@ class Shape:
         ##--- Debug ---##
         #if True:
         #    return None
-        while len(PQ) > 0 and count<=50:
+        while len(PQ) > 0 and count<=30:
 
             if count > stepnum:
                 break
