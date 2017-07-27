@@ -131,6 +131,7 @@ class Event(object):
         self.event_type = event_type
         self.length2edge = length2edge
         self.LAV = LAV
+        self.opposite_edge = None
     def __str__(self):
         return str(self.int_vertex)
 
@@ -1432,6 +1433,58 @@ class Shape:
 
         return LAV
     def find_opposite_edge_from_node(self,curr_node_,SLAV_,is_LOV=True,edge_event_=None,cchk=None):
+        def distline2pt(v,w,p):
+            ##This algorithm returns the minimum distance between
+            ##line segment vw and point p
+            ##Modified from http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+            ##This is the explaination from stackoverflow for ref:
+            ##Consider the line extending the segment, parameterized as v + t (w - v).
+            ##We find projection of point p onto the line.
+            ##It falls where t = [(p-v) . (w-v)] / |w-v|^2
+            ##We clamp t from [0,1] to handle points outside the segment vw.
+
+            ##Convert to rc geometry
+            v = rc.Geometry.Vector3d(v)
+            w = rc.Geometry.Vector3d(w)
+            p = rc.Geometry.Vector3d(p)
+
+            ##Create dir vectors for line and point
+            wv = w-v
+            pv = p-v
+
+            ##Calculate |w-v|^2 w/o costly sqrt
+            lsq = wv.SquareLength
+            # Check for zero line segment case: v == w
+            if self.is_near_zero(lsq):
+                return pv.Length
+
+            ##ProjectionPVonWV = (w-v)/|w-v| * (w-v)/|w-v| * (p-v)
+            ##simplfiied = projpv = (w-v) * ((p-v) * (w-v))/|w-v|^2
+            ##Then: projpv - p == perpendicular line
+
+            ##clamp_to_line: ((p-v) * (w-v))/|w-v|^2
+            ##(w-v): wv
+            ##projpv = clamp_to_line * wv
+            clamp_to_line = (pv * wv)/lsq
+
+            ##This is to handle points outside line segment. They will have
+            ##obtuse angle so costheta < 0. in that case will clamp_to_line factor == 0.
+            ##therefore if obtuse, clamp_to_line turns projpv into a zero vector and
+            ##and will return (non perpendicular) distance from point v to p.
+            clamp_to_line = max(0., min(1.,clamp_to_line))
+            projpv = clamp_to_line * wv
+
+            ##Instead of simply subtracting projpv-p, we first add it to v
+            ##and then subtract it from p
+            ##This is so that if p is outside of line segment, then projpv = 0 vector, so
+            ##v - p will be our minimum distance.
+            perpvector = (v + projpv) - p
+
+            ##Return values
+            perpgeom = rs.AddLine(projpv,p)
+            perpline = rs.AddLine(v,w)
+            perppt = rc.Geometry.Point3d(p)
+            return perpvector.Length, (perpgeom,perpline,perppt)
         #Split event: when interior vertex hits opposite edge, splitting
         #polygon in two
         #Compute point B, where a 'split event' will occur
@@ -1447,23 +1500,59 @@ class Shape:
         min_candidate_B = None
         min_edge_line = None
         min_node_A = None
-        print curr_node_.data.vertex[0]
+        print '\n\ncurrverte', curr_node_.data.vertex[0]
         debugisfirst = False
-        if self.is_near_zero(abs(curr_node_.data.vertex[0] - 275.89),5.0):
+        if self.is_near_zero(abs(curr_node_.data.vertex[0] - 434.),1.0):
             debugisfirst = True
         #if not debugisfirst:
         #    debug.append(curr_node_.data.vertex)
         print 'checking reflex ----------'
-        print 'does edge event exist??????', edge_event_
+        if edge_event_ != None:
+            print 'This is second round LAV'#, edge_event_.opposite_edge
         #Botffy uses original edges (LOV) to calculate split events
         #But Felzel and Obdzel seem to suggest use active SLAV...
+
         for i in xrange(len(SLAV_)):
             LAV_ = SLAV_[i]
             for j in xrange(LAV_.size):
                 print '-\nj', j
                 orig_node_ = LAV_[j]
-                edge_line = orig_node_.data.edge_next#[orig_node_.data.vertex,orig_node_.data.edge_next[1]]
 
+                edge_line = [orig_node_.data.vertex,orig_node_.data.edge_next[1]]
+                if edge_event_!= None:
+                    opposite_edge = edge_event_.opposite_edge
+                    orig_oppo_vec = opposite_edge[1] - opposite_edge[0]
+                    orig_oppo_vec.Unitize()
+
+                    edge_line_next_vec = orig_node_.data.edge_next[1] - orig_node_.data.vertex
+                    edge_line_prev_vec = orig_node_.data.vertex - orig_node_.data.edge_prev[0]
+                    edge_line_next_vec.Unitize()
+                    edge_line_prev_vec.Unitize()
+                    print 'is parrallel', orig_oppo_vec.IsParallelTo(edge_line_next_vec,0.01)
+                    print 'is parrallel', orig_oppo_vec.IsParallelTo(edge_line_prev_vec, 0.01)
+
+                    if orig_oppo_vec == edge_line_next_vec and edge_event_.opposite_edge[0] == orig_node_.data.vertex:
+                        print 'is next vec'
+                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]
+                    elif orig_oppo_vec == edge_line_prev_vec and edge_event_.opposite_edge[0] == orig_node_.data.edge_prev[0]:
+                        print 'is prev vec'
+                        edge_line = [orig_node_.data.edge_prev[0], orig_node_.data.vertex]
+                    else:
+                        print 'cant find match'
+                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]
+                        #break
+
+                    #if norm == v.edge_left.v.normalized() and event.opposite_edge.p == v.edge_left.p:
+        			#	x = v
+        			#	y = x.prev
+        			#elif norm == v.edge_right.v.normalized() and event.opposite_edge.p == v.edge_right.p:
+        			#	y=v
+        			#	x=y.next
+
+                #print 'why is this failing'
+                #print orig_node_.data.edge_next
+                #print edge_line
+                #print '-'
                 #edge_line = orig_node_.data.edge_prev
 
                 chk_next = edge_line == curr_node_.data.edge_next
@@ -1503,7 +1592,7 @@ class Shape:
                 vertex_vec = vertex_edge_line[1]-vertex_edge_line[0]
                 #vertex_vec.Unitize()
 
-                print 'print chk prallel', edge_line_vec.IsParallelTo(vertex_vec)
+                #print 'print chk prallel', edge_line_vec.IsParallelTo(vertex_vec)
 
                 #Intersection at edge
                 edge_int_pt = self.intersect_infinite_lines(vertex_edge_line,edge_line)
@@ -1526,8 +1615,8 @@ class Shape:
 
 
                 Bline = [edge_int_pt, edge_int_pt + B_bisect_dir*50.0]
-                if j==2:
-                    pass#debug.extend(vertex_edge_line)
+                #if j==2:
+                #    pass#debug.extend(vertex_edge_line)
                     #debug.append(curr_node_.data.vertex)
                 rayline = [raypt, raypt + raydir]
                 B = self.intersect_infinite_lines(Bline,rayline)
@@ -1536,9 +1625,11 @@ class Shape:
                 #if not debugisfirst:
                     #if j<=3:#if j==1:#if cchk >= j:
                     #    debug.append(B)
-                if j==2:
-                    debug.append(B)
-                print 'B exists'
+                #if debugisfirst and j==0:
+                #    debug.append(B)
+                #else:
+                #    break
+                #print 'B exists'
 
                 #Check if B is bound by edge_line, and left,right bisectors of edge_line
                 def is_pt_bound_by_vectors(pt2chk,ray2chk,direction="istoleft",chkdebug=False):
@@ -1546,25 +1637,25 @@ class Shape:
                     #Output: Bool if bound by area (i.e. inside)
                     #This function uses cross product to see if pt2chk is inside rays
                     boundvec = (ray2chk[0] + ray2chk[1]) - ray2chk[0]
-                    if j==2 and chkdebug:
-                        #debug.append(ray2chk[0])
-                        #debug.append(ray2chk[0] + ray2chk[1])
-                        debug.append(pt2chk)
-                        debug.append(ray2chk[0])
                     chkvec = pt2chk - ray2chk[0]
                     boundvec.Unitize()
                     chkvec.Unitize()
+                    if j==0 and debugisfirst:
+                        pass#debug.append(ray2chk[0])
+                        #debug.append(ray2chk[0] + ray2chk[1])
+                        #debug.append(pt2chk)
+                        #debug.append(ray2chk[0])
+
                     crossprod2d = boundvec[0]*chkvec[1] - chkvec[0]*boundvec[1]
-                    print 'crossprod is: ', crossprod2d
-                    print 'actual cross', rc.Geometry.Vector3d.CrossProduct(boundvec,chkvec)
+                    #print 'crossprod is: ', crossprod2d
+                    #print 'actual cross', rc.Geometry.Vector3d.CrossProduct(boundvec,chkvec)
+                    #print 'dir', direction
                     #print res = a[0] * b[1] - b[0] * a[1]
 
                     if self.is_near_zero(crossprod2d):
-                        print 'cross prod at 0, must be parallel edges'
-                        print 'print chk prallel', boundvec.IsParallelTo(chkvec)
+                        #print 'cross prod at 0, must be parallel edges'
+                        #print 'print chk prallel', boundvec.IsParallelTo(chkvec)
                         IsBound = True
-                        #    #debug.extend([ray2chk[0] + ray2chk[1],ray2chk[0]])
-                        #    #debug.extend([pt2chk,ray2chk])
                     elif direction=="istoright":
                         IsBound = True if crossprod2d < 0.0 else False
                     else:
@@ -1591,20 +1682,29 @@ class Shape:
 
                 leftray = orig_node_.data.bisector_ray
                 IsLeftBound = is_pt_bound_by_vectors(B,leftray,direction="istoright",chkdebug=True)
-                print 'isleftbound', IsLeftBound
+                if edge_event_: print 'isleftbound', IsLeftBound
 
                 rightray = orig_node_.next.data.bisector_ray
                 IsRightBound = is_pt_bound_by_vectors(B,rightray,direction="istoleft")
-                print 'isrightbound', IsRightBound
+                if edge_event_: print 'isrightbound', IsRightBound
 
                 bottomray = (edge_line[0], edge_line_vec)
                 IsBottomBound = is_pt_bound_by_vectors(B,bottomray,direction="istoleft")
-                print 'isbottombound', IsBottomBound
+                if edge_event_: print 'isbottombound', IsBottomBound
 
                 if not (IsLeftBound and IsRightBound and IsBottomBound):
                     continue
-                print 'B is bound'
 
+                if debugisfirst and edge_event_ != None and j==1:
+                    debug.append(B)
+
+                print 'B is bound'
+                #if debugisfirst and j==0:
+                #    print 'this B is bound'
+                    #debug.append(B)
+
+                #prevdist,g = distline2pt(pn1,pn2,int_prev.PointAtEnd)
+                #B_dist,g_ = distline2pt(edge_line[0],edge_line[1],B)
                 B_dist = B.DistanceTo(curr_node_.data.vertex)
 
                 if min_dist > B_dist:
@@ -1759,6 +1859,7 @@ class Shape:
             if split_event_pt != None:
                 split_event_dist,g = distline2pt(split_event_line[0],split_event_line[1],split_event_pt)
                 split_edge_event = Event(split_event_pt,split_node_A,split_event_line,split_event_dist,"split")
+                split_edge_event.opposite_edge = split_event_line
                 event_tuple.append(split_edge_event)
             #make edge_event
             #event_tuple.append(edge_event)
