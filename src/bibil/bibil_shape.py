@@ -773,7 +773,7 @@ class Shape:
             print str(e)#sys.exc_traceback.tb_lineno
     def get_bottom(self,g,refpt,tol=1.0,bottomref=0.0):
         ## Extract curves from brep according to input cpt lvl
-        debug = sc.sticky['debug']
+        #debug = sc.sticky['debug']
         IsAtGroundPlane = False
         if abs(refpt[2]-bottomref) < 0.1:
             #print 'ground ref at:', refpt[2]
