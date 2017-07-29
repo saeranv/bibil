@@ -773,7 +773,7 @@ class Shape:
             print str(e)#sys.exc_traceback.tb_lineno
     def get_bottom(self,g,refpt,tol=1.0,bottomref=0.0):
         ## Extract curves from brep according to input cpt lvl
-        debug = sc.sticky['debug']
+        #debug = sc.sticky['debug']
         IsAtGroundPlane = False
         if abs(refpt[2]-bottomref) < 0.1:
             #print 'ground ref at:', refpt[2]
@@ -1533,13 +1533,13 @@ class Shape:
 
                     if orig_oppo_vec == edge_line_next_vec and edge_event_.opposite_edge[0] == orig_node_.data.vertex:
                         print 'is next vec'
-                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]
+                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]# orig_node_.next.data.vertex]#
                     elif orig_oppo_vec == edge_line_prev_vec and edge_event_.opposite_edge[0] == orig_node_.data.edge_prev[0]:
                         print 'is prev vec'
-                        edge_line = [orig_node_.data.edge_prev[0], orig_node_.data.vertex]
+                        edge_line = [orig_node_.data.edge_prev[0], orig_node_.data.vertex]#[orig_node_.prev.data.vertex,orig_node_.data.vertex]#
                     else:
                         print 'cant find match'
-                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]
+                        edge_line = [orig_node_.data.vertex, orig_node_.data.edge_next[1]]#[orig_node_.data.vertex, orig_node_.next.data.vertex]
                         #break
 
                     #if norm == v.edge_left.v.normalized() and event.opposite_edge.p == v.edge_left.p:
@@ -1958,7 +1958,7 @@ class Shape:
         ##--- Debug ---##
         #if True:
         #    return None
-        while len(PQ) > 0 and count<=50:
+        while len(PQ) > 0 and count<=30:
 
             if count > stepnum:
                 break
@@ -2019,18 +2019,18 @@ class Shape:
                     prev_A_vertex = edge_event.node_A.prev.data.vertex
 
                     #Update adjacency graph
-                    #adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
-                    #adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
-                    #adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
+                    adj_graph = self.update_shape_adj_graph(adj_graph,prev_A_vertex,new_int_vertex)
+                    adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
+                    adj_graph = self.update_shape_adj_graph(adj_graph,B_vertex,new_int_vertex)
 
                     Vc_I_arc = rc.Geometry.Curve.CreateControlPointCurve([prev_A_vertex, new_int_vertex])
                     Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                     Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
 
                     if create_geom and debug_crv >= 0 and debug_crv >= count:
-                        debug.append(Va_I_arc)
-                        debug.append(Vb_I_arc)
-                        debug.append(Vc_I_arc)
+                        #debug.append(Va_I_arc)
+                        #debug.append(Vb_I_arc)
+                        #debug.append(Vc_I_arc)
                         pass
                     edge_event.node_A.data.is_processed = True
                     edge_event.node_B.data.is_processed = True
@@ -2044,15 +2044,15 @@ class Shape:
                 A_vertex = edge_event.node_A.data.vertex
                 B_vertex = edge_event.node_B.data.vertex
                 #Update adjacency graph
-                #adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
-                #adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
+                adj_graph = self.update_shape_adj_graph(adj_graph,A_vertex,new_int_vertex)
+                adj_graph = self.update_shape_adj_graph(adj_graph, B_vertex,new_int_vertex)
 
                 Va_I_arc = rc.Geometry.Curve.CreateControlPointCurve([A_vertex, new_int_vertex])
                 Vb_I_arc = rc.Geometry.Curve.CreateControlPointCurve([B_vertex, new_int_vertex])
                 print '2 peak'
                 if create_geom and debug_crv >= 0 and debug_crv >= count:
-                    debug.append(Va_I_arc)
-                    debug.append(Vb_I_arc)
+                    #debug.append(Va_I_arc)
+                    #debug.append(Vb_I_arc)
                     pass
 
                 #Pointer to appropriate edge for bisector compution
@@ -2098,7 +2098,7 @@ class Shape:
                 ref_edge = edge_event.node_B
                 if LAV_.size < 3:
                     Vb_H_arc = rc.Geometry.Curve.CreateControlPointCurve([LAV.head.data.vertex,LAV.head.next.data.vertex])
-                    debug.append(Vb_H_arc)
+                    #debug.append(Vb_H_arc)
                     print 'LAV == 2'
                     count += 1
                     #edge_event.node_A.data.is_processed = True
@@ -2129,12 +2129,15 @@ class Shape:
 
                 #D) Output arc
                 split_I_arc = rc.Geometry.Curve.CreateControlPointCurve([int_vertex, node_V.data.vertex])
+                #Update adjacency graph
+                adj_graph = self.update_shape_adj_graph(adj_graph,node_V.data.vertex,int_vertex)
+
                 if create_geom and debug_crv >= 0 and debug_crv >= count:
-                    debug.append(split_I_arc)
+                    pass#debug.append(split_I_arc)
                 print '2 peak'
                 edge_event.node_A.data.is_processed = True
-                if count == 7:
-                    debug.append(LAV_.head.next.data.vertex)
+                #if count == 7:
+                #    debug.append(LAV_.head.next.data.vertex)
 
                 #Find opposite edge from V
                 #Botsky just uses original, Fezkel suggests do it again.
@@ -2277,8 +2280,7 @@ class Shape:
         #print adj_graph
 
         #loc: listof (listof cycles)
-        #loc = adj_graph.find_most_ccw_cycle()
-        """
+        loc = adj_graph.find_most_ccw_cycle()
         #Get offset
         corner_style = rc.Geometry.CurveOffsetCornerStyle.Sharp
         core_crv_lst = tnode.shape.bottom_crv.Offset(tnode.shape.cpt,\
@@ -2324,7 +2326,7 @@ class Shape:
 
             debug.extend(diff_per_lst)
 
-        """
+
         """
         #For debugging/checkign
         tnode.grammar.type['idlst'] = []

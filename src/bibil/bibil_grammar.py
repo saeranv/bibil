@@ -58,10 +58,10 @@ class Grammar:
             elif parent_node:
                 #cloned nodes get link to parent_node.shape
                 child_shape = parent_node.shape
-            
+
             if UINode:
                     child_shape.UIgeom = copy.copy(rs.coercebrep(geom))
-            
+
             if parent_node:
                 tree_depth = parent_node.depth+1
             if IsDegenerate == False:
@@ -216,25 +216,25 @@ class Grammar:
             tnode.grammar.type['freeze'] = True
             return tnode
         #debug.append(tnode.shape.geom)
-        
+
         maxht = tnode.shape.ht
         minht = tnode.shape.cpt[2]
         if self.is_near_zero(minht):
             minht = 0.0
         dimz = maxht - minht
-        
+
         bothtpt = copy.copy(tnode.shape.cpt)
         htlst = [bothtpt]
-                 
+
         if dimz > 4.5:
             midhtpt = copy.copy(tnode.shape.cpt)
             tophtpt = copy.copy(tnode.shape.cpt)
             midhtpt.Z = (dimz/2.)-(dimz/2.)%3 + minht
             tophtpt.Z = maxht - 3.
-            
+
             #ugly but short term works
             htlst = [bothtpt,midhtpt,tophtpt]
-        
+
             if (tophtpt.Z - midhtpt.Z)/2. > 9.:
                 topmidpt = copy.copy(tnode.shape.cpt)
                 topmidpt.Z = ((tophtpt.Z - midhtpt.Z)/2.) - ((tophtpt.Z - midhtpt.Z)/2.)%3 + midhtpt.Z
@@ -243,10 +243,10 @@ class Grammar:
                 botmidpt = copy.copy(tnode.shape.cpt)
                 botmidpt.Z = ((midhtpt.Z - bothtpt.Z)/2.) - ((midhtpt.Z - bothtpt.Z)/2.)%3 + bothtpt.Z
                 htlst = [bothtpt,botmidpt,midhtpt,topmidpt,tophtpt]
-            
-            
+
+
         tnode.loc = []
-        for i in xrange(len(htlst)): 
+        for i in xrange(len(htlst)):
             refpt = htlst[i]
             crv = tnode.shape.get_bottom(tnode.shape.geom,refpt,tol=1.0,bottomref=minht)
             zone = self.helper_geom2node(crv,parent_node=tnode,grammar='thermalzone',cplane_ref=tnode.shape.cplane)
@@ -258,14 +258,14 @@ class Grammar:
                 return tnode
             flr_ht = 0.0 if self.is_near_zero(zone.shape.cpt.Z,eps=0.1) else zone.shape.cpt.Z
             zone.grammar.type['flr_ht'] = flr_ht
-            
+
             if i==0 or i==len(htlst)-1:
                 zone.grammar.type['is_interzone'] = False
             else:
                 zone.grammar.type['is_interzone'] = True
             zone.shape.op_extrude(3.0)
             tnode.loc.append(zone)
-            
+
         return tnode
     def extract_canyon(self,tnode,PD_):
         debug = sc.sticky['debug']
@@ -274,34 +274,34 @@ class Grammar:
         center = PD_['canyon_center']
         srf_data = PD_['srf_data']
         hb_hive = sc.sticky["honeybee_Hive"]()
-        
+
         if dist_tol == None: dist_tol = 10.0
         angle_tol = 15.0
-        
+
         #Add data to Bibil node
         tnode.grammar.type['processed_srf_data'] = []
         tnode.grammar.type['processed_srf'] = []
         tnode.grammar.type['processed_srf_pt'] = []
         tnode.grammar.type['processed_srf_geom'] = []
         tnode.grammar.type['processed_srf_normal'] = []
-        
+
         #Get HBZone from hive
         hnode = tnode.backtrack_tree(lambda n:n.grammar.type.has_key('HBZone'))
         HZone = hnode.grammar.type['HBZone']
         zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
         zone_num = int(zone.name.split('_')[-1])
-        
+
         matrix = tnode.shape.base_matrix
         if not matrix:
             matrix = tnode.shape.set_base_matrix()
         #debug.append(tnode.shape.geom)
         #Get reference matrix
         ht = tnode.shape.cpt[2]
-        ref_edge = tnode.shape.match_edges_with_refs(matrix,[center],ht,dist_tol=dist_tol,angle_tol=angle_tol)            
-        
-        #Match srf normals 
+        ref_edge = tnode.shape.match_edges_with_refs(matrix,[center],ht,dist_tol=dist_tol,angle_tol=angle_tol)
+
+        #Match srf normals
         srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
-        
+
         #srf_normal.Unitize()
         srf_opaque = None
         srf_glass_lst = []
@@ -330,10 +330,10 @@ class Grammar:
         #for i in xrange(len(srf_glass_lst)):
         #    #print srf_glass_lst[i].name
         #    glz_num_lst.append(srf_glass_lst[i].name.split('_')[-1])
-        
+
         #%%for opaque wall
         glz_num_lst.append(srf_opaque.name.split('_')[-1])
-        
+
         #Identify srf_index from input srf data
         srfdataindex = []
         #for i in xrange(0,len(srf_data),10):
@@ -341,20 +341,20 @@ class Grammar:
             info4srf = srf_data[i][2]
             if not 'Wall' in info4srf:
                 continue
-            
+
             srfdatalst = info4srf.split('_')
-            zone_num_chk = int(srfdatalst[1])    
+            zone_num_chk = int(srfdatalst[1])
             if zone_num_chk != zone_num:
                 continue
 
             srf_num_chk = int(srfdatalst[3].split(':')[0])
             if srf_num_chk != srf_num:
                 continue
-            
-            #glz_num_chk = srfdatalst[-1].split(':')[0] 
+
+            #glz_num_chk = srfdatalst[-1].split(':')[0]
             #if glz_num_chk in glz_num_lst:
             srfdataindex.append(i)
-        
+
         #print len(srfdataindex)
         #print len(srf_glass_lst)
         #print '-'
@@ -370,10 +370,10 @@ class Grammar:
             tnode.grammar.type['processed_srf_pt'].append(srf_glass.cenPt)
             tnode.grammar.type['processed_srf_geom'].append(srf_glass.geometry)
             tnode.grammar.type['processed_srf_normal'].append(srf_normal)
-        
+
             #print srf_temp_avg
             #print '----'
-        
+
         #Use window geom
         if srf_opaque.hasChild:
             tnode.shape.geom = srf_opaque.punchedGeometry
@@ -390,52 +390,52 @@ class Grammar:
         #exht = tnode.shape.ht - ht
         #srf = tnode.shape.extrude_curve_along_normal(exht,tnode.shape.cpt,bld_crv)
         #debug.append(srf)
-        
+
         return tnode
     def interpolate_vertical(self,tnode_,PD_):
         debug = sc.sticky['debug']
         tnode_.grammar.type['grammar'] = 'interpolate_vertical'
-        
+
         #Assume thermzones in bem >= 3.
         hnode = tnode_.backtrack_tree(lambda n:n.grammar.type.has_key('HBZone'))
         if 'ground' in hnode.grammar.type['label']:
             return tnode_
-        
+
         foobem = lambda n: n.grammar.type['grammar']=='abstract_bem'
         bemnode = tnode_.backtrack_tree(foobem,accumulate=False)
         thermnode = tnode_.parent.parent
-        
+
         #Sort the therm nodes by height
         therm_node_lst = bemnode.loc
         therm_node_lst = sorted(therm_node_lst,key=lambda n:n.grammar.type['flr_ht'])
-        
+
         #Point of separating this from prior function is that
         # every extract_canyon node is processed yet. So null will exist.
         #for t in therm_node_lst:
         #    print t.loc[0]
         #print '--'
-        
+
         #Locate index of current node
         therm_index = therm_node_lst.index(thermnode)
-        
+
         #Isolate floors from current node to next floor
         #This is your interpolation range
         if therm_index+1 >= len(therm_node_lst):
             return tnode_
-        
+
         node_min = therm_node_lst[therm_index]
         node_max = therm_node_lst[therm_index + 1]
-        
+
         if node_min.loc[0].grammar.type.has_key('IsProcessed'):
             if node_min.loc[0].grammar.type['IsProcessed']==True:
                 return tnode_
-        
+
         #Starting at next floor, calculate interpolation values
         xlvl = node_min.grammar.type['flr_ht']
         ylvl = node_max.grammar.type['flr_ht']
         xtemplst = node_min.loc[0].grammar.type['processed_srf_data']
         ytemplst = node_max.loc[0].grammar.type['processed_srf_data']
-              
+
         tnode_.grammar.type['interpolate_temperature']=[]
         tnode_.grammar.type['interpolate_srf_geom']=[]
         tnode_.grammar.type['interpolate_cpt']=[]
@@ -454,36 +454,36 @@ class Grammar:
             cptlst = node_min.loc[0].grammar.type['processed_srf_pt']
             srfgeomlst = node_min.loc[0].grammar.type['processed_srf_geom']
             srflst = node_min.loc[0].grammar.type['processed_srf']
-            
+
             for j in xrange(len(cptlst)):
                 cpt = cptlst[j]
                 srfgeom = srfgeomlst[j]
                 int_cpt = copy.copy(cpt)
                 int_cpt.Z = int_cpt.Z + newflrfromht #to get center of srf
-                
+
                 move_vector_up = int_cpt - cpt
                 srfguid = sc.doc.Objects.AddBrep(srfgeom)
                 movesrfguid = tnode_.shape.move_geom(srfguid,move_vector_up,True)
                 srfgeom = rs.coercegeometry(movesrfguid)
-                
-                #Make new temp 
+
+                #Make new temp
                 if j < len(ytemplst):
                     ytemp = ytemplst[j]
                 else:
                     ytemp = ytemplst[-1]
                 xtemp = xtemplst[j]
-                
+
                 xtemp = xtemplst[j]
                 itemp = ((newflrht - xlvl) / (ylvl-xlvl)) * (ytemp-xtemp) + xtemp
-                
+
                 tnode_.grammar.type['interpolate_temperature'].append(itemp)
                 tnode_.grammar.type['interpolate_srf_geom'].append(srfgeom)
                 tnode_.grammar.type['interpolate_cpt'].append(int_cpt)
                 srf_normal = node_min.loc[0].grammar.type['processed_srf_normal'][0]
                 tnode_.grammar.type['interpolate_srf_normal'].append(srf_normal)
                 #srf = srflst[j]
-                
-        """    
+
+        """
         #for i in xrange(len(therm_node_lst)):
         #    zone = therm_node_lst[i]
         #    print zone.grammar.type['flr_ht']#['is_interzone']
@@ -491,12 +491,12 @@ class Grammar:
         """
         """
             if bemnode.grammar.type['is_interzone']:
-                #Find ref nodes    
+                #Find ref nodes
                 srflst = srfnode.grammar.type['processed_srf']
                 templst = srfnode.grammar.type['processed_srf_data']
                 srfcptlst = map(lambda srf: srf.cenPt,srflst)
                 debug.extend(srfcptlst)
-                
+
                 print bemnode.grammar.type['flr_ht']
         """
         return tnode_
@@ -507,18 +507,18 @@ class Grammar:
         ref_short = PD_['dim_short']
         flip = PD_['flip']
         tol = PD_['tol']
-        
+
         if ref_long==None: ref_long=False
         if ref_short==None: ref_short=False
-        
+
         longshort = tnode.shape.get_long_short_axis()
         shp_short = longshort[3]
         shp_long = longshort[1]
-        
-         
+
+
         if ref_long: ref_long += tol
         if ref_short: ref_short += tol
-        
+
         ref_short += tol
         if shp_short < ref_short and shp_long < ref_long:
             tnode.grammar.type['freeze'] = True
@@ -526,7 +526,7 @@ class Grammar:
             tnode.grammar.type['freeze'] = True
         elif ref_short and shp_short < ref_short:
             tnode.grammar.type['freeze'] = True
-        
+
         if flip==True:
             tnode.grammar.type['freeze'] = not tnode.grammar.type['freeze']
         return tnode
@@ -543,7 +543,7 @@ class Grammar:
         sb_ref_tol = 15.0
         IsInsideTol = True
         S = Shape()
-        
+
         #Clean/Define the Inputs
 
         ##sb_data: [(height,distance),(height,distance)...]     :
@@ -566,7 +566,7 @@ class Grammar:
         if not sb_dir:sb_dir = False
 
         #Get data if not geometry
-        
+
         IsSelf = True if sb_ref[0] == -1 else False
         sbg_type = self.helper_get_type(sb_ref[0])
         if sbg_type != "geometry":
@@ -579,9 +579,9 @@ class Grammar:
                 line =  rc.Geometry.Curve.CreateControlPointCurve(vectors,0)
                 line_lst.append(line)
             sb_ref = line_lst
-        
+
         ##Check region not work!
-        """ 
+        """
         #Add a check for street tolerance if geometry
         if sbg_type == "geometry":
             if not tnode.grammar.type.has_key('street_tolerance_curve'):
@@ -600,20 +600,20 @@ class Grammar:
                     IsInsideTol = False
                     break
         """
-        
+
         ## Loop through the height,setback tuples
         #rename tnode
         node2cut = self.helper_UI_geom(tnode)
-        
+
         #Loop through the stepback dimensions
         for sb_index in xrange(len(sb_data)):
             #not IsSelf and not IsInsideTol:
             #    break
             sbd = sb_data[sb_index]
             ht, dist = sbd[0], sbd[1]
-            
+
             IsHighEnough = ht < node2cut.shape.ht
-            
+
             if IsHighEnough and sb_random:
                 if not self.is_near_zero(randht_lo) and not self.is_near_zero(randht_hi):
                     ht += random.randrange(randht_lo,randht_hi)
@@ -622,10 +622,10 @@ class Grammar:
 
             ##Now actually implement setback
             sh_top_node = node2cut
-            
+
             if not IsHighEnough:
                 break
-            
+
             #Get self matrix to match
             matrix = sh_top_node.shape.base_matrix
             if not matrix:
@@ -650,19 +650,19 @@ class Grammar:
                 ref_edge = sh_top_node.shape.match_edges_with_refs(matrix,sb_ref,ht,dist_tol=sb_dist_tol,angle_tol=sb_ref_tol,to_front=not sb_dir)
             else:
                 ref_edge = sb_ref
-            
+
             #loop through steback-data-applied ref edges and cut the input geometry
             for sbg in ref_edge:
                 cut_geom = None
                 #if self.is_near_zero(ht):
-                    
+
                 if type([])==type(sbg):
                     sbref_crv = rc.Geometry.Curve.CreateControlPointCurve(sbg,0)
                 else:
                     sbg = rs.MoveObject(sc.doc.Objects.AddCurve(sbg),[0,0,ht])
                     sbg = rs.coercecurve(sbg)
                     sbref_crv = sbg
-                
+
                 #Doesn't work for some reason!!
                 #ptend,ptstart = copy.copy(sbref_crv.PointAtEnd),copy.copy(sbref_crv.PointAtStart)
                 #ptend.Z,ptstart.Z = 0.,0.
@@ -670,7 +670,7 @@ class Grammar:
                 #Check if refedge interesects the input geometry
                 #intcrv = rc.Geometry.Intersect.Intersection.CurveCurve(sh_top_node.shape.bottom_crv,chkcrv,0.01,0.01)
                 #if self.is_near_zero(intcrv.Count):
-                
+
                 try:
                     cut_geom = sh_top_node.shape.op_split("EW",0.5,deg=0.,\
                                         split_depth=float(dist*2.),split_line_ref=sbref_crv)
@@ -683,8 +683,8 @@ class Grammar:
                     sh_top_node.shape.geom = cut_geom[0]
                     sh_top_node.shape.reset(xy_change=True)
             node2cut = sh_top_node
-            
-        
+
+
         return tnode
     def transform(self,temp_node_,PD_):
         debug = sc.sticky['debug']
@@ -724,7 +724,7 @@ class Grammar:
         debug = sc.sticky['debug']
         bottom_shape,top_shape = None, None
         ratio_ = (dist_ - temp_node_.shape.cpt[2])/temp_node_.shape.z_dist
-        
+
         PD = {}
         PD['div_num'] = 1
         PD['div_deg'] = 0.
@@ -733,7 +733,7 @@ class Grammar:
         PD['div_type'] = 'simple_divide'
         PD['axis'] = "Z"
         temp_node_ = self.divide(temp_node_,PD)
-        
+
         if temp_node_.loc:
             ext_pt = temp_node_.shape.cpt + (temp_node_.shape.normal * dist_)
             dist_0 = temp_node_.loc[0].shape.cpt - ext_pt
@@ -835,9 +835,9 @@ class Grammar:
                     #print child_node.shape.x_dist
                     #print child_node.shape.y_dist
                     if child_node: node_.loc.append(child_node)
-                
+
                 #node_.grammar.dispose_geom(node_)
-                
+
                 #print loc
                 #print '----'
                 if 'simple_divide' not in grid_type:
@@ -930,7 +930,7 @@ class Grammar:
             VL = []
             for validshape_index in xrange(len(lstvalidshape_)):
                 validshape = lstvalidshape_[validshape_index]
-                
+
                 #Check shape dim validity and break if not valid
                 min_area = xkeep * ykeep
                 dim2chk_xy = (xkeep,ykeep)
@@ -941,26 +941,26 @@ class Grammar:
                 #Remember, xkeep=shortdim, ykeep=longdim
                 if validshape.shape.x_dist > validshape.shape.y_dist:
                     dim2chk_xy = (ykeep,xkeep)
-                
+
                 IsDimValid = validshape.shape.check_shape_validity(dim2chk_xy,min_area,min_or_max_="min",tol_=1.)
                 #print '---'
                 #print dimkeep
                 #print xkeep,ykeep
                 #print round(validshape.shape.x_dist,1),round(validshape.shape.y_dist,1)
                 #print IsDimValid
-                
+
                 if IsDimValid == False:
                     continue
-                
+
                 #Check if we are cutting in dirn of primary axis
                 #B/c will use shape-fitting optimization here
-                dir_cut = 1           
+                dir_cut = 1
                 vs = validshape.shape
                 vsht = vs.cpt[2]
                 valid_vec = vs.primary_axis_vector
                 valid_axis = vs.vector2axis(valid_vec)
                 OUT_LST = []
-                
+
                 #Get validshape matrix
                 valid_matrix = vs.base_matrix
                 if not valid_matrix: valid_matrix = vs.set_base_matrix()
@@ -977,14 +977,14 @@ class Grammar:
                     outer_crv = rc.Geometry.Curve.CreateControlPointCurve(outer_edge)
                     #debug.append(outer_crv)
                     outer_crv_lst.append(outer_crv)
-                    
+
                 edge_pts = vs.match_edges_with_refs(valid_matrix,outer_crv_lst,norm_ht=vsht,dist_tol=10.0,angle_tol=5.0,to_front=True)
                 if edge_pts:
                     out_vec = edge_pts[0][1] - edge_pts[0][0]
                     edge_crv = rc.Geometry.Line(edge_pts[0][0],edge_pts[0][1])
                     #debug.append(edge_crv)
                     OUT_LST.append((out_vec,edge_crv))
-                
+
                 for out in OUT_LST:
                     out_axis = vs.vector2axis(out[0])
                     if out_axis == dimaxis:
@@ -996,17 +996,17 @@ class Grammar:
                         if not self.is_near_zero(rs.Distance(closept,p1),1):
                             dir_cut = 0
                 #fix this!! THIS IS WHERE BLOCK FACING STREET ERROR IS HAPPENING
-                
+
                 if dir_cut<0.5:
                     dir_cut = 1
                 else:
                     dir_cut = 0
-                
+
                 simple_ratio = validshape.shape.calculate_ratio_from_dist(dimaxis,dimkeep,dir_=dir_cut)
                 #print simple_ratio
                 #print '---'
-                
-                
+
+
                 validshape_param_lst = [1.,0.0,0.,simple_ratio,"simple_divide",dimaxis]
                 try:
                     self.divide(validshape,validshape_param_lst)
@@ -1026,7 +1026,7 @@ class Grammar:
             #xkeep is always < ykeep
             x_keep_,x_omit_ = x_keep_omit_[0],x_keep_omit_[1]
             y_keep_,y_omit_ = y_keep_omit_[0],y_keep_omit_[1]
-            
+
             #Make first division
             divbydim = (x_keep_+x_omit_,y_keep_+y_omit_)
             dummy_ratio, dummy_axis, dummy_deg = 0.5, "NS", 0.
@@ -1046,11 +1046,11 @@ class Grammar:
             if "EW" in cut_axis:##then the we are cutting y axis, give y dims
                 dimprimekeep = y_keep_
                 dimsecondkeep = x_keep_
-                
+
             else:
                 dimprimekeep = x_keep_
                 dimsecondkeep = y_keep_
-            
+
             lstfirkeepnodes = helper_simple_divide(topo_child_lst,dimprimekeep,cut_axis,x_keep_,y_keep_)
             lstseckeepnodes = helper_simple_divide(lstfirkeepnodes,dimsecondkeep,cut_axis_alt,x_keep_,y_keep_)
             #debug.extend(map(lambda n:n.shape.geom,lstseckeepnodes))
@@ -1106,11 +1106,11 @@ class Grammar:
         y_keep_omit = PD_['y_keep_omit']
         #Check collision detection
         add_collision = PD_['add_collision']
-        
+
         #Parse the data
         x_keep_omit = map(lambda s: float(s), x_keep_omit.split(','))
         y_keep_omit = map(lambda s: float(s), y_keep_omit.split(','))
-        
+
         temp_node_topo = temp_node_#copy.deepcopy(sep_ref_node)
 
         ## Get normal to exterior srf
@@ -1133,7 +1133,7 @@ class Grammar:
             del omit
 
         temp_node_topo.loc = []
-        
+
         if shapes2keep:
             #Flatten tree
             temp_node_topo = self.flatten_node_tree_single_child(shapes2keep,temp_node_topo,grammar="shape2keep",empty_parent=True)
@@ -1144,11 +1144,11 @@ class Grammar:
                 sc.sticky['GLOBAL_COLLISION_LIST'] = []
             if add_collision != []:
                 sc.sticky['GLOBAL_COLLISION_LIST'].extend(add_collision)
-            
+
             #This needs a rewrite.
             sc.sticky['GLOBAL_COLLISION_LIST'] = []
             #print 'GLOBAL_COLLISION', sc.sticky['GLOBAL_COLLISION_LIST']
-            
+
             offset_dist = x_keep_omit[1]
             seperate_tol = 0.5
             # Check shape separation
@@ -1223,7 +1223,7 @@ class Grammar:
                     slice_ht = [temp_node_.shape.ht]
                 else:
                     slice_ht = map(lambda s: float(s),slice_ht)
-                
+
             #Extract topo
             for slht in slice_ht:
                 chld = extract_topo(temp_node_,slht)
@@ -1262,21 +1262,21 @@ class Grammar:
         ht_ref = PD_['height_ref']
 
         ### If ht_ and ht_ref have values: then ht_ is taken as a maximum!!
-        
+
         if ht_ref:
             ht_type = self.helper_get_type(ht_ref)
             if ht_type != "geometry":
                 ht_ref = self.helper_get_ref_node(ht_ref,temp_node_)
-            
+
             ht_ref = self.helper_UI_geom(ht_ref)
             ht_ref_shape = ht_ref.shape
-            
+
             #Check to make sure ref is not the same
             if abs(ht_ref_shape.ht-temp_node_.shape.ht)>1.0:
                 ht_w_ref = ht_ref_shape.ht - temp_node_.shape.ht
             else:
                 ht_w_ref = temp_node_.shape.ht
-            
+
             #Check if maxht is defined
             ht_copy = copy.copy(ht_)
             if ht_==True:
@@ -1289,15 +1289,15 @@ class Grammar:
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
             ht_ += random.randrange(randht_lo,randht_hi)
-        
-        
+
+
         n_ = self.helper_UI_geom(temp_node_)
         #n_ = temp_node_
         #print 'labelchk', temp_node_.parent.parent.grammar.type['label']
         if type(ht_)==type('') and 'bula' in ht_:
             setht_ = height_from_bula(n_)
         else:
-            setht_ = ht_#- n_.shape.cpt[2] 
+            setht_ = ht_#- n_.shape.cpt[2]
         n_.shape.op_extrude(setht_)
         #print '---'
         return temp_node_
@@ -1484,14 +1484,14 @@ class Grammar:
                             split_crv = rs.ScaleObject(split_crv,midpt,sc_)
                             #Check if refedge interesects the input geometry
                             #This is a huge time saver
-                            
+
                             if self.is_near_zero(cut_width__):
                                 intcrv = rc.Geometry.Intersect.Intersection.CurveCurve(curr_node_.shape.bottom_crv,rs.coercecurve(split_crv),0.001,0.001)
                                 if self.is_near_zero(intcrv.Count):
                                     #debug.append(rs.coercecurve(split_crv))
                                     #debug.append(curr_node_.shape.bottom_crv)
                                     continue
-                            
+
                             if True:#try:
                                 split_node_lst = []
                                 split_geoms = curr_node_.shape.op_split("NS",0.5,split_depth=cut_width__,split_line_ref=split_crv)
@@ -1520,7 +1520,7 @@ class Grammar:
                                             #debug.append(chk_offset)
                                             #debug.append(split_crv)
                                             #debug.append(split_node.shape.geom)
-                            #except:        
+                            #except:
                             #    pass## Split fail, so test the next line split
                         #Check if reach max of matrice len
                         matrice_max = len(matrice)==i+1
@@ -1845,7 +1845,7 @@ class Grammar:
         perimeterZoneDepth_ = PD_['perimeterZoneDepth_']
         temp_node_.shape.straight_skeleton(temp_node_,perimeterZoneDepth_,stepnum,)
         return temp_node_
-    
+
     def node2grammar(self,lst_node_,rule_in_,firstUINode=False):
         def helper_type2node(copy_node_,type_):
             #type: list of (dictionary of typology parameters)
@@ -1956,12 +1956,12 @@ class Grammar:
             lst_childs = temp_node
         else:
             lst_childs = temp_node.traverse_tree(lambda n:n,internal=False) #change this to based on inoput type
-        
-        
+
+
         ## Check freezing
         dead_lst_childs = filter(lambda n: n.grammar.type['freeze']==True,lst_childs)
         lst_childs = filter(lambda n:n.grammar.type['freeze']==False,lst_childs)
-        
+
         ## Finish
         return lst_childs, dead_lst_childs
     def main_UI(self,node_in_,rule_in_,label__):
@@ -2005,7 +2005,7 @@ class Grammar:
             #if no rules/label_rules node is just passed through
             IsFirst = True
             dead_lst_node_ = []
-            
+
             while len(rule_lst) > 0:
                 rule_ = rule_lst.pop(0)
                 #apply rule to current list of nodes, get child lists flat
@@ -2018,12 +2018,12 @@ class Grammar:
                 lst_node_ = lst_node_leaves
                 if len(lst_node_leaves) < 0.001:
                     break
-            
+
             for i,ng in enumerate(lst_node_):
                 if type(T) != type(ng):
                     ng = self.helper_geom2node(ng)
                     lst_node_[i] = ng
-            
+
             return lst_node_, dead_lst_node_
         T = Tree()
         lst_node_out = []
@@ -2038,7 +2038,7 @@ class Grammar:
             chk_input_len = True
         elif len(label__) <= 0.5:
             chk_input_len = True
-        
+
         #Check if rule has already propogated
         for n in node_in_:
             #If loc exist, then this rule is being reset
@@ -2060,8 +2060,8 @@ class Grammar:
                 nested_rule_dict = helper_nest_rules(label_rule_,rule_in_)
                 #make label a rule
                 #recursively create a child node derived from parent and apply a grammar rule
-                lst_node_out_,dead_node_ = helper_main_recurse(node_in_,nested_rule_dict)   
-            
+                lst_node_out_,dead_node_ = helper_main_recurse(node_in_,nested_rule_dict)
+
             else:
                 #print 'multiple labels'
                 #Map label num to label num if multiple labels
@@ -2075,11 +2075,11 @@ class Grammar:
                     lst_node_out_,dead_node_ = helper_main_recurse([node_],nested_rule_dict)
             lst_node_out.extend(lst_node_out_)
             dead_node_out.extend(dead_node_)
-            
+
         else:
             print 'Check the length of your inputs'
-         
-        
+
+
         return lst_node_out, dead_node_
 
 if True:
