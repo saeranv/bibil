@@ -242,7 +242,7 @@ class Grammar:
             if (midhtpt.Z - bothtpt.Z)/2. > 9.:
                 botmidpt = copy.copy(tnode.shape.cpt)
                 botmidpt.Z = ((midhtpt.Z - bothtpt.Z)/2.) - ((midhtpt.Z - bothtpt.Z)/2.)%3 + bothtpt.Z
-                htlst = [bothtpt,botmidpt,midhtpt,topmidpt,tophtpt]
+                htlst = [bothtpt,botmidpt,midhtpt,tophtpt]
 
 
         tnode.loc = []
@@ -1333,6 +1333,7 @@ class Grammar:
             #print ht_, ht_copy, ht_w_ref
 
         if randomize_ht:
+
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
             ht_ += random.randrange(randht_lo,randht_hi)
