@@ -242,11 +242,7 @@ class Grammar:
             if (midhtpt.Z - bothtpt.Z)/2. > 9.:
                 botmidpt = copy.copy(tnode.shape.cpt)
                 botmidpt.Z = ((midhtpt.Z - bothtpt.Z)/2.) - ((midhtpt.Z - bothtpt.Z)/2.)%3 + bothtpt.Z
-<<<<<<< HEAD
                 htlst = [bothtpt,botmidpt,midhtpt,tophtpt]
-=======
-                htlst = [bothtpt,botmidpt,midhtpt,topmidpt,tophtpt]
->>>>>>> 9bed19fe3cb8e0d9274fd06b74227a837a5bbdaa
 
 
         tnode.loc = []
@@ -295,7 +291,6 @@ class Grammar:
         zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
         zone_num = int(zone.name.split('_')[-1])
 
-<<<<<<< HEAD
         if 'ground' in hnode.grammar.type['label']:
             def process_ground_data(tnode_,ground_zone,ground_zone_num):
                 tnode_.grammar.type['ground_srf_data'] = []
@@ -341,8 +336,6 @@ class Grammar:
             return tnode
 
 
-=======
->>>>>>> 9bed19fe3cb8e0d9274fd06b74227a837a5bbdaa
         matrix = tnode.shape.base_matrix
         if not matrix:
             matrix = tnode.shape.set_base_matrix()
@@ -352,16 +345,13 @@ class Grammar:
         ref_edge = tnode.shape.match_edges_with_refs(matrix,[center],ht,dist_tol=dist_tol,angle_tol=angle_tol)
 
         #Match srf normals
-<<<<<<< HEAD
         if len(ref_edge)>0:
             srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
         else:
-            debug.append(tnode.shape.geom)
+            #debug.append(tnode.shape.geom)
             srf_normal = rc.Geometry.Vector3d(0,0,1)
-=======
         srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
 
->>>>>>> 9bed19fe3cb8e0d9274fd06b74227a837a5bbdaa
         #srf_normal.Unitize()
         srf_opaque = None
         srf_glass_lst = []
@@ -460,10 +450,7 @@ class Grammar:
         hnode = tnode_.backtrack_tree(lambda n:n.grammar.type.has_key('HBZone'))
         if 'ground' in hnode.grammar.type['label']:
             return tnode_
-<<<<<<< HEAD
-=======
 
->>>>>>> 9bed19fe3cb8e0d9274fd06b74227a837a5bbdaa
         foobem = lambda n: n.grammar.type['grammar']=='abstract_bem'
         bemnode = tnode_.backtrack_tree(foobem,accumulate=False)
         thermnode = tnode_.parent.parent
