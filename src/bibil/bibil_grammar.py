@@ -242,7 +242,7 @@ class Grammar:
             if (midhtpt.Z - bothtpt.Z)/2. > 9.:
                 botmidpt = copy.copy(tnode.shape.cpt)
                 botmidpt.Z = ((midhtpt.Z - bothtpt.Z)/2.) - ((midhtpt.Z - bothtpt.Z)/2.)%3 + bothtpt.Z
-                htlst = [bothtpt,botmidpt,midhtpt,topmidpt,tophtpt]
+                htlst = [bothtpt,botmidpt,midhtpt,tophtpt]
 
 
         tnode.loc = []
@@ -291,6 +291,51 @@ class Grammar:
         zone = hb_hive.visualizeFromHoneybeeHive([HZone])[0]
         zone_num = int(zone.name.split('_')[-1])
 
+        if 'ground' in hnode.grammar.type['label']:
+            def process_ground_data(tnode_,ground_zone,ground_zone_num):
+                tnode_.grammar.type['ground_srf_data'] = []
+                tnode_.grammar.type['ground_srf'] = []
+                tnode_.grammar.type['ground_srf_pt'] = []
+                tnode_.grammar.type['ground_srf_geom'] = []
+
+                #Find the srf data for ground zone
+                valid_srf_index_dict = {}
+                for i in xrange(len(srf_data)):
+                    info4srf = srf_data[i][2]
+
+                    if not 'Roof' in info4srf:
+                        continue
+                    srfdatalst = info4srf.split('_')
+                    zone_num_chk = int(srfdatalst[1])
+                    if zone_num_chk != ground_zone_num:
+                        continue
+                    srf_num_chk = srfdatalst[3].split(':')[0]
+
+                    valid_srf_index_dict[srf_num_chk] = i
+
+                valid_srf_obj = []
+                #Sort srf in zone.surface
+                for i in xrange(len(ground_zone.surfaces)):
+                    srf = ground_zone.surfaces[i]
+                    srfnumchk = srf.name.split('_')[-1]
+                    if not valid_srf_index_dict.has_key(srfnumchk):
+                        continue
+
+                    srfindex = valid_srf_index_dict[srfnumchk]
+
+                    srf_temp_lst = srf_data[srfindex][7:]
+                    srf_temp_avg = reduce(lambda x,y:x+y,srf_temp_lst)/float(len(srf_temp_lst))
+                    tnode_.grammar.type['ground_srf_data'].append(srf_temp_avg)
+                    tnode_.grammar.type['ground_srf'].append(srf)
+                    tnode_.grammar.type['ground_srf_pt'].append(srf.cenPt)
+                    tnode_.grammar.type['ground_srf_geom'].append(srf.geometry)
+                    #zerovec = rc.Geometry.Vector3d(0,0,0)
+                    #tnode.grammar.type['ground_srf_normal'].append(zerovec)
+                    #print '--'
+            process_ground_data(tnode,zone,zone_num)
+            return tnode
+
+
         matrix = tnode.shape.base_matrix
         if not matrix:
             matrix = tnode.shape.set_base_matrix()
@@ -300,6 +345,11 @@ class Grammar:
         ref_edge = tnode.shape.match_edges_with_refs(matrix,[center],ht,dist_tol=dist_tol,angle_tol=angle_tol)
 
         #Match srf normals
+        if len(ref_edge)>0:
+            srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
+        else:
+            #debug.append(tnode.shape.geom)
+            srf_normal = rc.Geometry.Vector3d(0,0,1)
         srf_normal = tnode.shape.get_normal_point_inwards(ref_edge[0],to_outside=True)
 
         #srf_normal.Unitize()
@@ -1286,6 +1336,7 @@ class Grammar:
             #print ht_, ht_copy, ht_w_ref
 
         if randomize_ht:
+
             random_bounds = map(lambda r: int(float(r)),randomize_ht.split('>'))
             randht_lo,randht_hi = random_bounds[0],random_bounds[1]
             ht_ += random.randrange(randht_lo,randht_hi)
